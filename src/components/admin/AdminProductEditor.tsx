@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Sparkles } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { CATEGORIES, BRANDS, CONDITIONS, type VariantInput } from "@contracts/types";
+import { IPHONE_CATALOG } from "@/lib/iphoneCatalog";
 
 type FormState = {
   name: string;
@@ -39,6 +40,16 @@ export function detectColorHex(name: string): string | null {
     .trim();
 
   if (!n) return null;
+
+  // Busca no catálogo oficial Apple
+  for (const model of IPHONE_CATALOG) {
+    for (const c of model.colors) {
+      const cNorm = c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (cNorm === n || n.includes(cNorm) || cNorm.includes(n)) {
+        return c.hex;
+      }
+    }
+  }
 
   // Titânios do iPhone
   if (n.includes("natural titanium") || n.includes("titanio natural")) return "#bebaa7";
@@ -179,6 +190,47 @@ export default function AdminProductEditor({
       <h2 className="mt-2 font-display text-2xl font-bold text-ink">
         {productId != null ? "Editar produto" : "Novo produto"}
       </h2>
+
+      {/* SELETOR INTELIGENTE DE MODELO DA APPLE */}
+      <div className="mt-4 rounded-2xl border-2 border-ink bg-brand/20 p-4 shadow-[4px_4px_0_0_#141414]">
+        <div className="flex items-center gap-2 font-display text-sm font-bold text-ink">
+          <Sparkles className="h-4 w-4 text-ink" />
+          <span>Preenchimento Inteligente por Modelo Oficial Apple:</span>
+        </div>
+        <p className="mt-0.5 text-xs font-medium text-neutral-600">
+          Selecione o iPhone para preencher nome, marca, categoria e gerar todas as variantes com cores oficiais automaticamente!
+        </p>
+        <select
+          onChange={(e) => {
+            const m = IPHONE_CATALOG.find((x) => x.name === e.target.value);
+            if (!m) return;
+            const defaultStorage = m.capacities[0] || "128GB";
+            const generatedVariants = m.colors.map((c) => ({
+              version: "",
+              storage: defaultStorage,
+              color: c.name,
+              colorHex: c.hex,
+              priceReais: "",
+              available: true,
+            }));
+            setForm((f) => ({
+              ...f,
+              name: m.name,
+              brand: "Apple",
+              category: f.condition === "seminovo" ? "iphone_seminovo" : "iphone_lacrado",
+              variants: generatedVariants,
+            }));
+          }}
+          className="mt-2.5 w-full rounded-xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-bold text-ink outline-none cursor-pointer hover:bg-neutral-50"
+        >
+          <option value="">-- Escolha o iPhone (Ex: iPhone 16 Pro Max, iPhone 15...) --</option>
+          {IPHONE_CATALOG.map((m) => (
+            <option key={m.name} value={m.name}>
+              📱 {m.name} ({m.year}) — Cores: {m.colors.map((c) => c.name).join(", ")}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Field label="Nome do produto *">
