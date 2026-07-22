@@ -1,5 +1,5 @@
 import { createRouter, publicQuery } from "./middleware";
-import { getDb } from "./queries/connection";
+import { getDb, ensureTables } from "./queries/connection";
 import { products, variants, settings } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -60,6 +60,7 @@ export const adminRouter = createRouter({
     .mutation(async ({ ctx, input }) => {
       requireAdmin(ctx.req);
       const db = getDb();
+      await ensureTables();
       await db
         .insert(settings)
         .values({ key: SETTING_KEYS.adminPassword, value: input.password })
@@ -69,11 +70,17 @@ export const adminRouter = createRouter({
 
   products: publicQuery.query(async ({ ctx }) => {
     requireAdmin(ctx.req);
-    const db = getDb();
-    return db.query.products.findMany({
-      with: { variants: true },
-      orderBy: (p, { desc }) => [desc(p.createdAt)],
-    });
+    try {
+      const db = getDb();
+      await ensureTables();
+      return await db.query.products.findMany({
+        with: { variants: true },
+        orderBy: (p, { desc }) => [desc(p.createdAt)],
+      });
+    } catch (err) {
+      console.error("Erro ao consultar produtos admin:", err);
+      return [];
+    }
   }),
 
   upsertProduct: publicQuery
@@ -81,6 +88,7 @@ export const adminRouter = createRouter({
     .mutation(async ({ ctx, input }) => {
       requireAdmin(ctx.req);
       const db = getDb();
+      await ensureTables();
       const { variants: variantList, id, ...data } = input;
 
       const productPayload = {

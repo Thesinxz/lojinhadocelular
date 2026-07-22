@@ -1,5 +1,5 @@
 import { createRouter, publicQuery } from "./middleware";
-import { getDb } from "./queries/connection";
+import { getDb, ensureTables } from "./queries/connection";
 import { products } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -36,36 +36,48 @@ export const shopRouter = createRouter({
         "Cache-Control",
         "public, max-age=30, stale-while-revalidate=300",
       );
-      const db = getDb();
-      const filters = [eq(products.active, true)];
-      if (input?.category)
-        filters.push(
-          eq(
-            products.category,
-            input.category as
-              | "iphone_lacrado"
-              | "iphone_seminovo"
-              | "android"
-              | "acessorio",
-          ),
-        );
-      if (input?.brand) filters.push(eq(products.brand, input.brand));
+      try {
+        const db = getDb();
+        await ensureTables();
+        const filters = [eq(products.active, true)];
+        if (input?.category)
+          filters.push(
+            eq(
+              products.category,
+              input.category as
+                | "iphone_lacrado"
+                | "iphone_seminovo"
+                | "android"
+                | "acessorio",
+            ),
+          );
+        if (input?.brand) filters.push(eq(products.brand, input.brand));
 
-      return db.query.products.findMany({
-        where: and(...filters),
-        with: { variants: true },
-        orderBy: (p, { desc }) => [desc(p.featured), desc(p.createdAt)],
-      });
+        return await db.query.products.findMany({
+          where: and(...filters),
+          with: { variants: true },
+          orderBy: (p, { desc }) => [desc(p.featured), desc(p.createdAt)],
+        });
+      } catch (err) {
+        console.error("Erro ao buscar produtos públicos:", err);
+        return [];
+      }
     }),
 
   featured: publicQuery.query(async () => {
-    const db = getDb();
-    return db.query.products.findMany({
-      where: and(eq(products.active, true), eq(products.featured, true)),
-      with: { variants: true },
-      orderBy: (p, { desc }) => [desc(p.createdAt)],
-      limit: 8,
-    });
+    try {
+      const db = getDb();
+      await ensureTables();
+      return await db.query.products.findMany({
+        where: and(eq(products.active, true), eq(products.featured, true)),
+        with: { variants: true },
+        orderBy: (p, { desc }) => [desc(p.createdAt)],
+        limit: 8,
+      });
+    } catch (err) {
+      console.error("Erro ao buscar destaques públicos:", err);
+      return [];
+    }
   }),
 
   product: publicQuery
