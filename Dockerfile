@@ -4,9 +4,9 @@ WORKDIR /app
 # Ativa o pnpm nativo
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# Copia manifestos e instala dependências
+# Copia manifestos e instala TODAS as dependências (dev + prod) para o build
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+RUN pnpm install --production=false
 
 # Copia código-fonte e compila (Frontend + API)
 COPY . .
