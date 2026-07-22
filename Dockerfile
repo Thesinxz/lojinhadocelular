@@ -1,18 +1,35 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Instala dependências
-COPY package*.json ./
-RUN npm install
+# Ativa o pnpm nativo do Node.js
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copia o código-fonte e faz a compilação
+# Copia manifestos e instala dependências
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install
+
+# Copia código-fonte e executa a compilação (Frontend + API)
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
-# Configuração de produção
+# Estágio final de produção
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Ativa o pnpm nativo
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Instala apenas dependências de produção
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod
+
+# Copia artefatos compilados
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "dist/boot.js"]
