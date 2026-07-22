@@ -1,4 +1,4 @@
-import { drizzle } from "drizzle-orm/mysql2";
+import { MySql2Database, drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { env } from "../lib/env";
 import * as schema from "@db/schema";
@@ -6,7 +6,7 @@ import * as relations from "@db/relations";
 
 const fullSchema = { ...schema, ...relations };
 
-let instance: any;
+let instance: MySql2Database<typeof fullSchema>;
 let pool: mysql.Pool | undefined;
 let tablesEnsured = false;
 
@@ -55,7 +55,7 @@ export async function ensureTables() {
   }
 }
 
-export function getDb() {
+export function getDb(): MySql2Database<typeof fullSchema> {
   if (!instance) {
     pool = mysql.createPool(env.databaseUrl);
     ensureTables().catch(() => {});
