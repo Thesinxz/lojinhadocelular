@@ -27,17 +27,22 @@ export default function Header() {
 
           {/* Desktop */}
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`rounded-full px-4 py-2 text-sm font-semibold text-ink transition hover:bg-ink hover:text-brand ${
-                  location.pathname === item.to ? "bg-ink text-brand" : ""
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV.map((item) => {
+              const active = location.pathname === item.to;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                    active
+                      ? "bg-ink !text-brand"
+                      : "text-ink hover:bg-ink hover:text-brand"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Mobile toggle */}
