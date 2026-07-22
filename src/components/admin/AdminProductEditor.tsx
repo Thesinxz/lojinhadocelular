@@ -92,6 +92,37 @@ export default function AdminProductEditor({
   const utils = trpc.useUtils();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState("");
+  const [showNameDropdown, setShowNameDropdown] = useState(false);
+
+  const selectedModel = IPHONE_CATALOG.find(
+    (m) => m.name.toLowerCase() === form.name.toLowerCase().trim(),
+  );
+
+  const matchedModels = form.name.trim()
+    ? IPHONE_CATALOG.filter((m) =>
+        m.name.toLowerCase().includes(form.name.toLowerCase().trim()),
+      )
+    : IPHONE_CATALOG;
+
+  function selectModel(m: (typeof IPHONE_CATALOG)[number]) {
+    const defaultStorage = m.capacities[0] || "128GB";
+    const generatedVariants = m.colors.map((c) => ({
+      version: "",
+      storage: defaultStorage,
+      color: c.name,
+      colorHex: c.hex,
+      priceReais: "",
+      available: true,
+    }));
+    setForm((f) => ({
+      ...f,
+      name: m.name,
+      brand: "Apple",
+      category: f.condition === "seminovo" ? "iphone_seminovo" : "iphone_lacrado",
+      variants: generatedVariants,
+    }));
+    setShowNameDropdown(false);
+  }
 
   const products = trpc.admin.products.useQuery();
   const upsert = trpc.admin.upsertProduct.useMutation({
@@ -170,7 +201,6 @@ export default function AdminProductEditor({
       variants,
     });
   }
-
   function setVariant(i: number, patch: Partial<FormState["variants"][number]>) {
     setForm((f) => ({
       ...f,
@@ -191,57 +221,48 @@ export default function AdminProductEditor({
         {productId != null ? "Editar produto" : "Novo produto"}
       </h2>
 
-      {/* SELETOR INTELIGENTE DE MODELO DA APPLE */}
-      <div className="mt-4 rounded-2xl border-2 border-ink bg-brand/20 p-4 shadow-[4px_4px_0_0_#141414]">
-        <div className="flex items-center gap-2 font-display text-sm font-bold text-ink">
-          <Sparkles className="h-4 w-4 text-ink" />
-          <span>Preenchimento Inteligente por Modelo Oficial Apple:</span>
-        </div>
-        <p className="mt-0.5 text-xs font-medium text-neutral-600">
-          Selecione o iPhone para preencher nome, marca, categoria e gerar todas as variantes com cores oficiais automaticamente!
-        </p>
-        <select
-          onChange={(e) => {
-            const m = IPHONE_CATALOG.find((x) => x.name === e.target.value);
-            if (!m) return;
-            const defaultStorage = m.capacities[0] || "128GB";
-            const generatedVariants = m.colors.map((c) => ({
-              version: "",
-              storage: defaultStorage,
-              color: c.name,
-              colorHex: c.hex,
-              priceReais: "",
-              available: true,
-            }));
-            setForm((f) => ({
-              ...f,
-              name: m.name,
-              brand: "Apple",
-              category: f.condition === "seminovo" ? "iphone_seminovo" : "iphone_lacrado",
-              variants: generatedVariants,
-            }));
-          }}
-          className="mt-2.5 w-full rounded-xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-bold text-ink outline-none cursor-pointer hover:bg-neutral-50"
-        >
-          <option value="">-- Escolha o iPhone (Ex: iPhone 16 Pro Max, iPhone 15...) --</option>
-          {IPHONE_CATALOG.map((m) => (
-            <option key={m.name} value={m.name}>
-              📱 {m.name} ({m.year}) — Cores: {m.colors.map((c) => c.name).join(", ")}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Field label="Nome do produto *">
-          <input
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Ex: iPhone 15"
-            className={inputCls}
-          />
-        </Field>
+        {/* NOME DO PRODUTO COM DROPDOWN INTELIGENTE */}
+        <div className="relative">
+          <Field label="Nome do produto *">
+            <input
+              required
+              value={form.name}
+              onFocus={() => setShowNameDropdown(true)}
+              onBlur={() => setTimeout(() => setShowNameDropdown(false), 200)}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                setShowNameDropdown(true);
+              }}
+              placeholder="Digite ex: iPhone 16 Pro Max..."
+              className={inputCls}
+            />
+          </Field>
+          {showNameDropdown && matchedModels.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-2xl border-2 border-ink bg-white shadow-xl">
+              <div className="bg-neutral-100 px-3 py-1.5 text-[11px] font-bold uppercase text-neutral-500">
+                Modelos Apple Sugeridos (clique para preencher):
+              </div>
+              {matchedModels.map((m) => (
+                <button
+                  key={m.name}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectModel(m);
+                  }}
+                  className="flex w-full items-center justify-between border-b border-neutral-100 px-4 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-brand/30"
+                >
+                  <span className="font-bold">📱 {m.name}</span>
+                  <span className="truncate max-w-[200px] text-xs text-neutral-500">
+                    {m.colors.map((c) => c.name).join(", ")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <Field label="Marca *">
           <select
             value={form.brand}
@@ -336,7 +357,7 @@ export default function AdminProductEditor({
                 ...form,
                 variants: [
                   ...form.variants,
-                  { version: "", storage: "128GB", color: "", colorHex: "#1d1d1f", priceReais: "", available: true },
+                  { version: "", storage: selectedModel?.capacities[0] || "128GB", color: "", colorHex: "#1d1d1f", priceReais: "", available: true },
                 ],
               })
             }
@@ -350,148 +371,129 @@ export default function AdminProductEditor({
           "Disponível" para aparecer no site como opção esgotada (não clicável).
         </p>
 
-        {/* BOTÕES DE GERAÇÃO RÁPIDA DE VARIANTES */}
-        <div className="mt-4 rounded-2xl border-2 border-dashed border-ink/20 bg-brand/10 p-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-ink/70">
-            ⚡ Preenchimento Rápido (Clique para criar variantes automáticas):
-          </p>
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const newVars = [
-                  { version: "", storage: "256GB", color: "Desert Titanium", colorHex: "#c6aa91", priceReais: "", available: true },
-                  { version: "", storage: "256GB", color: "Natural Titanium", colorHex: "#bebaa7", priceReais: "", available: true },
-                  { version: "", storage: "256GB", color: "White Titanium", colorHex: "#f2f1ed", priceReais: "", available: true },
-                  { version: "", storage: "256GB", color: "Black Titanium", colorHex: "#3c3b37", priceReais: "", available: true },
-                ];
-                setForm((f) => ({
-                  ...f,
-                  variants: f.variants.length === 1 && !f.variants[0].priceReais ? newVars : [...f.variants, ...newVars],
-                }));
-              }}
-              className="rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
-            >
-              📱 4 Cores iPhone 16 Pro (Desert, Natural, White, Black)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const newVars = [
-                  { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", priceReais: "", available: true },
-                  { version: "", storage: "128GB", color: "Azul", colorHex: "#a7c1d9", priceReais: "", available: true },
-                  { version: "", storage: "128GB", color: "Rosa", colorHex: "#faddd7", priceReais: "", available: true },
-                  { version: "", storage: "128GB", color: "Verde", colorHex: "#475c4d", priceReais: "", available: true },
-                ];
-                setForm((f) => ({
-                  ...f,
-                  variants: f.variants.length === 1 && !f.variants[0].priceReais ? newVars : [...f.variants, ...newVars],
-                }));
-              }}
-              className="rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
-            >
-              📱 Cores Padrão iPhone (Preto, Azul, Rosa, Verde)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const newVars = [
-                  { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", priceReais: "", available: true },
-                  { version: "", storage: "128GB", color: "Branco", colorHex: "#f7f7f7", priceReais: "", available: true },
-                ];
-                setForm((f) => ({
-                  ...f,
-                  variants: f.variants.length === 1 && !f.variants[0].priceReais ? newVars : [...f.variants, ...newVars],
-                }));
-              }}
-              className="rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
-            >
-              ⚪⚫ Básico (Preto e Branco)
-            </button>
-          </div>
-
-          {/* Chips de Cores Rápidas */}
-          <div className="mt-3 border-t border-ink/10 pt-3">
-            <p className="mb-2 text-[11px] font-bold uppercase text-neutral-500">
-              Adicionar cor individual com 1-clique:
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { name: "Desert Titanium", hex: "#c6aa91" },
-                { name: "Natural Titanium", hex: "#bebaa7" },
-                { name: "White Titanium", hex: "#f2f1ed" },
-                { name: "Black Titanium", hex: "#3c3b37" },
-                { name: "Dourado", hex: "#fae7cf" },
-                { name: "Prateado", hex: "#e2e4e1" },
-                { name: "Grafite", hex: "#545351" },
-                { name: "Meia-noite", hex: "#1b242d" },
-                { name: "Estelar", hex: "#f0e9d7" },
-                { name: "Preto", hex: "#1d1d1f" },
-                { name: "Branco", hex: "#f7f7f7" },
-                { name: "Azul", hex: "#a7c1d9" },
-                { name: "Rosa", hex: "#faddd7" },
-                { name: "Verde", hex: "#475c4d" },
-                { name: "Roxo", hex: "#63587b" },
-              ].map((c) => (
+        {/* CORES OFICIAIS DO MODELO */}
+        <div className="mt-4 rounded-2xl border-2 border-ink bg-neutral-50 p-4">
+          {selectedModel ? (
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-ink">
+                  🎨 Cores Oficiais do {selectedModel.name}:
+                </p>
                 <button
-                  key={c.name}
                   type="button"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      variants: [
-                        ...f.variants,
-                        {
-                          version: "",
-                          storage: f.variants[f.variants.length - 1]?.storage || "128GB",
-                          color: c.name,
-                          colorHex: c.hex,
-                          priceReais: "",
-                          available: true,
-                        },
-                      ],
-                    }))
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-full border border-ink/30 bg-white px-2.5 py-1 text-xs font-semibold text-ink transition hover:border-ink hover:bg-brand/20"
+                  onClick={() => selectModel(selectedModel)}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-ink underline hover:text-brand"
                 >
-                  <span
-                    className="h-3 w-3 rounded-full border border-ink/30"
-                    style={{ backgroundColor: c.hex }}
-                  />
-                  + {c.name}
+                  <Sparkles className="h-3.5 w-3.5 text-brand" /> Preencher todas as cores do {selectedModel.name}
                 </button>
-              ))}
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {selectedModel.colors.map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        variants: [
+                          ...f.variants,
+                          {
+                            version: "",
+                            storage: f.variants[f.variants.length - 1]?.storage || selectedModel.capacities[0] || "128GB",
+                            color: c.name,
+                            colorHex: c.hex,
+                            priceReais: "",
+                            available: true,
+                          },
+                        ],
+                      }))
+                    }
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
+                  >
+                    <span
+                      className="h-3.5 w-3.5 rounded-full border border-ink/30"
+                      style={{ backgroundColor: c.hex }}
+                    />
+                    + {c.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                💡 Clique para adicionar uma cor comum:
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[
+                  { name: "Preto", hex: "#1d1d1f" },
+                  { name: "Branco", hex: "#f7f7f7" },
+                  { name: "Dourado", hex: "#fae7cf" },
+                  { name: "Prateado", hex: "#e2e4e1" },
+                  { name: "Grafite", hex: "#545351" },
+                  { name: "Azul", hex: "#a7c1d9" },
+                  { name: "Rosa", hex: "#faddd7" },
+                  { name: "Verde", hex: "#475c4d" },
+                  { name: "Roxo", hex: "#63587b" },
+                ].map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        variants: [
+                          ...f.variants,
+                          {
+                            version: "",
+                            storage: f.variants[f.variants.length - 1]?.storage || "128GB",
+                            color: c.name,
+                            colorHex: c.hex,
+                            priceReais: "",
+                            available: true,
+                          },
+                        ],
+                      }))
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-full border border-ink/30 bg-white px-2.5 py-1 text-xs font-semibold text-ink transition hover:border-ink hover:bg-brand/20"
+                  >
+                    <span
+                      className="h-3 w-3 rounded-full border border-ink/30"
+                      style={{ backgroundColor: c.hex }}
+                    />
+                    + {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* DATALISTS PARA AUTOCOMPLETE */}
         <datalist id="storages_list">
-          <option value="64GB" />
-          <option value="128GB" />
-          <option value="256GB" />
-          <option value="512GB" />
-          <option value="1TB" />
+          {(selectedModel ? selectedModel.capacities : ["64GB", "128GB", "256GB", "512GB", "1TB"]).map((cap) => (
+            <option key={cap} value={cap} />
+          ))}
         </datalist>
 
         <datalist id="colors_list">
-          <option value="Desert Titanium" />
-          <option value="Natural Titanium" />
-          <option value="White Titanium" />
-          <option value="Black Titanium" />
-          <option value="Dourado" />
-          <option value="Prateado" />
-          <option value="Grafite" />
-          <option value="Meia-noite" />
-          <option value="Estelar" />
-          <option value="Preto" />
-          <option value="Branco" />
-          <option value="Azul" />
-          <option value="Rosa" />
-          <option value="Verde" />
-          <option value="Roxo" />
+          {(selectedModel
+            ? selectedModel.colors
+            : [
+                { name: "Preto" },
+                { name: "Branco" },
+                { name: "Dourado" },
+                { name: "Prateado" },
+                { name: "Grafite" },
+                { name: "Azul" },
+                { name: "Rosa" },
+                { name: "Verde" },
+                { name: "Roxo" },
+              ]
+          ).map((c) => (
+            <option key={c.name} value={c.name} />
+          ))}
         </datalist>
 
         <div className="mt-4 space-y-3">
