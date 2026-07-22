@@ -1,23 +1,22 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Ativa o pnpm nativo do Node.js
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Ativa o pnpm nativo
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 # Copia manifestos e instala dependências
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install
 
-# Copia código-fonte e executa a compilação (Frontend + API)
+# Copia código-fonte e compila (Frontend + API)
 COPY . .
 RUN pnpm run build
 
 # Estágio final de produção
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Ativa o pnpm nativo
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 ENV NODE_ENV=production
 ENV PORT=3000
