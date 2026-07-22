@@ -243,16 +243,30 @@ export default function Produto() {
           {/* Armazenamento */}
           <OptionGroup icon={<HardDrive className="h-4 w-4" />} label="Armazenamento">
             <div className="flex flex-wrap gap-2">
-              {derived.storages.map((st) => (
-                <OptionButton
-                  key={st}
-                  active={storage === st}
-                  disabled={!derived.storageAvailable(st)}
-                  onClick={() => pickStorage(st)}
-                >
-                  {st}
-                </OptionButton>
-              ))}
+              {derived.storages.map((st) => {
+                const ok = derived.storageAvailable(st);
+                const isSelected = storage === st;
+                return (
+                  <button
+                    key={st}
+                    onClick={() => pickStorage(st)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition ${
+                      isSelected
+                        ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
+                        : ok
+                          ? "border-ink/30 bg-white text-ink hover:border-ink"
+                          : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400 hover:border-ink/50"
+                    }`}
+                  >
+                    <span>{st}</span>
+                    {!ok && (
+                      <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                        Esgotado
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </OptionGroup>
 
@@ -261,24 +275,29 @@ export default function Produto() {
             <div className="flex flex-wrap gap-2">
               {derived.colors.map((c) => {
                 const ok = derived.colorAvailable(c);
+                const isSelected = color === c;
                 return (
                   <button
                     key={c}
-                    disabled={!ok}
-                    onClick={() => ok && setColor(c)}
-                    className={`flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-semibold transition ${
-                      color === c
-                        ? "border-ink bg-ink text-brand"
+                    onClick={() => setColor(c)}
+                    className={`flex items-center gap-2 rounded-full border-2 px-3.5 py-2 text-sm font-semibold transition ${
+                      isSelected
+                        ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
                         : ok
                           ? "border-ink/30 bg-white text-ink hover:border-ink"
-                          : "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-300 line-through"
+                          : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-500 hover:border-ink/50"
                     }`}
                   >
                     <span
-                      className={`h-4 w-4 rounded-full border border-ink/40 ${ok ? "" : "opacity-40"}`}
+                      className="h-4 w-4 rounded-full border border-ink/40 shrink-0"
                       style={{ backgroundColor: derived.colorHex(c) }}
                     />
-                    {c}
+                    <span>{c}</span>
+                    {!ok && (
+                      <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                        Esgotado
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -307,17 +326,22 @@ export default function Produto() {
                 </a>
               </>
             ) : (
-              <a
-                href={waLink(
-                  s.whatsappJardim,
-                  `Olá! Tenho interesse no ${product.name} ${version} ${storage} ${color}. Avise quando chegar?`,
-                )}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-4 font-display text-lg font-bold text-brand shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
-              >
-                <MessageCircle className="h-5 w-5" /> Avise-me quando chegar
-              </a>
+              <div className="space-y-2">
+                <p className="rounded-xl border-2 border-dashed border-red-300 bg-red-50 p-3 text-center text-xs font-bold text-red-700">
+                  ⚠️ Esta opção ({storage} - {color}) está esgotada no momento.
+                </p>
+                <a
+                  href={waLink(
+                    s.whatsappJardim,
+                    `Olá! Tenho interesse no ${product.name} ${version} ${storage} na cor ${color}. Podem me avisar quando chegar em estoque?`,
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-4 font-display text-lg font-bold text-brand shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
+                >
+                  <MessageCircle className="h-5 w-5" /> Avise-me no WhatsApp quando chegar
+                </a>
+              </div>
             )}
           </div>
 
@@ -384,9 +408,9 @@ function OptionButton({
       onClick={onClick}
       className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition ${
         active
-          ? "border-ink bg-ink text-brand"
+          ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
           : disabled
-            ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-300 line-through"
+            ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 opacity-70"
             : "border-ink/30 bg-white text-ink hover:border-ink"
       }`}
     >
