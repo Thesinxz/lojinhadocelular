@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Conceito 1 — Neo-Brutalista</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  body{font-family:Inter,sans-serif;background:#FEF201;color:#141414}
+  .font-display{font-family:'Space Grotesk',sans-serif}
+  .brutal{border:3px solid #141414;box-shadow:5px 5px 0 0 #141414}
+  .brutal-sm{border:2px solid #141414;box-shadow:3px 3px 0 0 #141414}
+</style>
+</head>
+<body class="mx-auto max-w-md min-h-screen md:max-w-5xl">
+
+  <!-- header -->
+  <header class="flex items-center justify-between px-4 py-3 border-b-4 border-black sticky top-0 bg-[#FEF201] z-10">
+    <div class="flex items-center gap-2">
+      <img src="/images/logo-icon.png" class="h-10 w-auto" alt="" />
+      <div class="leading-none">
+        <span class="font-display font-bold text-lg block">Lojinha</span>
+        <span class="font-display font-semibold text-xs block">do Celular</span>
+      </div>
+    </div>
+    <button class="brutal-sm bg-black text-[#FEF201] rounded-full px-4 py-1.5 text-xs font-bold">MENU</button>
+  </header>
+
+  <!-- hero -->
+  <section class="px-4 pt-6 pb-8">
+    <span class="brutal-sm inline-block bg-white rounded-full px-3 py-1 text-[10px] font-extrabold tracking-widest">✈️ IMPORTADOS DOS EUA</span>
+    <h1 class="font-display font-bold text-[42px] leading-[0.95] mt-3">SEU PRÓXIMO<br>iPHONE ESTÁ<br>AQUI.</h1>
+    <p class="mt-3 text-sm font-semibold text-black/70">Lacrados e seminovos com <b>1 ano de garantia</b>. Xiaomi, Realme, Tecno e assistência técnica.</p>
+    <div class="mt-5 flex gap-3">
+      <button class="brutal bg-black text-[#FEF201] rounded-xl px-5 py-3 font-display font-bold">VER CATÁLOGO →</button>
+      <button class="brutal bg-white rounded-xl px-5 py-3 font-display font-bold">📍 LOJAS</button>
+    </div>
+    <div class="mt-5 rotate-[-2deg] brutal-sm inline-block bg-white rounded-lg px-4 py-2 font-display font-bold text-sm">🛡️ 1 ANO DE GARANTIA</div>
+  </section>
+
+  <!-- categorias -->
+  <section class="px-4 pb-6">
+    <h2 class="font-display font-bold text-xl mb-3">O QUE VOCÊ PROCURA?</h2>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="brutal bg-white rounded-2xl p-4"><span class="text-2xl">✨</span><p class="font-display font-bold mt-1">iPhones Lacrados</p><p class="text-xs text-black/60">Na caixa, direto dos EUA</p></div>
+      <div class="brutal bg-black text-white rounded-2xl p-4"><span class="text-2xl">✅</span><p class="font-display font-bold mt-1">Seminovos</p><p class="text-xs text-white/60">Revisados + garantia</p></div>
+      <div class="brutal bg-white rounded-2xl p-4"><span class="text-2xl">🤖</span><p class="font-display font-bold mt-1">Android</p><p class="text-xs text-black/60">Xiaomi, Realme, Tecno</p></div>
+      <div class="brutal bg-white rounded-2xl p-4"><span class="text-2xl">🔧</span><p class="font-display font-bold mt-1">Manutenção</p><p class="text-xs text-black/60">Tela, bateria, conector</p></div>
+    </div>
+  </section>
+
+  <!-- produtos -->
+  <section class="px-4 pb-8">
+    <div class="flex items-end justify-between mb-3">
+      <h2 class="font-display font-bold text-xl">DESTAQUES</h2>
+      <span class="text-xs font-bold underline decoration-4 decoration-black/30">ver todos →</span>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="brutal bg-white rounded-2xl overflow-hidden">
+        <div class="relative">
+          <img src="https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&q=70" class="w-full aspect-square object-cover" alt="" />
+          <span class="absolute top-2 left-2 brutal-sm bg-[#FEF201] rounded-full px-2 py-0.5 text-[10px] font-extrabold">LACRADO</span>
+        </div>
+        <div class="p-3">
+          <p class="font-display font-bold">iPhone 15</p>
+          <p class="text-[10px] text-black/50 font-bold">128GB • 4 cores</p>
+          <p class="font-display font-bold text-lg mt-1">R$ 4.899</p>
+          <p class="text-[11px] font-semibold text-black/60">12x de R$ 475,21</p>
+        </div>
+      </div>
+      <div class="brutal bg-white rounded-2xl overflow-hidden">
+        <div class="relative">
+          <img src="https://images.unsplash.com/photo-1632661674596-df8be070a5c5?w=500&q=70" class="w-full aspect-square object-cover" alt="" />
+          <span class="absolute top-2 left-2 brutal-sm bg-black text-white rounded-full px-2 py-0.5 text-[10px] font-extrabold">SEMINOVO</span>
+        </div>
+        <div class="p-3">
+          <p class="font-display font-bold">iPhone 13</p>
+          <p class="text-[10px] text-black/50 font-bold">128GB • bateria 87%</p>
+          <p class="font-display font-bold text-lg mt-1">R$ 2.899</p>
+          <p class="text-[11px] font-semibold text-black/60">12x de R$ 281,06</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- cta -->
+  <section class="px-4 pb-10">
+    <div class="brutal bg-black rounded-3xl p-6 text-center">
+      <p class="font-display font-bold text-[#FEF201] text-2xl">"Comprou na Lojinha,<br>levou garantia."</p>
+      <button class="mt-4 w-full brutal bg-[#25D366] rounded-xl py-4 font-display font-bold text-lg">💬 WHATSAPP DA LOJA</button>
+    </div>
+    <a href="/mockups/index.html" class="block text-center mt-6 text-xs font-bold text-black/50 underline">← voltar aos 5 conceitos</a>
+  </section>
+</body>
+</html>

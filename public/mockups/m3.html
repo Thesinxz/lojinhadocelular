@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Conceito 3 — Dark Neon</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  body{font-family:Inter,sans-serif;background:#0a0a0a;color:#fff}
+  .font-display{font-family:'Space Grotesk',sans-serif}
+  .neon{color:#FEF201;text-shadow:0 0 24px rgba(254,242,1,.45)}
+  .glass{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(12px)}
+  .glow{box-shadow:0 0 40px rgba(254,242,1,.15)}
+</style>
+</head>
+<body class="mx-auto max-w-md min-h-screen md:max-w-5xl">
+
+  <header class="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0 bg-[#0a0a0a]/80 backdrop-blur z-10">
+    <div class="flex items-center gap-2">
+      <img src="/images/logo-icon.png" class="h-9 w-auto rounded-lg bg-[#FEF201] p-0.5" alt="" />
+      <span class="font-display font-bold">Lojinha<span class="neon">.</span></span>
+    </div>
+    <span class="text-xs font-bold text-[#FEF201] border border-[#FEF201]/40 rounded-full px-3 py-1">MENU</span>
+  </header>
+
+  <section class="px-5 pt-10 pb-8">
+    <span class="glass rounded-full px-4 py-1.5 text-[11px] font-bold text-[#FEF201] tracking-widest">✈ IMPORTADOS DOS EUA</span>
+    <h1 class="font-display font-bold text-[44px] leading-[0.98] mt-5">Seu próximo<br><span class="neon">iPhone</span> está<br>aqui.</h1>
+    <p class="mt-4 text-white/50 text-sm">Lacrados e seminovos com <b class="text-white">1 ano de garantia</b>. O melhor preço de Jardim e Guia Lopes.</p>
+    <div class="mt-6 flex gap-3">
+      <button class="flex-1 rounded-2xl bg-[#FEF201] py-4 font-display font-bold text-black glow">Ver catálogo</button>
+      <button class="glass rounded-2xl px-5 font-display font-bold text-[#FEF201]">📍 Lojas</button>
+    </div>
+  </section>
+
+  <section class="px-5 pb-8">
+    <div class="relative rounded-[28px] overflow-hidden glow border border-[#FEF201]/20">
+      <img src="https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&q=80" class="w-full aspect-[4/3] object-cover opacity-90" alt="" />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+      <div class="absolute bottom-4 left-4">
+        <p class="text-xs font-bold text-[#FEF201]">DESTAQUE DA SEMANA</p>
+        <p class="font-display font-bold text-2xl">iPhone 15 · 128GB</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="px-5 pb-8">
+    <h2 class="font-display font-bold text-xl mb-4">Em estoque <span class="neon">agora</span></h2>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="glass rounded-3xl overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&q=70" class="w-full aspect-square object-cover" alt="" />
+        <div class="p-3">
+          <p class="font-display font-bold">iPhone 15</p>
+          <p class="font-display font-bold text-[#FEF201] text-lg">R$ 4.899</p>
+          <p class="text-[11px] text-white/50">12x de R$ 475,21</p>
+        </div>
+      </div>
+      <div class="glass rounded-3xl overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1632661674596-df8be070a5c5?w=400&q=70" class="w-full aspect-square object-cover" alt="" />
+        <div class="p-3">
+          <p class="font-display font-bold">iPhone 13</p>
+          <p class="font-display font-bold text-[#FEF201] text-lg">R$ 2.899</p>
+          <p class="text-[11px] text-white/50">12x de R$ 281,06</p>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 glass rounded-2xl p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xl">🔧</span>
+        <div><p class="font-display font-bold text-sm">Manutenção expressa</p><p class="text-xs text-white/40">Tela, bateria e conector</p></div>
+      </div>
+      <span class="text-[#FEF201] font-bold">→</span>
+    </div>
+  </section>
+
+  <section class="px-5 pb-12">
+    <div class="rounded-[28px] bg-[#FEF201] p-6 text-black glow">
+      <p class="font-display font-bold text-xl">🛡️ 1 ano de garantia em todos os aparelhos</p>
+      <button class="mt-4 w-full rounded-2xl bg-black py-4 font-display font-bold text-[#FEF201]">Chamar no WhatsApp</button>
+    </div>
+    <a href="/mockups/index.html" class="block text-center mt-6 text-xs font-bold text-white/40 underline">← voltar aos 5 conceitos</a>
+  </section>
+</body>
+</html>
