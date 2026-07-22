@@ -191,7 +191,7 @@ function Slide({
       <div className="relative hidden items-center justify-center p-8 md:flex">
         <div className="relative h-full max-h-[70vh] w-full overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
           {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain p-6" />
           ) : (
             <div className="flex h-full items-center justify-center text-neutral-300">Sem foto</div>
           )}

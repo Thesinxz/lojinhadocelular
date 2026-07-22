@@ -147,7 +147,7 @@ export default function Produto() {
         {/* Imagem */}
         <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-neutral-100 shadow-[6px_6px_0_0_#141414]">
           {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} className="aspect-square w-full object-cover" />
+            <img src={product.imageUrl} alt={product.name} className="aspect-square w-full object-contain p-4" />
           ) : (
             <div className="flex aspect-square items-center justify-center text-neutral-300">Sem foto</div>
           )}
