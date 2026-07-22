@@ -83,12 +83,24 @@ export const adminRouter = createRouter({
       const db = getDb();
       const { variants: variantList, id, ...data } = input;
 
+      const productPayload = {
+        name: data.name,
+        brand: data.brand,
+        category: data.category,
+        condition: data.condition,
+        description: data.description || null,
+        imageUrl: data.imageUrl || null,
+        warranty: data.warranty || "1 ano de garantia",
+        featured: data.featured,
+        active: data.active,
+      };
+
       let productId: number;
       if (id) {
-        await db.update(products).set(data).where(eq(products.id, id));
+        await db.update(products).set(productPayload).where(eq(products.id, id));
         productId = id;
       } else {
-        const result = await db.insert(products).values(data);
+        const result = await db.insert(products).values(productPayload);
         productId = Number(result[0].insertId);
       }
 
