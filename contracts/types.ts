@@ -61,8 +61,8 @@ export const DEFAULT_FEES: Record<string, number> = {
 };
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
-  whatsapp_jardim: "5567999999999",
-  whatsapp_gll: "5567988888888",
+  whatsapp_jardim: "5567992086012",
+  whatsapp_gll: "5567998206533",
   address_jardim: "Av. Duque de Caxias, 486 - Jardim/MS",
   address_gll: "Rua Macias Barbosa, 2185 - Guia Lopes da Laguna/MS",
   maps_jardim: "https://www.google.com/maps/search/?api=1&query=Av.+Duque+de+Caxias+486+Jardim+MS",
