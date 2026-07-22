@@ -298,6 +298,150 @@ export default function AdminProductEditor({
           "Disponível" para aparecer no site como opção esgotada (não clicável).
         </p>
 
+        {/* BOTÕES DE GERAÇÃO RÁPIDA DE VARIANTES */}
+        <div className="mt-4 rounded-2xl border-2 border-dashed border-ink/20 bg-brand/10 p-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-ink/70">
+            ⚡ Preenchimento Rápido (Clique para criar variantes automáticas):
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const newVars = [
+                  { version: "", storage: "256GB", color: "Desert Titanium", colorHex: "#c6aa91", priceReais: "", available: true },
+                  { version: "", storage: "256GB", color: "Natural Titanium", colorHex: "#bebaa7", priceReais: "", available: true },
+                  { version: "", storage: "256GB", color: "White Titanium", colorHex: "#f2f1ed", priceReais: "", available: true },
+                  { version: "", storage: "256GB", color: "Black Titanium", colorHex: "#3c3b37", priceReais: "", available: true },
+                ];
+                setForm((f) => ({
+                  ...f,
+                  variants: f.variants.length === 1 && !f.variants[0].priceReais ? newVars : [...f.variants, ...newVars],
+                }));
+              }}
+              className="rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
+            >
+              📱 4 Cores iPhone 16 Pro (Desert, Natural, White, Black)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const newVars = [
+                  { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", priceReais: "", available: true },
+                  { version: "", storage: "128GB", color: "Azul", colorHex: "#a7c1d9", priceReais: "", available: true },
+                  { version: "", storage: "128GB", color: "Rosa", colorHex: "#faddd7", priceReais: "", available: true },
+                  { version: "", storage: "128GB", color: "Verde", colorHex: "#475c4d", priceReais: "", available: true },
+                ];
+                setForm((f) => ({
+                  ...f,
+                  variants: f.variants.length === 1 && !f.variants[0].priceReais ? newVars : [...f.variants, ...newVars],
+                }));
+              }}
+              className="rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
+            >
+              📱 Cores Padrão iPhone (Preto, Azul, Rosa, Verde)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const newVars = [
+                  { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", priceReais: "", available: true },
+                  { version: "", storage: "128GB", color: "Branco", colorHex: "#f7f7f7", priceReais: "", available: true },
+                ];
+                setForm((f) => ({
+                  ...f,
+                  variants: f.variants.length === 1 && !f.variants[0].priceReais ? newVars : [...f.variants, ...newVars],
+                }));
+              }}
+              className="rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
+            >
+              ⚪⚫ Básico (Preto e Branco)
+            </button>
+          </div>
+
+          {/* Chips de Cores Rápidas */}
+          <div className="mt-3 border-t border-ink/10 pt-3">
+            <p className="mb-2 text-[11px] font-bold uppercase text-neutral-500">
+              Adicionar cor individual com 1-clique:
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { name: "Desert Titanium", hex: "#c6aa91" },
+                { name: "Natural Titanium", hex: "#bebaa7" },
+                { name: "White Titanium", hex: "#f2f1ed" },
+                { name: "Black Titanium", hex: "#3c3b37" },
+                { name: "Dourado", hex: "#fae7cf" },
+                { name: "Prateado", hex: "#e2e4e1" },
+                { name: "Grafite", hex: "#545351" },
+                { name: "Meia-noite", hex: "#1b242d" },
+                { name: "Estelar", hex: "#f0e9d7" },
+                { name: "Preto", hex: "#1d1d1f" },
+                { name: "Branco", hex: "#f7f7f7" },
+                { name: "Azul", hex: "#a7c1d9" },
+                { name: "Rosa", hex: "#faddd7" },
+                { name: "Verde", hex: "#475c4d" },
+                { name: "Roxo", hex: "#63587b" },
+              ].map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      variants: [
+                        ...f.variants,
+                        {
+                          version: "",
+                          storage: f.variants[f.variants.length - 1]?.storage || "128GB",
+                          color: c.name,
+                          colorHex: c.hex,
+                          priceReais: "",
+                          available: true,
+                        },
+                      ],
+                    }))
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-full border border-ink/30 bg-white px-2.5 py-1 text-xs font-semibold text-ink transition hover:border-ink hover:bg-brand/20"
+                >
+                  <span
+                    className="h-3 w-3 rounded-full border border-ink/30"
+                    style={{ backgroundColor: c.hex }}
+                  />
+                  + {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* DATALISTS PARA AUTOCOMPLETE */}
+        <datalist id="storages_list">
+          <option value="64GB" />
+          <option value="128GB" />
+          <option value="256GB" />
+          <option value="512GB" />
+          <option value="1TB" />
+        </datalist>
+
+        <datalist id="colors_list">
+          <option value="Desert Titanium" />
+          <option value="Natural Titanium" />
+          <option value="White Titanium" />
+          <option value="Black Titanium" />
+          <option value="Dourado" />
+          <option value="Prateado" />
+          <option value="Grafite" />
+          <option value="Meia-noite" />
+          <option value="Estelar" />
+          <option value="Preto" />
+          <option value="Branco" />
+          <option value="Azul" />
+          <option value="Rosa" />
+          <option value="Verde" />
+          <option value="Roxo" />
+        </datalist>
+
         <div className="mt-4 space-y-3">
           {form.variants.map((v, i) => (
             <div key={i} className="rounded-xl border-2 border-ink/20 bg-neutral-50 p-3">
@@ -310,6 +454,7 @@ export default function AdminProductEditor({
                 />
                 <input
                   value={v.storage}
+                  list="storages_list"
                   onChange={(e) => setVariant(i, { storage: e.target.value })}
                   placeholder="128GB *"
                   required
@@ -317,6 +462,7 @@ export default function AdminProductEditor({
                 />
                 <input
                   value={v.color}
+                  list="colors_list"
                   onChange={(e) => {
                     const newColor = e.target.value;
                     const autoHex = detectColorHex(newColor);
