@@ -189,39 +189,49 @@ function Slide({
     () => product.variants.filter((v) => v.available),
     [product.variants],
   );
-  const minPriceCents = useMemo(
-    () => Math.min(...available.map((v) => v.priceCash)),
-    [available],
-  );
+
+  const priceCents = useMemo(() => {
+    const list = available.length > 0 ? available : product.variants;
+    return list.length > 0 ? Math.min(...list.map((v) => v.priceCash)) : 0;
+  }, [available, product.variants]);
+
   const fee = fees[String(installmentsMax)] ?? 0;
-  const installment = installmentFromFees(minPriceCents, installmentsMax, fee);
+  const installment = installmentFromFees(priceCents, installmentsMax, fee);
   const storages = useMemo(
-    () => [...new Set(available.map((v) => v.storage))],
-    [available],
+    () => [...new Set((available.length > 0 ? available : product.variants).map((v) => v.storage))],
+    [available, product.variants],
   );
-  const colors = useMemo(
-    () => [...new Map(available.map((v) => [v.color, v.colorHex ?? "#111"])).entries()],
-    [available],
-  );
+
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
 
-  // Lista de imagens (imagem principal + foto de cada cor disponível)
-  const imagesList = useMemo(() => {
-    const list: { url: string; color?: string; hex?: string }[] = [];
-    if (product.imageUrl) {
-      list.push({ url: product.imageUrl });
-    }
-    for (const v of available) {
-      if (v.imageUrl && !list.some((item) => item.url === v.imageUrl)) {
-        list.push({ url: v.imageUrl, color: v.color, hex: v.colorHex ?? undefined });
+  // Mapeia TODAS as cores cadastradas nas variantes do produto
+  const colorItems = useMemo(() => {
+    const map = new Map<string, { color: string; hex: string; imageUrl?: string }>();
+    const vars = product.variants;
+
+    for (const v of vars) {
+      if (!v.color) continue;
+      if (!map.has(v.color)) {
+        map.set(v.color, {
+          color: v.color,
+          hex: v.colorHex ?? "#111111",
+          imageUrl: v.imageUrl || product.imageUrl || undefined,
+        });
+      } else if (v.imageUrl && !map.get(v.color)?.imageUrl) {
+        map.get(v.color)!.imageUrl = v.imageUrl;
       }
     }
-    return list;
-  }, [product.id, product.imageUrl, available]);
 
-  // Foto exibida nesta passada do aparelho na TV
-  const activeImg = imagesList[colorIndex % Math.max(imagesList.length, 1)];
+    const result = Array.from(map.values());
+    if (result.length === 0 && product.imageUrl) {
+      return [{ color: "", hex: "#111111", imageUrl: product.imageUrl }];
+    }
+    return result;
+  }, [product.variants, product.imageUrl]);
+
+  // Foto e cor exibidas nesta passada do aparelho na TV
+  const activeItem = colorItems[colorIndex % Math.max(colorItems.length, 1)];
 
   const [qr, setQr] = useState("");
   useEffect(() => {
@@ -236,10 +246,10 @@ function Slide({
       {/* Imagem com Alternância de Cores */}
       <div className="relative hidden items-center justify-center p-8 md:flex">
         <div className="relative h-full max-h-[70vh] w-full overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
-          {activeImg?.url ? (
+          {activeItem?.imageUrl ? (
             <img
-              key={activeImg.url}
-              src={activeImg.url}
+              key={activeItem.imageUrl}
+              src={activeItem.imageUrl}
               alt={product.name}
               className="h-full w-full object-contain p-6 transition-all duration-500 ease-in-out"
             />
@@ -251,23 +261,23 @@ function Slide({
           </span>
 
           {/* Tag de cor atual exibida na foto */}
-          {activeImg?.color && (
+          {activeItem?.color && (
             <span className="absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-bold text-brand shadow-md">
-              {activeImg.hex && (
-                <span className="h-3.5 w-3.5 rounded-full border border-white/50" style={{ backgroundColor: activeImg.hex }} />
+              {activeItem.hex && (
+                <span className="h-3.5 w-3.5 rounded-full border border-white/50" style={{ backgroundColor: activeItem.hex }} />
               )}
-              Cor: {activeImg.color}
+              Cor: {activeItem.color}
             </span>
           )}
 
           {/* Indicador de fotos */}
-          {imagesList.length > 1 && (
+          {colorItems.length > 1 && (
             <div className="absolute bottom-5 right-5 flex gap-1.5 rounded-full border-2 border-ink bg-white/90 px-3 py-1.5 shadow">
-              {imagesList.map((_, i) => (
+              {colorItems.map((_, i) => (
                 <span
                   key={i}
                   className={`h-2.5 rounded-full transition-all duration-300 ${
-                    i === (colorIndex % imagesList.length) ? "w-6 bg-ink" : "w-2.5 bg-ink/30"
+                    i === (colorIndex % colorItems.length) ? "w-6 bg-ink" : "w-2.5 bg-ink/30"
                   }`}
                 />
               ))}
@@ -291,20 +301,23 @@ function Slide({
               {st}
             </span>
           ))}
-          {/* Exibe TODAS as cores disponíveis e destaca a cor da foto atual */}
-          {colors.map(([color, hex]) => {
-            const isSelectedColor = activeImg?.color === color;
+          {/* Exibe TODAS as cores cadastradas nas variantes e destaca a cor da foto atual */}
+          {colorItems.map((item) => {
+            const isSelectedColor = activeItem?.color === item.color;
             return (
               <span
-                key={color}
+                key={item.color}
                 className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold transition-all duration-300 ${
                   isSelectedColor
                     ? "bg-ink text-brand scale-105 shadow-[3px_3px_0_0_#141414]"
                     : "bg-white text-ink"
                 }`}
               >
-                <span className="h-3.5 w-3.5 rounded-full border border-ink/40" style={{ backgroundColor: hex }} />
-                {color}
+                <span
+                  className="h-3.5 w-3.5 rounded-full border border-ink/40"
+                  style={{ backgroundColor: item.hex }}
+                />
+                {item.color}
               </span>
             );
           })}
@@ -313,7 +326,7 @@ function Slide({
         <div className="mt-2 rounded-3xl border-4 border-ink bg-white p-6 shadow-[8px_8px_0_0_#141414]">
           <p className="text-sm font-bold uppercase tracking-widest text-neutral-500">À vista</p>
           <p className="font-display text-6xl font-bold leading-none text-ink md:text-7xl">
-            {formatBRL(minPriceCents)}
+            {formatBRL(priceCents)}
           </p>
           {installmentsMax > 1 && (
             <p className="mt-2 font-display text-2xl font-bold text-ink/70">
