@@ -102,9 +102,33 @@ export default function AdminProductEditor({
     ? IPHONE_CATALOG.filter((m) =>
         m.name.toLowerCase().includes(form.name.toLowerCase().trim()),
       )
-    : IPHONE_CATALOG;
+    : IPHONE_CATALOG;  function selectModel(m: (typeof IPHONE_CATALOG)[number]) {
+    const defaultStorage = m.capacities[0] || "128GB";
+    const firstColor = m.colors[0] || { name: "Preto", hex: "#1d1d1f" };
+    const isSeminovo = form.condition === "seminovo" || form.category === "iphone_seminovo";
 
-  function selectModel(m: (typeof IPHONE_CATALOG)[number]) {
+    const initialVariant = {
+      version: "",
+      storage: defaultStorage,
+      color: firstColor.name,
+      colorHex: firstColor.hex,
+      priceReais: "",
+      available: true,
+    };
+
+    setForm((f) => ({
+      ...f,
+      name: m.name,
+      brand: "Apple",
+      category: isSeminovo ? "iphone_seminovo" : "iphone_lacrado",
+      condition: isSeminovo ? "seminovo" : "lacrado",
+      warranty: isSeminovo ? "6 meses de garantia" : "1 ano de garantia",
+      variants: [initialVariant],
+    }));
+    setShowNameDropdown(false);
+  }
+
+  function addAllModelColors(m: (typeof IPHONE_CATALOG)[number]) {
     const defaultStorage = m.capacities[0] || "128GB";
     const generatedVariants = m.colors.map((c) => ({
       version: "",
@@ -116,12 +140,8 @@ export default function AdminProductEditor({
     }));
     setForm((f) => ({
       ...f,
-      name: m.name,
-      brand: "Apple",
-      category: f.condition === "seminovo" ? "iphone_seminovo" : "iphone_lacrado",
       variants: generatedVariants,
     }));
-    setShowNameDropdown(false);
   }
 
   const products = trpc.admin.products.useQuery();
@@ -201,6 +221,7 @@ export default function AdminProductEditor({
       variants,
     });
   }
+
   function setVariant(i: number, patch: Partial<FormState["variants"][number]>) {
     setForm((f) => ({
       ...f,
@@ -277,7 +298,16 @@ export default function AdminProductEditor({
         <Field label="Categoria *">
           <select
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value as FormState["category"] })}
+            onChange={(e) => {
+              const cat = e.target.value as FormState["category"];
+              const isSeminovo = cat === "iphone_seminovo";
+              setForm((f) => ({
+                ...f,
+                category: cat,
+                condition: isSeminovo ? "seminovo" : "lacrado",
+                warranty: isSeminovo ? "6 meses de garantia" : "1 ano de garantia",
+              }));
+            }}
             className={inputCls}
           >
             {CATEGORIES.map((c) => (
@@ -288,7 +318,16 @@ export default function AdminProductEditor({
         <Field label="Condição *">
           <select
             value={form.condition}
-            onChange={(e) => setForm({ ...form, condition: e.target.value })}
+            onChange={(e) => {
+              const cond = e.target.value;
+              const isSeminovo = cond === "seminovo";
+              setForm((f) => ({
+                ...f,
+                condition: cond,
+                category: isSeminovo ? "iphone_seminovo" : "iphone_lacrado",
+                warranty: isSeminovo ? "6 meses de garantia" : "1 ano de garantia",
+              }));
+            }}
             className={inputCls}
           >
             {CONDITIONS.map((c) => (
@@ -381,7 +420,7 @@ export default function AdminProductEditor({
                 </p>
                 <button
                   type="button"
-                  onClick={() => selectModel(selectedModel)}
+                  onClick={() => addAllModelColors(selectedModel)}
                   className="inline-flex items-center gap-1 text-xs font-bold text-ink underline hover:text-brand"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-brand" /> Preencher todas as cores do {selectedModel.name}
