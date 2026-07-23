@@ -243,19 +243,21 @@ function Slide({
 
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2">
-      {/* Imagem com Tamanho Padronizado e Alternância de Cores */}
-      <div className="relative hidden items-center justify-center p-6 md:flex">
-        <div className="relative flex aspect-square h-full max-h-[65vh] w-full max-w-[65vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
-          {activeItem?.imageUrl ? (
-            <img
-              key={activeItem.imageUrl}
-              src={activeItem.imageUrl}
-              alt={product.name}
-              className="max-h-full max-w-full object-contain p-6 transition-all duration-500 ease-in-out"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-neutral-300 font-bold">Sem foto</div>
-          )}
+      {/* Imagem com Tamanho Padronizado e Preenchimento Máximo do Quadro */}
+      <div className="relative hidden items-center justify-center p-4 md:flex">
+        <div className="relative flex aspect-square h-full max-h-[74vh] w-full max-w-[74vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
+          <div className="flex h-full w-full items-center justify-center p-2 md:p-4">
+            {activeItem?.imageUrl ? (
+              <img
+                key={activeItem.imageUrl}
+                src={activeItem.imageUrl}
+                alt={product.name}
+                className="max-h-full max-w-full object-contain scale-[1.10] transition-all duration-500 ease-in-out"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center font-bold text-neutral-300">Sem foto</div>
+            )}
+          </div>
           <span className="absolute left-5 top-5 z-10 rounded-full border-2 border-ink bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-sm">
             {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
           </span>
