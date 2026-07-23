@@ -31,7 +31,7 @@ const CATEGORY_CARDS = [
   {
     to: "/catalogo?categoria=android",
     icon: Smartphone,
-    title: "Xiaomi, Realme e Tecno",
+    title: "Xiaomi, Realme, Tecno e Infinix",
     desc: "Os melhores custo-benefício do Android, novos e lacrados.",
   },
   {

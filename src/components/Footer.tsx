@@ -20,7 +20,7 @@ export default function Footer() {
             </div>
             <p className="text-sm text-white/70">
               iPhones lacrados e seminovos importados dos EUA com 1 ano de garantia.
-              Xiaomi, Realme, Tecno e assistência técnica especializada.
+              Xiaomi, Realme, Tecno, Infinix e assistência técnica especializada.
             </p>
           </div>
 

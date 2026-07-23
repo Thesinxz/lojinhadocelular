@@ -11,7 +11,7 @@ export const CATEGORIES = [
 
 export type CategoryValue = (typeof CATEGORIES)[number]["value"];
 
-export const BRANDS = ["Apple", "Xiaomi", "Realme", "Tecno", "Outra"] as const;
+export const BRANDS = ["Apple", "Xiaomi", "Realme", "Tecno", "Infinix", "Outra"] as const;
 
 export const CONDITIONS = [
   { value: "lacrado", label: "Lacrado" },
