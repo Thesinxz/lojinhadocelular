@@ -22,6 +22,7 @@ export default function TvMode() {
   );
 
   const [index, setIndex] = useState(0);
+  const [colorIndexes, setColorIndexes] = useState<Record<number, number>>({});
   const [paused, setPaused] = useState(false);
   const [started, setStarted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -30,6 +31,20 @@ export default function TvMode() {
   const current = products[index % Math.max(products.length, 1)] as
     | ProductWithVariants
     | undefined;
+
+  function nextSlide() {
+    if (current) {
+      setColorIndexes((prev) => ({
+        ...prev,
+        [current.id]: (prev[current.id] ?? 0) + 1,
+      }));
+    }
+    setIndex((i) => (i + 1) % products.length);
+  }
+
+  function prevSlide() {
+    setIndex((i) => (i - 1 + products.length) % products.length);
+  }
 
   // Avanço automático com barra de progresso
   useEffect(() => {
@@ -40,25 +55,24 @@ export default function TvMode() {
       const elapsed = (Date.now() - startedAt) / 1000;
       setProgress(Math.min(elapsed / SLIDE_SECONDS, 1));
       if (elapsed >= SLIDE_SECONDS) {
-        setIndex((i) => (i + 1) % products.length);
+        nextSlide();
       }
     }, 100);
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [started, paused, index, products.length]);
+  }, [started, paused, index, products.length, current]);
 
   // Navegação por teclado (controle/remoto da TV)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") setIndex((i) => (i + 1) % products.length);
-      if (e.key === "ArrowLeft")
-        setIndex((i) => (i - 1 + products.length) % products.length);
+      if (e.key === "ArrowRight") nextSlide();
+      if (e.key === "ArrowLeft") prevSlide();
       if (e.key === " ") setPaused((p) => !p);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [products.length]);
+  }, [products.length, current]);
 
   function start() {
     setStarted(true);
@@ -117,6 +131,7 @@ export default function TvMode() {
           <Slide
             key={`${current.id}-${index}`}
             product={current}
+            colorIndex={colorIndexes[current.id] ?? 0}
             installmentsMax={s.installmentsMax}
             fees={s.fees}
             whatsapp={s.whatsappJardim}
@@ -138,13 +153,13 @@ export default function TvMode() {
             dos EUA &nbsp;•&nbsp; Seminovos revisados &nbsp;•&nbsp; Assistência técnica
           </p>
           <div className="hidden shrink-0 items-center gap-2 md:flex">
-            <button onClick={() => setIndex((i) => (i - 1 + products.length) % products.length)} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Anterior">
+            <button onClick={prevSlide} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Anterior">
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button onClick={() => setPaused((p) => !p)} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Pausar">
               {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
             </button>
-            <button onClick={() => setIndex((i) => (i + 1) % products.length)} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Próximo">
+            <button onClick={nextSlide} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Próximo">
               <ChevronRight className="h-5 w-5" />
             </button>
             <button onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Tela cheia">
@@ -159,11 +174,13 @@ export default function TvMode() {
 
 function Slide({
   product,
+  colorIndex = 0,
   installmentsMax,
   fees,
   whatsapp,
 }: {
   product: ProductWithVariants;
+  colorIndex?: number;
   installmentsMax: number;
   fees: Record<string, number>;
   whatsapp: string;
@@ -189,7 +206,7 @@ function Slide({
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
 
-  // Lista de imagens estável (imagem principal + foto de cada cor disponível)
+  // Lista de imagens (imagem principal + foto de cada cor disponível)
   const imagesList = useMemo(() => {
     const list: { url: string; color?: string; hex?: string }[] = [];
     if (product.imageUrl) {
@@ -203,18 +220,8 @@ function Slide({
     return list;
   }, [product.id, product.imageUrl, available]);
 
-  const [imgIndex, setImgIndex] = useState(0);
-
-  // Alterna fotos das cores de forma suave a cada 3,5 segundos
-  useEffect(() => {
-    if (imagesList.length <= 1) return;
-    const interval = setInterval(() => {
-      setImgIndex((prev) => (prev + 1) % imagesList.length);
-    }, 3500);
-    return () => clearInterval(interval);
-  }, [imagesList.length]);
-
-  const activeImg = imagesList[imgIndex % Math.max(imagesList.length, 1)];
+  // Foto exibida nesta passada do aparelho na TV
+  const activeImg = imagesList[colorIndex % Math.max(imagesList.length, 1)];
 
   const [qr, setQr] = useState("");
   useEffect(() => {
@@ -260,7 +267,7 @@ function Slide({
                 <span
                   key={i}
                   className={`h-2.5 rounded-full transition-all duration-300 ${
-                    i === imgIndex ? "w-6 bg-ink" : "w-2.5 bg-ink/30"
+                    i === (colorIndex % imagesList.length) ? "w-6 bg-ink" : "w-2.5 bg-ink/30"
                   }`}
                 />
               ))}
