@@ -6,6 +6,8 @@ import ProductCard from "@/components/ProductCard";
 import { useShopSettings } from "@/lib/shop";
 import { CATEGORIES, BRANDS } from "@contracts/types";
 
+import SEO from "@/components/SEO";
+
 export default function Catalogo() {
   const s = useShopSettings();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,6 +42,10 @@ export default function Catalogo() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <SEO
+        title="Catálogo de Celulares e iPhones — Jardim-MS e Guia Lopes"
+        description="Confira nosso estoque de iPhones lacrados, seminovos revisados com garantia, Xiaomi, Realme, Tecno e acessórios na Lojinha do Celular."
+      />
       <h1 className="font-display text-3xl font-bold text-ink">Catálogo</h1>
       <p className="mt-1 text-neutral-600">
         Estoque atualizado das duas unidades. Toque no produto para ver versões, cores e preços.

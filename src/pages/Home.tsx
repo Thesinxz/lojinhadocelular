@@ -12,7 +12,7 @@ import {
 import { trpc } from "@/providers/trpc";
 import ProductCard from "@/components/ProductCard";
 import HeroCarousel from "@/components/HeroCarousel";
-import { useShopSettings } from "@/lib/shop";
+import SEO from "@/components/SEO";
 
 const CATEGORY_CARDS = [
   {
@@ -47,6 +47,10 @@ export default function Home() {
 
   return (
     <div>
+      <SEO
+        title="Lojinha do Celular — iPhones e Android em Jardim-MS"
+        description="iPhones lacrados e seminovos importados dos EUA com 1 ano de garantia. Xiaomi, Realme, Tecno e assistência técnica em Jardim-MS e Guia Lopes da Laguna."
+      />
       {/* HERO */}
       <section className="relative overflow-hidden bg-brand">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-14 md:grid-cols-2 md:py-20">

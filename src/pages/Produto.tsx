@@ -15,6 +15,8 @@ import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
 import { useShopSettings, waLink } from "@/lib/shop";
 
+import SEO from "@/components/SEO";
+
 type Variant = ProductWithVariants["variants"][number];
 
 export default function Produto() {
@@ -135,8 +137,39 @@ export default function Produto() {
     }
   }
 
+  const prodTitle = `${product.name}${version ? ` ${version}` : ""} ${storage} ${color}`;
+  const prodDesc = product.description || `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`;
+  const prodImage = product.imageUrl || "/images/logo.png";
+  const prodUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": prodTitle,
+    "image": prodImage.startsWith("/") && typeof window !== "undefined" ? `${window.location.origin}${prodImage}` : prodImage,
+    "description": prodDesc,
+    "brand": {
+      "@type": "Brand",
+      "name": product.brand
+    },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "BRL",
+      "price": price != null ? (price / 100).toFixed(2) : undefined,
+      "itemCondition": product.condition === "seminovo" ? "https://schema.org/UsedCondition" : "https://schema.org/NewCondition",
+      "availability": isAvailable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
+      <SEO
+        title={prodTitle}
+        description={prodDesc}
+        image={prodImage}
+        url={prodUrl}
+        jsonLd={productJsonLd}
+      />
       <Link
         to="/catalogo"
         className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-500 hover:text-ink"
