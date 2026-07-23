@@ -243,26 +243,26 @@ function Slide({
 
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2">
-      {/* Imagem com Alternância de Cores */}
-      <div className="relative hidden items-center justify-center p-8 md:flex">
-        <div className="relative h-full max-h-[70vh] w-full overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
+      {/* Imagem com Tamanho Padronizado e Alternância de Cores */}
+      <div className="relative hidden items-center justify-center p-6 md:flex">
+        <div className="relative flex aspect-square h-full max-h-[65vh] w-full max-w-[65vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
           {activeItem?.imageUrl ? (
             <img
               key={activeItem.imageUrl}
               src={activeItem.imageUrl}
               alt={product.name}
-              className="h-full w-full object-contain p-6 transition-all duration-500 ease-in-out"
+              className="max-h-full max-w-full object-contain p-6 transition-all duration-500 ease-in-out"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-neutral-300">Sem foto</div>
+            <div className="flex h-full items-center justify-center text-neutral-300 font-bold">Sem foto</div>
           )}
-          <span className="absolute left-5 top-5 rounded-full border-2 border-ink bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-ink">
+          <span className="absolute left-5 top-5 z-10 rounded-full border-2 border-ink bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-sm">
             {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
           </span>
 
           {/* Tag de cor atual exibida na foto */}
           {activeItem?.color && (
-            <span className="absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-bold text-brand shadow-md">
+            <span className="absolute bottom-5 left-5 z-10 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-bold text-brand shadow-md">
               {activeItem.hex && (
                 <span className="h-3.5 w-3.5 rounded-full border border-white/50" style={{ backgroundColor: activeItem.hex }} />
               )}
@@ -272,7 +272,7 @@ function Slide({
 
           {/* Indicador de fotos */}
           {colorItems.length > 1 && (
-            <div className="absolute bottom-5 right-5 flex gap-1.5 rounded-full border-2 border-ink bg-white/90 px-3 py-1.5 shadow">
+            <div className="absolute bottom-5 right-5 z-10 flex gap-1.5 rounded-full border-2 border-ink bg-white/90 px-3 py-1.5 shadow">
               {colorItems.map((_, i) => (
                 <span
                   key={i}
