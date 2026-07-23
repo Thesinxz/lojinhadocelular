@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Plus, Trash2, Sparkles } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { ArrowLeft, Plus, Trash2, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { CATEGORIES, BRANDS, CONDITIONS, type VariantInput } from "@contracts/types";
 import { IPHONE_CATALOG } from "@/lib/iphoneCatalog";
@@ -90,9 +90,15 @@ export default function AdminProductEditor({
   onClose: () => void;
 }) {
   const utils = trpc.useUtils();
+  const draftKey = `admin_product_draft_${productId ?? "novo"}`;
+
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState("");
   const [showNameDropdown, setShowNameDropdown] = useState(false);
+
+  const isHydrated = useRef(false);
+  const [autoRestored, setAutoRestored] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   const selectedModel = IPHONE_CATALOG.find(
     (m) => m.name.toLowerCase() === form.name.toLowerCase().trim(),
@@ -102,7 +108,9 @@ export default function AdminProductEditor({
     ? IPHONE_CATALOG.filter((m) =>
         m.name.toLowerCase().includes(form.name.toLowerCase().trim()),
       )
-    : IPHONE_CATALOG;  function selectModel(m: (typeof IPHONE_CATALOG)[number]) {
+    : IPHONE_CATALOG;
+
+  function selectModel(m: (typeof IPHONE_CATALOG)[number]) {
     const defaultStorage = m.capacities[0] || "128GB";
     const firstColor = m.colors[0] || { name: "Preto", hex: "#1d1d1f" };
     const isSeminovo = form.condition === "seminovo" || form.category === "iphone_seminovo";
@@ -150,6 +158,12 @@ export default function AdminProductEditor({
   const products = trpc.admin.products.useQuery();
   const upsert = trpc.admin.upsertProduct.useMutation({
     onSuccess: () => {
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        // ignore
+      }
+      setIsDirty(false);
       utils.admin.products.invalidate();
       utils.shop.products.invalidate();
       utils.shop.featured.invalidate();
@@ -158,33 +172,136 @@ export default function AdminProductEditor({
     onError: (e) => setError(e.message),
   });
 
-  // Carrega produto para edição
+  // Carrega produto inicial ou restaura rascunho automaticamente
   useEffect(() => {
-    if (productId == null || !products.data) return;
-    const p = products.data.find((x) => x.id === productId);
-    if (!p) return;
-    setForm({
-      name: p.name,
-      brand: p.brand,
-      category: p.category,
-      condition: p.condition,
-      description: p.description ?? "",
-      imageUrl: p.imageUrl ?? "",
-      warranty: p.warranty ?? "",
-      featured: p.featured,
-      active: p.active,
-      variants: p.variants.map((v) => ({
-        version: v.version,
-        storage: v.storage,
-        color: v.color,
-        colorHex: v.colorHex ?? "#1d1d1f",
-        imageUrl: v.imageUrl ?? "",
-        batteryHealth: v.batteryHealth ?? "",
-        priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
-        available: v.available,
-      })),
-    });
-  }, [productId, products.data]);
+    isHydrated.current = false;
+    setAutoRestored(false);
+    setIsDirty(false);
+
+    let baseForm = EMPTY;
+    if (productId != null && products.data) {
+      const p = products.data.find((x) => x.id === productId);
+      if (p) {
+        baseForm = {
+          name: p.name,
+          brand: p.brand,
+          category: p.category,
+          condition: p.condition,
+          description: p.description ?? "",
+          imageUrl: p.imageUrl ?? "",
+          warranty: p.warranty ?? "",
+          featured: p.featured,
+          active: p.active,
+          variants: p.variants.map((v) => ({
+            version: v.version,
+            storage: v.storage,
+            color: v.color,
+            colorHex: v.colorHex ?? "#1d1d1f",
+            imageUrl: v.imageUrl ?? "",
+            batteryHealth: v.batteryHealth ?? "",
+            priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
+            available: v.available,
+          })),
+        };
+      }
+    }
+
+    let restoredFromDraft = false;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.form) {
+          const hasContent =
+            parsed.form.name ||
+            parsed.form.description ||
+            parsed.form.variants.some((v: any) => v.priceReais || v.color);
+          if (hasContent) {
+            setForm(parsed.form);
+            restoredFromDraft = true;
+            setAutoRestored(true);
+            setIsDirty(true);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!restoredFromDraft) {
+      setForm(baseForm);
+    }
+
+    const t = setTimeout(() => {
+      isHydrated.current = true;
+    }, 100);
+    return () => clearTimeout(t);
+  }, [productId, products.data, draftKey]);
+
+  // Salva rascunho no localStorage em tempo real ao editar
+  useEffect(() => {
+    if (!isHydrated.current) return;
+
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({ form, updatedAt: new Date().toISOString() })
+      );
+      setIsDirty(true);
+    } catch {
+      // ignore
+    }
+  }, [form, draftKey]);
+
+  // Avisa antes de recarregar a página ou fechar a aba se houver edições não salvas
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  function discardDraft() {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      // ignore
+    }
+    setAutoRestored(false);
+    setIsDirty(false);
+    if (productId != null && products.data) {
+      const p = products.data.find((x) => x.id === productId);
+      if (p) {
+        setForm({
+          name: p.name,
+          brand: p.brand,
+          category: p.category,
+          condition: p.condition,
+          description: p.description ?? "",
+          imageUrl: p.imageUrl ?? "",
+          warranty: p.warranty ?? "",
+          featured: p.featured,
+          active: p.active,
+          variants: p.variants.map((v) => ({
+            version: v.version,
+            storage: v.storage,
+            color: v.color,
+            colorHex: v.colorHex ?? "#1d1d1f",
+            imageUrl: v.imageUrl ?? "",
+            batteryHealth: v.batteryHealth ?? "",
+            priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
+            available: v.available,
+          })),
+        });
+        return;
+      }
+    }
+    setForm(EMPTY);
+  }
 
   function parsePrice(str: string): number {
     const n = Number(str.replace(/\./g, "").replace(",", "."));
@@ -236,16 +353,58 @@ export default function AdminProductEditor({
     }));
   }
 
+  function handleBack() {
+    if (isDirty) {
+      const confirmLeave = window.confirm(
+        "Suas alterações estão salvas com segurança. Deseja voltar para a lista de produtos?"
+      );
+      if (!confirmLeave) return;
+    }
+    onClose();
+  }
+
   return (
     <form onSubmit={submit} className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[6px_6px_0_0_#141414]">
-      <button
-        type="button"
-        onClick={onClose}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-500 hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar
-      </button>
-      <h2 className="mt-2 font-display text-2xl font-bold text-ink">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-500 hover:text-ink transition"
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </button>
+        {isDirty && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            Alterações salvas automaticamente
+          </span>
+        )}
+      </div>
+
+      {autoRestored && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-blue-400 bg-blue-50 p-4 text-blue-950 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-200 text-blue-900 font-bold text-lg">
+              ✨
+            </div>
+            <div>
+              <p className="text-sm font-bold">Dados restaurados automaticamente!</p>
+              <p className="text-xs text-blue-800">
+                Seus dados preenchidos anteriormente foram recuperados de onde você parou.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={discardDraft}
+            className="inline-flex items-center gap-1 rounded-xl border border-blue-300 bg-white px-3.5 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100 transition"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Recarregar Original
+          </button>
+        </div>
+      )}
+
+      <h2 className="mt-4 font-display text-2xl font-bold text-ink">
         {productId != null ? "Editar produto" : "Novo produto"}
       </h2>
 

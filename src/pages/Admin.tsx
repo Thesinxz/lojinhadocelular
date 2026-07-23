@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { Lock, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Settings, Package } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { formatBRL, CATEGORIES } from "@contracts/types";
@@ -7,11 +8,41 @@ import AdminProductEditor from "@/components/admin/AdminProductEditor";
 import AdminSettings from "@/components/admin/AdminSettings";
 
 export default function Admin() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState(() => localStorage.getItem("admin_token") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"produtos" | "config">("produtos");
-  const [editing, setEditing] = useState<number | "novo" | null>(null);
+
+  const tab = (searchParams.get("tab") as "produtos" | "config") || "produtos";
+  const editingRaw = searchParams.get("editing");
+  const editing: number | "novo" | null =
+    editingRaw === "novo" ? "novo" : editingRaw ? Number(editingRaw) : null;
+
+  function setEditing(val: number | "novo" | null) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (val === null) {
+          next.delete("editing");
+        } else {
+          next.set("editing", String(val));
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  }
+
+  function setTab(t: "produtos" | "config") {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", t);
+        return next;
+      },
+      { replace: true }
+    );
+  }
 
   const utils = trpc.useUtils();
   const login = trpc.admin.login.useMutation({

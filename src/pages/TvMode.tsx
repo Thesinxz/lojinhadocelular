@@ -177,6 +177,37 @@ function Slide({
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
 
+  // Lista de imagens (imagem principal + fotos por cor/variante) embaralhadas aleatoriamente
+  const imagesList = useMemo(() => {
+    const list: { url: string; color?: string; hex?: string }[] = [];
+    if (product.imageUrl) {
+      list.push({ url: product.imageUrl });
+    }
+    for (const v of available) {
+      if (v.imageUrl && !list.some((item) => item.url === v.imageUrl)) {
+        list.push({ url: v.imageUrl, color: v.color, hex: v.colorHex ?? undefined });
+      }
+    }
+    // Sorteia aleatoriamente a ordem das fotos das cores para cada exibição na TV
+    return list.length > 1 ? [...list].sort(() => Math.random() - 0.5) : list;
+  }, [product.id, product.imageUrl, available]);
+
+  // Escolhe uma foto inicial aleatória
+  const [imgIndex, setImgIndex] = useState(() =>
+    imagesList.length > 1 ? Math.floor(Math.random() * imagesList.length) : 0,
+  );
+
+  // Alterna fotos das cores aleatoriamente a cada 3,5 segundos
+  useEffect(() => {
+    if (imagesList.length <= 1) return;
+    const interval = setInterval(() => {
+      setImgIndex((prev) => (prev + 1) % imagesList.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [imagesList.length]);
+
+  const activeImg = imagesList[imgIndex % Math.max(imagesList.length, 1)];
+
   const [qr, setQr] = useState("");
   useEffect(() => {
     const url = `${window.location.origin}/produto/${product.id}`;
@@ -187,17 +218,46 @@ function Slide({
 
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2">
-      {/* Imagem */}
+      {/* Imagem com Alternância de Cores */}
       <div className="relative hidden items-center justify-center p-8 md:flex">
         <div className="relative h-full max-h-[70vh] w-full overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
-          {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain p-6" />
+          {activeImg?.url ? (
+            <img
+              key={activeImg.url}
+              src={activeImg.url}
+              alt={product.name}
+              className="h-full w-full object-contain p-6 transition-all duration-500 ease-in-out"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-neutral-300">Sem foto</div>
           )}
           <span className="absolute left-5 top-5 rounded-full border-2 border-ink bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-ink">
             {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
           </span>
+
+          {/* Tag de cor atual exibida na foto */}
+          {activeImg?.color && (
+            <span className="absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-bold text-brand shadow-md">
+              {activeImg.hex && (
+                <span className="h-3.5 w-3.5 rounded-full border border-white/50" style={{ backgroundColor: activeImg.hex }} />
+              )}
+              Cor: {activeImg.color}
+            </span>
+          )}
+
+          {/* Indicador de fotos */}
+          {imagesList.length > 1 && (
+            <div className="absolute bottom-5 right-5 flex gap-1.5 rounded-full border-2 border-ink bg-white/90 px-3 py-1.5 shadow">
+              {imagesList.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                    i === imgIndex ? "w-6 bg-ink" : "w-2.5 bg-ink/30"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -216,12 +276,23 @@ function Slide({
               {st}
             </span>
           ))}
-          {colors.slice(0, 4).map(([color, hex]) => (
-            <span key={color} className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-white px-4 py-1.5 text-sm font-bold text-ink">
-              <span className="h-3.5 w-3.5 rounded-full border border-ink/40" style={{ backgroundColor: hex }} />
-              {color}
-            </span>
-          ))}
+          {/* Exibe TODAS as cores disponíveis e destaca a cor da foto atual */}
+          {colors.map(([color, hex]) => {
+            const isSelectedColor = activeImg?.color === color;
+            return (
+              <span
+                key={color}
+                className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-4 py-1.5 text-sm font-bold transition-all duration-300 ${
+                  isSelectedColor
+                    ? "bg-ink text-brand scale-105 shadow-[3px_3px_0_0_#141414]"
+                    : "bg-white text-ink"
+                }`}
+              >
+                <span className="h-3.5 w-3.5 rounded-full border border-ink/40" style={{ backgroundColor: hex }} />
+                {color}
+              </span>
+            );
+          })}
         </div>
 
         <div className="mt-2 rounded-3xl border-4 border-ink bg-white p-6 shadow-[8px_8px_0_0_#141414]">
