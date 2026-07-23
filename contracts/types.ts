@@ -88,6 +88,7 @@ export type VariantInput = {
   storage: string;
   color: string;
   colorHex?: string;
+  imageUrl?: string;
   batteryHealth?: string;
   priceCash: number;
   available: boolean;

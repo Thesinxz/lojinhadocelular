@@ -178,6 +178,7 @@ export default function AdminProductEditor({
         storage: v.storage,
         color: v.color,
         colorHex: v.colorHex ?? "#1d1d1f",
+        imageUrl: v.imageUrl ?? "",
         batteryHealth: v.batteryHealth ?? "",
         priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
         available: v.available,
@@ -200,6 +201,7 @@ export default function AdminProductEditor({
         storage: v.storage,
         color: v.color,
         colorHex: v.colorHex,
+        imageUrl: v.imageUrl,
         batteryHealth: v.batteryHealth,
         priceCash: parsePrice(v.priceReais),
         available: v.available,
@@ -543,7 +545,7 @@ export default function AdminProductEditor({
         <div className="mt-4 space-y-3">
           {form.variants.map((v, i) => (
             <div key={i} className="rounded-xl border-2 border-ink/20 bg-neutral-50 p-3">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
                 <input
                   value={v.version}
                   onChange={(e) => setVariant(i, { version: e.target.value })}
@@ -571,6 +573,12 @@ export default function AdminProductEditor({
                   }}
                   placeholder="Cor (ex: Natural Titanium, Preto...)"
                   required
+                  className={miniInputCls}
+                />
+                <input
+                  value={v.imageUrl ?? ""}
+                  onChange={(e) => setVariant(i, { imageUrl: e.target.value })}
+                  placeholder="🖼️ Foto da cor (https://...)"
                   className={miniInputCls}
                 />
                 <input
@@ -618,6 +626,20 @@ export default function AdminProductEditor({
                   </button>
                 </div>
               </div>
+              {/* MINIATURA DA FOTO DA COR */}
+              {v.imageUrl && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img
+                    src={v.imageUrl}
+                    alt="Foto da cor"
+                    className="h-10 w-10 rounded-lg border border-ink object-contain bg-white p-0.5"
+                    onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                  />
+                  <span className="text-[11px] font-bold text-neutral-500">
+                    Foto exclusiva da cor {v.color || "variante"} cadastrada!
+                  </span>
+                </div>
+              )}
               {/* ATALHOS DE SAÚDE DA BATERIA (SEMINOVO) */}
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-neutral-500">
                 <span>🔋 Bateria rápida:</span>

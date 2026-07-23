@@ -180,8 +180,8 @@ export default function Produto() {
       <div className="mt-4 grid gap-8 md:grid-cols-2">
         {/* Imagem */}
         <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-neutral-100 shadow-[6px_6px_0_0_#141414]">
-          {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} className="aspect-square w-full object-contain p-4" />
+          {selected?.imageUrl || product.imageUrl ? (
+            <img src={selected?.imageUrl || product.imageUrl!} alt={product.name} className="aspect-square w-full object-contain p-4 transition-all duration-300" />
           ) : (
             <div className="flex aspect-square items-center justify-center text-neutral-300">Sem foto</div>
           )}
