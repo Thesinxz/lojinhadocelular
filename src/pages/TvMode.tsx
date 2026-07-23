@@ -234,9 +234,15 @@ function Slide({
               ou {installmentsMax}x de {formatBRL(installment)}
             </p>
           )}
-          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-sm font-bold text-ink">
-            <ShieldCheck className="h-4 w-4" /> {product.warranty ?? "1 ano de garantia"}
-          </p>
+          {product.variants.find((v) => v.batteryHealth)?.batteryHealth ? (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-300 px-3.5 py-1 text-sm font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
+              🔋 Saúde da Bateria: {product.variants.find((v) => v.batteryHealth)?.batteryHealth}
+            </p>
+          ) : (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-sm font-bold text-ink">
+              <ShieldCheck className="h-4 w-4" /> {product.warranty ?? "1 ano de garantia"}
+            </p>
+          )}
         </div>
 
         {/* QR + WhatsApp */}

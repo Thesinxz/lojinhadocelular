@@ -36,6 +36,7 @@ export const variants = mysqlTable("variants", {
   storage: varchar("storage", { length: 20 }).notNull(), // ex: "128GB"
   color: varchar("color", { length: 60 }).notNull(), // ex: "Preto"
   colorHex: varchar("color_hex", { length: 9 }).default("#111111"),
+  batteryHealth: varchar("battery_health", { length: 30 }).default(""), // ex: "85%", "100%", "Bateria Nova"
   priceCash: int("price_cash").notNull(), // em centavos
   available: boolean("available").notNull().default(true),
 });

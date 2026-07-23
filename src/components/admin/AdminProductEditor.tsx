@@ -28,7 +28,7 @@ const EMPTY: FormState = {
   featured: false,
   active: true,
   variants: [
-    { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", priceReais: "", available: true },
+    { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", batteryHealth: "85%", priceReais: "", available: true },
   ],
 };
 
@@ -112,6 +112,7 @@ export default function AdminProductEditor({
       storage: defaultStorage,
       color: firstColor.name,
       colorHex: firstColor.hex,
+      batteryHealth: isSeminovo ? "85%" : "",
       priceReais: "",
       available: true,
     };
@@ -130,11 +131,13 @@ export default function AdminProductEditor({
 
   function addAllModelColors(m: (typeof IPHONE_CATALOG)[number]) {
     const defaultStorage = m.capacities[0] || "128GB";
+    const isSeminovo = form.condition === "seminovo" || form.category === "iphone_seminovo";
     const generatedVariants = m.colors.map((c) => ({
       version: "",
       storage: defaultStorage,
       color: c.name,
       colorHex: c.hex,
+      batteryHealth: isSeminovo ? "85%" : "",
       priceReais: "",
       available: true,
     }));
@@ -175,6 +178,7 @@ export default function AdminProductEditor({
         storage: v.storage,
         color: v.color,
         colorHex: v.colorHex ?? "#1d1d1f",
+        batteryHealth: v.batteryHealth ?? "",
         priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
         available: v.available,
       })),
@@ -196,6 +200,7 @@ export default function AdminProductEditor({
         storage: v.storage,
         color: v.color,
         colorHex: v.colorHex,
+        batteryHealth: v.batteryHealth,
         priceCash: parsePrice(v.priceReais),
         available: v.available,
       }));
@@ -538,7 +543,7 @@ export default function AdminProductEditor({
         <div className="mt-4 space-y-3">
           {form.variants.map((v, i) => (
             <div key={i} className="rounded-xl border-2 border-ink/20 bg-neutral-50 p-3">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
                 <input
                   value={v.version}
                   onChange={(e) => setVariant(i, { version: e.target.value })}
@@ -566,6 +571,12 @@ export default function AdminProductEditor({
                   }}
                   placeholder="Cor (ex: Natural Titanium, Preto...)"
                   required
+                  className={miniInputCls}
+                />
+                <input
+                  value={v.batteryHealth ?? ""}
+                  onChange={(e) => setVariant(i, { batteryHealth: e.target.value })}
+                  placeholder="🔋 Bateria (ex: 85%, 100%, Nova)"
                   className={miniInputCls}
                 />
                 <div className="flex gap-1">
@@ -606,6 +617,22 @@ export default function AdminProductEditor({
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
+              {/* ATALHOS DE SAÚDE DA BATERIA (SEMINOVO) */}
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-neutral-500">
+                <span>🔋 Bateria rápida:</span>
+                {["100%", "95%", "90%", "88%", "85%", "82%", "Bateria Nova"].map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setVariant(i, { batteryHealth: b })}
+                    className={`rounded-md border border-neutral-300 px-2 py-0.5 text-[10px] transition ${
+                      v.batteryHealth === b ? "bg-emerald-500 text-white border-emerald-600 font-extrabold" : "bg-white text-ink hover:bg-neutral-200"
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
               </div>
             </div>
           ))}

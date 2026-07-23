@@ -20,6 +20,8 @@ export default function ProductCard({
       ? installmentFromFees(price, installmentsMax, fee)
       : null;
 
+  const batteryHealth = product.variants.find((v) => v.batteryHealth)?.batteryHealth;
+
   return (
     <Link
       to={`/produto/${product.id}`}
@@ -45,6 +47,12 @@ export default function ProductCard({
         >
           {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
         </span>
+
+        {(batteryHealth || product.condition === "seminovo") && (
+          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2.5 py-0.5 text-[10px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
+            🔋 {batteryHealth ? `Bat. ${batteryHealth}` : "Bat. 80%+"}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">

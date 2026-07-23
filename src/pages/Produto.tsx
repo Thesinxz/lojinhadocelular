@@ -8,6 +8,7 @@ import {
   HardDrive,
   Palette,
   Package,
+  BatteryCharging,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -170,11 +171,22 @@ export default function Produto() {
             {version ? <span className="text-neutral-400"> {version}</span> : null}
           </h1>
 
-          {product.warranty && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand/40 px-3 py-1 text-xs font-bold text-ink">
-              <ShieldCheck className="h-3.5 w-3.5" /> {product.warranty}
-            </p>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {product.warranty && (
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-brand/40 px-3 py-1 text-xs font-bold text-ink">
+                <ShieldCheck className="h-3.5 w-3.5" /> {product.warranty}
+              </p>
+            )}
+            {selected?.batteryHealth ? (
+              <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-300 px-3 py-1 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
+                <BatteryCharging className="h-4 w-4 text-ink" /> Saúde da Bateria: {selected.batteryHealth}
+              </p>
+            ) : product.condition === "seminovo" ? (
+              <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-100 px-3 py-1 text-xs font-bold text-ink">
+                <BatteryCharging className="h-4 w-4 text-emerald-700" /> Bateria Excelente (80%+)
+              </p>
+            ) : null}
+          </div>
 
           {/* Preço */}
           <div className="mt-5 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">

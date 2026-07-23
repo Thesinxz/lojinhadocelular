@@ -26,6 +26,7 @@ const variantInput = z.object({
   storage: z.string().min(1),
   color: z.string().min(1),
   colorHex: z.string().optional(),
+  batteryHealth: z.string().optional(),
   priceCash: z.number().int().min(0),
   available: z.boolean(),
 });
@@ -121,6 +122,7 @@ export const adminRouter = createRouter({
           storage: v.storage,
           color: v.color,
           colorHex: v.colorHex ?? "#111111",
+          batteryHealth: v.batteryHealth || "",
           priceCash: v.priceCash,
           available: v.available,
         })),

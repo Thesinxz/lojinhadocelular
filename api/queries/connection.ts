@@ -37,10 +37,14 @@ export async function ensureTables() {
         storage VARCHAR(20) NOT NULL,
         color VARCHAR(60) NOT NULL,
         color_hex VARCHAR(9) DEFAULT '#111111',
+        battery_health VARCHAR(30) DEFAULT '',
         price_cash INT NOT NULL,
         available BOOLEAN NOT NULL DEFAULT TRUE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    // Adiciona coluna battery_health caso a tabela já exista
+    await pool.query(`ALTER TABLE variants ADD COLUMN battery_health VARCHAR(30) DEFAULT ''`).catch(() => {});
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
