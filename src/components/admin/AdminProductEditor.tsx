@@ -713,8 +713,6 @@ export default function AdminProductEditor({
 
 const inputCls =
   "w-full rounded-xl border-2 border-ink/30 px-4 py-2.5 text-sm font-medium outline-none focus:border-ink bg-white";
-const miniInputCls =
-  "w-full rounded-lg border-2 border-ink/20 px-3 py-2 text-sm font-medium outline-none focus:border-ink bg-white";
 
 function Field({
   label,
