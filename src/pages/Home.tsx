@@ -12,6 +12,7 @@ import {
 import { trpc } from "@/providers/trpc";
 import ProductCard from "@/components/ProductCard";
 import HeroCarousel from "@/components/HeroCarousel";
+import { useShopSettings } from "@/lib/shop";
 import SEO from "@/components/SEO";
 
 const CATEGORY_CARDS = [
