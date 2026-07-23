@@ -542,119 +542,156 @@ export default function AdminProductEditor({
           ))}
         </datalist>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-4">
           {form.variants.map((v, i) => (
-            <div key={i} className="rounded-xl border-2 border-ink/20 bg-neutral-50 p-3">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
-                <input
-                  value={v.version}
-                  onChange={(e) => setVariant(i, { version: e.target.value })}
-                  placeholder="Versão (opcional)"
-                  className={miniInputCls}
-                />
-                <input
-                  value={v.storage}
-                  list="storages_list"
-                  onChange={(e) => setVariant(i, { storage: e.target.value })}
-                  placeholder="128GB *"
-                  required
-                  className={miniInputCls}
-                />
-                <input
-                  value={v.color}
-                  list="colors_list"
-                  onChange={(e) => {
-                    const newColor = e.target.value;
-                    const autoHex = detectColorHex(newColor);
-                    setVariant(i, {
-                      color: newColor,
-                      ...(autoHex ? { colorHex: autoHex } : {}),
-                    });
-                  }}
-                  placeholder="Cor (ex: Natural Titanium, Preto...)"
-                  required
-                  className={miniInputCls}
-                />
-                <input
-                  value={v.imageUrl ?? ""}
-                  onChange={(e) => setVariant(i, { imageUrl: e.target.value })}
-                  placeholder="🖼️ Foto da cor (https://...)"
-                  className={miniInputCls}
-                />
-                <input
-                  value={v.batteryHealth ?? ""}
-                  onChange={(e) => setVariant(i, { batteryHealth: e.target.value })}
-                  placeholder="🔋 Bateria (ex: 85%, 100%, Nova)"
-                  className={miniInputCls}
-                />
-                <div className="flex gap-1">
+            <div
+              key={i}
+              className="rounded-2xl border-2 border-ink bg-white p-4 shadow-[4px_4px_0_0_#141414] transition"
+            >
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-black text-ink">
+                    {i + 1}
+                  </span>
+                  <span className="font-display text-sm font-bold text-ink">
+                    Variante: {v.color || "Sem Cor"} — {v.storage || "Sem Armazenamento"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({ ...form, variants: form.variants.filter((_, idx) => idx !== i) })
+                  }
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir variante
+                </button>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                <Field label="Armazenamento *">
                   <input
-                    type="color"
-                    value={v.colorHex ?? "#1d1d1f"}
-                    onChange={(e) => setVariant(i, { colorHex: e.target.value })}
-                    className="h-10 w-10 cursor-pointer rounded-lg border-2 border-ink/20"
-                    title="Cor no site"
+                    value={v.storage}
+                    list="storages_list"
+                    onChange={(e) => setVariant(i, { storage: e.target.value })}
+                    placeholder="ex: 128GB, 256GB..."
+                    required
+                    className={inputCls}
                   />
+                </Field>
+
+                <Field label="Cor do Aparelho *">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={v.colorHex ?? "#1d1d1f"}
+                      onChange={(e) => setVariant(i, { colorHex: e.target.value })}
+                      className="h-10 w-12 cursor-pointer shrink-0 rounded-xl border-2 border-ink/30 bg-white"
+                      title="Escolher tom da cor no site"
+                    />
+                    <input
+                      value={v.color}
+                      list="colors_list"
+                      onChange={(e) => {
+                        const newColor = e.target.value;
+                        const autoHex = detectColorHex(newColor);
+                        setVariant(i, {
+                          color: newColor,
+                          ...(autoHex ? { colorHex: autoHex } : {}),
+                        });
+                      }}
+                      placeholder="ex: Titânio-deserto, Preto..."
+                      required
+                      className={inputCls}
+                    />
+                  </div>
+                </Field>
+
+                <Field label="Preço à Vista (R$) *">
                   <input
                     value={v.priceReais}
                     onChange={(e) => setVariant(i, { priceReais: e.target.value })}
-                    placeholder="4.899,00 *"
+                    placeholder="ex: 5.499,00"
                     required
                     inputMode="decimal"
-                    className={miniInputCls}
+                    className={inputCls}
                   />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-ink">
-                    <input
-                      type="checkbox"
-                      checked={v.available}
-                      onChange={(e) => setVariant(i, { available: e.target.checked })}
-                      className="h-4 w-4 accent-[#141414]"
-                    />
-                    Disponível
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm({ ...form, variants: form.variants.filter((_, idx) => idx !== i) })
-                    }
-                    className="rounded-lg p-1.5 text-red-500 hover:bg-red-100"
-                    aria-label="Remover variante"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                </Field>
+
+                <Field label="🔋 Saúde da Bateria">
+                  <input
+                    value={v.batteryHealth ?? ""}
+                    onChange={(e) => setVariant(i, { batteryHealth: e.target.value })}
+                    placeholder="ex: 85%, 100%, Bateria Nova"
+                    className={inputCls}
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {["100%", "95%", "90%", "88%", "85%", "82%", "Bateria Nova"].map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => setVariant(i, { batteryHealth: b })}
+                        className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                          v.batteryHealth === b
+                            ? "border-emerald-600 bg-emerald-500 text-white"
+                            : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                        }`}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="🖼️ Foto desta Cor (URL Opcional)">
+                  <input
+                    value={v.imageUrl ?? ""}
+                    onChange={(e) => setVariant(i, { imageUrl: e.target.value })}
+                    placeholder="https://i.ibb.co/..."
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Versão (opcional)">
+                  <input
+                    value={v.version}
+                    onChange={(e) => setVariant(i, { version: e.target.value })}
+                    placeholder="ex: Pro, Pro Max..."
+                    className={inputCls}
+                  />
+                </Field>
               </div>
+
               {/* MINIATURA DA FOTO DA COR */}
               {v.imageUrl && (
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-2">
                   <img
                     src={v.imageUrl}
                     alt="Foto da cor"
-                    className="h-10 w-10 rounded-lg border border-ink object-contain bg-white p-0.5"
+                    className="h-12 w-12 rounded-lg border-2 border-ink bg-white object-contain p-0.5"
                     onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                   />
-                  <span className="text-[11px] font-bold text-neutral-500">
-                    Foto exclusiva da cor {v.color || "variante"} cadastrada!
-                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-900">
+                      ✓ Foto exclusiva cadastrada para a cor: {v.color || "esta variante"}!
+                    </p>
+                    <p className="text-[11px] text-emerald-700">
+                      Quando o cliente selecionar essa cor no site, a foto vai trocar automaticamente.
+                    </p>
+                  </div>
                 </div>
               )}
-              {/* ATALHOS DE SAÚDE DA BATERIA (SEMINOVO) */}
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-neutral-500">
-                <span>🔋 Bateria rápida:</span>
-                {["100%", "95%", "90%", "88%", "85%", "82%", "Bateria Nova"].map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => setVariant(i, { batteryHealth: b })}
-                    className={`rounded-md border border-neutral-300 px-2 py-0.5 text-[10px] transition ${
-                      v.batteryHealth === b ? "bg-emerald-500 text-white border-emerald-600 font-extrabold" : "bg-white text-ink hover:bg-neutral-200"
-                    }`}
-                  >
-                    {b}
-                  </button>
-                ))}
+
+              <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink">
+                  <input
+                    type="checkbox"
+                    checked={v.available}
+                    onChange={(e) => setVariant(i, { available: e.target.checked })}
+                    className="h-4 w-4 rounded accent-[#141414]"
+                  />
+                  Disponível para venda em estoque
+                </label>
               </div>
             </div>
           ))}
