@@ -168,16 +168,28 @@ function Slide({
   fees: Record<string, number>;
   whatsapp: string;
 }) {
-  const available = product.variants.filter((v) => v.available);
-  const minPriceCents = Math.min(...available.map((v) => v.priceCash));
+  const available = useMemo(
+    () => product.variants.filter((v) => v.available),
+    [product.variants],
+  );
+  const minPriceCents = useMemo(
+    () => Math.min(...available.map((v) => v.priceCash)),
+    [available],
+  );
   const fee = fees[String(installmentsMax)] ?? 0;
   const installment = installmentFromFees(minPriceCents, installmentsMax, fee);
-  const storages = [...new Set(available.map((v) => v.storage))];
-  const colors = [...new Map(available.map((v) => [v.color, v.colorHex ?? "#111"])).entries()];
+  const storages = useMemo(
+    () => [...new Set(available.map((v) => v.storage))],
+    [available],
+  );
+  const colors = useMemo(
+    () => [...new Map(available.map((v) => [v.color, v.colorHex ?? "#111"])).entries()],
+    [available],
+  );
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
 
-  // Lista de imagens (imagem principal + fotos por cor/variante) embaralhadas aleatoriamente
+  // Lista de imagens estável (imagem principal + foto de cada cor disponível)
   const imagesList = useMemo(() => {
     const list: { url: string; color?: string; hex?: string }[] = [];
     if (product.imageUrl) {
@@ -188,16 +200,12 @@ function Slide({
         list.push({ url: v.imageUrl, color: v.color, hex: v.colorHex ?? undefined });
       }
     }
-    // Sorteia aleatoriamente a ordem das fotos das cores para cada exibição na TV
-    return list.length > 1 ? [...list].sort(() => Math.random() - 0.5) : list;
+    return list;
   }, [product.id, product.imageUrl, available]);
 
-  // Escolhe uma foto inicial aleatória
-  const [imgIndex, setImgIndex] = useState(() =>
-    imagesList.length > 1 ? Math.floor(Math.random() * imagesList.length) : 0,
-  );
+  const [imgIndex, setImgIndex] = useState(0);
 
-  // Alterna fotos das cores aleatoriamente a cada 3,5 segundos
+  // Alterna fotos das cores de forma suave a cada 3,5 segundos
   useEffect(() => {
     if (imagesList.length <= 1) return;
     const interval = setInterval(() => {
