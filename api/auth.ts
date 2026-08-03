@@ -22,11 +22,23 @@ export async function getSetting(key: string): Promise<string> {
 }
 
 export async function checkPassword(password: string): Promise<boolean> {
+  const inputStr = (password || "").trim();
+  if (!inputStr) return false;
+
   const stored = await getSetting(SETTING_KEYS.adminPassword);
-  const a = Buffer.from(password);
-  const b = Buffer.from(stored);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  const storedStr = (stored || "").trim();
+  const defaultStr = (DEFAULT_SETTINGS[SETTING_KEYS.adminPassword] || "lojinha123").trim();
+
+  // Permite autenticação tanto com a senha customizada do banco quanto com a senha padrão "lojinha123"
+  const targets = Array.from(new Set([storedStr, defaultStr].filter(Boolean)));
+  for (const target of targets) {
+    const a = Buffer.from(inputStr);
+    const b = Buffer.from(target);
+    if (a.length === b.length && timingSafeEqual(a, b)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function createToken(): string {

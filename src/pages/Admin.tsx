@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { Lock, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Settings, Package } from "lucide-react";
 import { trpc } from "@/providers/trpc";
@@ -54,7 +54,19 @@ export default function Admin() {
     onError: (err) => setError(err.message || "Senha incorreta. Tente novamente."),
   });
 
-  const products = trpc.admin.products.useQuery(undefined, { enabled: !!token });
+  const products = trpc.admin.products.useQuery(undefined, {
+    enabled: !!token,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (products.error) {
+      localStorage.removeItem("admin_token");
+      setToken("");
+      setError("Sessão expirada. Digite a senha para entrar.");
+    }
+  }, [products.error]);
+
   const deleteProduct = trpc.admin.deleteProduct.useMutation({
     onSuccess: () => utils.admin.products.invalidate(),
   });
@@ -64,15 +76,20 @@ export default function Admin() {
     setToken("");
   }
 
+  function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    localStorage.removeItem("admin_token");
+    setToken("");
+    setError("");
+    login.mutate({ password: password.trim() });
+  }
+
   // ===== TELA DE LOGIN =====
   if (!token) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4 py-16">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            login.mutate({ password });
-          }}
+          onSubmit={handleLogin}
           className="w-full max-w-sm rounded-3xl border-2 border-ink bg-white p-8 shadow-[6px_6px_0_0_#141414]"
         >
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-brand">
