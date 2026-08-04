@@ -195,8 +195,8 @@ function Slide({
     return list.length > 0 ? Math.min(...list.map((v) => v.priceCash)) : 0;
   }, [available, product.variants]);
 
-  const fee = fees[String(installmentsMax)] ?? 0;
-  const installment = installmentFromFees(priceCents, installmentsMax, fee);
+  const fee12 = fees["12"] ?? fees[String(installmentsMax)] ?? 0;
+  const installment12 = installmentFromFees(priceCents, 12, fee12);
   const storages = useMemo(
     () => [...new Set((available.length > 0 ? available : product.variants).map((v) => v.storage))],
     [available, product.variants],
@@ -325,15 +325,13 @@ function Slide({
         </div>
 
         <div className="mt-2 rounded-3xl border-4 border-ink bg-white p-6 shadow-[8px_8px_0_0_#141414]">
-          <p className="text-sm font-bold uppercase tracking-widest text-neutral-500">À vista</p>
-          <p className="font-display text-6xl font-bold leading-none text-ink md:text-7xl">
-            {formatBRL(priceCents)}
+          <p className="text-sm font-bold uppercase tracking-widest text-neutral-500">No cartão</p>
+          <p className="font-display text-5xl font-bold leading-none text-ink md:text-6xl lg:text-7xl">
+            12x de {formatBRL(installment12)}
           </p>
-          {installmentsMax > 1 && (
-            <p className="mt-2 font-display text-2xl font-bold text-ink/70">
-              ou {installmentsMax}x de {formatBRL(installment)}
-            </p>
-          )}
+          <p className="mt-3 text-xl font-bold text-neutral-600">
+            ou <span className="font-display text-3xl font-extrabold text-ink">{formatBRL(priceCents)}</span> à vista
+          </p>
           {product.variants.find((v) => v.batteryHealth)?.batteryHealth ? (
             <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-300 px-3.5 py-1 text-sm font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
               🔋 Saúde da Bateria: {product.variants.find((v) => v.batteryHealth)?.batteryHealth}

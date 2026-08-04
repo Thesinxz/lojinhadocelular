@@ -103,10 +103,6 @@ export default function Produto() {
   const isAvailable = !!selected?.available;
   const price = selected?.priceCash ?? null;
   const maxFee = s.fees[String(s.installmentsMax)] ?? 0;
-  const installment =
-    price != null && s.installmentsMax > 1
-      ? installmentFromFees(price, s.installmentsMax, maxFee)
-      : null;
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
 
@@ -225,13 +221,13 @@ export default function Produto() {
           <div className="mt-5 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
             {price != null && isAvailable ? (
               <>
-                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">À vista (PIX ou dinheiro)</p>
-                <p className="font-display text-4xl font-bold text-ink">{formatBRL(price)}</p>
-                {installment != null && (
-                  <p className="mt-1 text-sm font-semibold text-neutral-600">
-                    ou em até {s.installmentsMax}x de {formatBRL(installment)} no cartão
-                  </p>
-                )}
+                <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">No cartão em</p>
+                <p className="font-display text-4xl font-bold text-ink md:text-5xl">
+                  12x de {formatBRL(installmentFromFees(price, 12, s.fees["12"] ?? maxFee))}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-neutral-600">
+                  ou <span className="font-display text-2xl font-bold text-ink">{formatBRL(price)}</span> à vista (PIX ou dinheiro)
+                </p>
                 {s.installmentsMax > 1 && (
                   <button
                     type="button"

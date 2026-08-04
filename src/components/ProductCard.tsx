@@ -14,10 +14,10 @@ export default function ProductCard({
 }) {
   const price = minPrice(product);
   const colors = availableColors(product);
-  const fee = fees[String(installmentsMax)] ?? 0;
-  const installment =
-    price != null && installmentsMax > 1
-      ? installmentFromFees(price, installmentsMax, fee)
+  const fee12 = fees["12"] ?? fees[String(installmentsMax)] ?? 0;
+  const installment12 =
+    price != null
+      ? installmentFromFees(price, 12, fee12)
       : null;
 
   const batteryHealth = product.variants.find((v) => v.batteryHealth)?.batteryHealth;
@@ -81,13 +81,13 @@ export default function ProductCard({
         <div className="mt-auto pt-1">
           {price != null ? (
             <>
-              <p className="text-xs text-neutral-500">a partir de</p>
-              <p className="font-display text-xl font-bold text-ink">{formatBRL(price)}</p>
-              {installment != null && (
-                <p className="text-xs font-medium text-neutral-600">
-                  ou {installmentsMax}x de {formatBRL(installment)}
-                </p>
-              )}
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">No cartão</p>
+              <p className="font-display text-xl font-bold text-ink">
+                12x de {formatBRL(installment12 ?? 0)}
+              </p>
+              <p className="text-xs font-semibold text-neutral-500 mt-0.5">
+                ou <span className="font-bold text-neutral-800">{formatBRL(price)}</span> à vista
+              </p>
             </>
           ) : (
             <p className="text-sm font-semibold text-neutral-400">Indisponível no momento</p>
