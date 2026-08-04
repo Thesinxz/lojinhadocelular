@@ -505,26 +505,56 @@ export default function Produto() {
             )}
           </div>
 
-          {/* Descrição */}
-          {product.description && (
-            <div className="mt-8">
-              <h2 className="font-display text-lg font-bold text-ink">Sobre este aparelho</h2>
-              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
+          {/* SOBRE ESTE APARELHO (Diferenciais e Observações da Variante) */}
+          <div className="mt-8 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-ink bg-brand font-bold text-ink">
+                📱
+              </div>
+              <h2 className="font-display text-xl font-bold text-ink">Sobre este aparelho</h2>
+            </div>
+
+            {/* Observações / Histórico Específico desta Variante */}
+            {selected?.notes && (
+              <div className="mt-4 rounded-xl border-2 border-ink bg-amber-100 p-4 shadow-[2px_2px_0_0_#141414]">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-amber-900 shrink-0" />
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-950">
+                    Detalhes & Histórico desta Unidade
+                  </span>
+                </div>
+                <p className="mt-1 text-sm font-bold leading-relaxed text-amber-950">
+                  {selected.notes}
+                </p>
+              </div>
+            )}
+
+            {/* Descrição Geral */}
+            {product.description && (
+              <p className="mt-4 whitespace-pre-line text-sm font-medium leading-relaxed text-neutral-700">
                 {product.description}
               </p>
-            </div>
-          )}
+            )}
 
-          <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-neutral-500">
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1.5">
-              <BadgeCheck className="h-3.5 w-3.5" /> Aparelho testado
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1.5">
-              <ShieldCheck className="h-3.5 w-3.5" /> Garantia da loja
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1.5">
-              <Package className="h-3.5 w-3.5" /> Retirada na loja
-            </span>
+            {/* Diferenciais da Loja */}
+            <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
+              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Garantia de {selected?.warranty || product.warranty || "1 ano de garantia"}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
+                <BadgeCheck className="h-4 w-4 text-blue-600 shrink-0" />
+                <span>100% Testado, Revisado & Original</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
+                <BatteryCharging className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Bateria: {selected?.batteryHealth || "Excelente (80%+)"}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
+                <Package className="h-4 w-4 text-brand shrink-0" />
+                <span>Pronta entrega em Jardim e Guia Lopes</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
