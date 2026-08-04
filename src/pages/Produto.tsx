@@ -63,7 +63,6 @@ export default function Produto() {
         (v) =>
           v.version === version &&
           v.color === c &&
-          (storage ? v.storage === storage : true) &&
           v.available &&
           (v.quantity ?? 1) > 0,
       );
@@ -88,6 +87,53 @@ export default function Produto() {
     if (vs.some((v) => v.version === ver && v.storage === st && v.color === c)) return c;
     const first = vs.find((v) => v.version === ver && v.storage === st && v.available);
     return first ? first.color : c;
+  }
+
+  function pickStorage(st: string) {
+    setStorage(st);
+    if (!product) return;
+    const match = product.variants.find(
+      (v) => v.version === version && v.storage === st && v.color === color && v.available && (v.quantity ?? 1) > 0,
+    );
+    if (match) {
+      setSelectedVariantId(match.id ?? null);
+    } else {
+      const first = product.variants.find(
+        (v) => v.version === version && v.storage === st && v.available && (v.quantity ?? 1) > 0,
+      );
+      if (first) {
+        setColor(first.color);
+        setSelectedVariantId(first.id ?? null);
+      }
+    }
+  }
+
+  function pickColor(c: string) {
+    setColor(c);
+    if (!product) return;
+    const match = product.variants.find(
+      (v) => v.version === version && v.storage === storage && v.color === c && v.available && (v.quantity ?? 1) > 0,
+    );
+    if (match) {
+      setSelectedVariantId(match.id ?? null);
+    } else {
+      const first = product.variants.find(
+        (v) => v.version === version && v.color === c && v.available && (v.quantity ?? 1) > 0,
+      );
+      if (first) {
+        setStorage(first.storage);
+        setSelectedVariantId(first.id ?? null);
+      }
+    }
+  }
+
+  function pickVersion(ver: string) {
+    setVersion(ver);
+    const first = product!.variants.find((v) => v.version === ver && v.available);
+    if (first) {
+      setStorage(first.storage);
+      setColor(first.color);
+    }
   }
 
   if (query.isLoading) {
@@ -126,29 +172,6 @@ export default function Produto() {
   const buyMessage = `Olá! Quero comprar o ${product.name}${
     version ? ` ${version}` : ""
   } ${storage} na cor ${color}${price != null ? ` (${formatBRL(price)} à vista)` : ""}. Está disponível?`;
-
-  function pickStorage(st: string) {
-    setStorage(st);
-    // se a cor atual não combina com o novo armazenamento, escolhe a primeira disponível
-    const ok = product!.variants.some(
-      (v) => v.version === version && v.storage === st && v.color === color && v.available,
-    );
-    if (!ok) {
-      const first = product!.variants.find(
-        (v) => v.version === version && v.storage === st && v.available,
-      );
-      if (first) setColor(first.color);
-    }
-  }
-
-  function pickVersion(ver: string) {
-    setVersion(ver);
-    const first = product!.variants.find((v) => v.version === ver && v.available);
-    if (first) {
-      setStorage(first.storage);
-      setColor(first.color);
-    }
-  }
 
   const prodTitle = `${product.name}${version ? ` ${version}` : ""} ${storage} ${color}`;
   const prodDesc = product.description || `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`;
@@ -361,7 +384,7 @@ export default function Produto() {
                 return (
                   <button
                     key={c}
-                    onClick={() => setColor(c)}
+                    onClick={() => pickColor(c)}
                     className={`flex items-center gap-2 rounded-full border-2 px-3.5 py-2 text-sm font-semibold transition ${
                       isSelected
                         ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
