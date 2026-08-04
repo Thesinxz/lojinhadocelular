@@ -31,6 +31,7 @@ const variantInput = z.object({
   warranty: z.string().optional(),
   notes: z.string().optional(),
   priceCash: z.number().int().min(0),
+  quantity: z.number().int().min(0).default(1),
   available: z.boolean(),
 });
 
@@ -130,7 +131,8 @@ export const adminRouter = createRouter({
           warranty: v.warranty || "",
           notes: v.notes || "",
           priceCash: v.priceCash,
-          available: v.available,
+          quantity: typeof v.quantity === "number" ? v.quantity : 1,
+          available: (v.quantity ?? 1) > 0 && v.available,
         })),
       );
 

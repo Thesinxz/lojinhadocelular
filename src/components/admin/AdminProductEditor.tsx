@@ -901,16 +901,73 @@ export default function AdminProductEditor({
                 </div>
               )}
 
-              <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink">
-                  <input
-                    type="checkbox"
-                    checked={v.available}
-                    onChange={(e) => setVariant(i, { available: e.target.checked })}
-                    className="h-4 w-4 rounded accent-[#141414]"
-                  />
-                  Disponível para venda em estoque
-                </label>
+              <div className="mt-3 border-t border-neutral-100 pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-ink">📦 Quantidade em Estoque:</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newQ = Math.max(0, (v.quantity ?? 1) - 1);
+                          setVariant(i, { quantity: newQ, available: newQ > 0 });
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-ink bg-neutral-100 font-bold text-ink hover:bg-neutral-200"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={0}
+                        value={v.quantity ?? 1}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setVariant(i, { quantity: val, available: val > 0 });
+                        }}
+                        className="h-7 w-14 rounded-lg border-2 border-ink text-center text-xs font-bold outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newQ = (v.quantity ?? 1) + 1;
+                          setVariant(i, { quantity: newQ, available: true });
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-ink bg-neutral-100 font-bold text-ink hover:bg-neutral-200"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[0, 1, 2, 3, 5].map((qty) => (
+                        <button
+                          key={qty}
+                          type="button"
+                          onClick={() => setVariant(i, { quantity: qty, available: qty > 0 })}
+                          className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                            (v.quantity ?? 1) === qty
+                              ? "border-ink bg-ink text-brand"
+                              : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                          }`}
+                        >
+                          {qty === 0 ? "0 (Esgotado)" : `${qty} un`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink">
+                    <input
+                      type="checkbox"
+                      checked={v.available && (v.quantity ?? 1) > 0}
+                      onChange={(e) => {
+                        const check = e.target.checked;
+                        setVariant(i, { available: check, quantity: check ? (v.quantity || 1) : 0 });
+                      }}
+                      className="h-4 w-4 rounded accent-[#141414]"
+                    />
+                    Disponível para venda em estoque
+                  </label>
+                </div>
               </div>
             </div>
           ))}

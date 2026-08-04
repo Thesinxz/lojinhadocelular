@@ -41,6 +41,7 @@ export const variants = mysqlTable("variants", {
   warranty: varchar("warranty", { length: 120 }).default(""), // ex: "3 meses", "1 ano", "Garantia Apple Nov/2026"
   notes: text("notes"), // Observações/detalhes ex: "Sem marcas", "Com caixa e cabo"
   priceCash: int("price_cash").notNull(), // em centavos
+  quantity: int("quantity").notNull().default(1), // Quantidade de unidades em estoque
   available: boolean("available").notNull().default(true),
 });
 

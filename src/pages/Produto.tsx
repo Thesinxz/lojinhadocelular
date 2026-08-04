@@ -32,16 +32,18 @@ export default function Produto() {
   const [version, setVersion] = useState("");
   const [storage, setStorage] = useState("");
   const [color, setColor] = useState("");
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
 
   // Seleção inicial: primeira combinação disponível
   useEffect(() => {
     if (!product) return;
-    const first = product.variants.find((v) => v.available) ?? product.variants[0];
+    const first = product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ?? product.variants[0];
     if (first) {
       setVersion(first.version);
       setStorage(first.storage);
       setColor(first.color);
+      setSelectedVariantId(first.id ?? null);
     }
   }, [product]);
 
@@ -55,24 +57,38 @@ export default function Produto() {
     const colors = [...new Set(vs.filter((v) => v.version === version).map((v) => v.color))];
 
     const storageAvailable = (st: string) =>
-      byVersion.some((v) => v.storage === st && v.available);
+      byVersion.some((v) => v.storage === st && v.available && (v.quantity ?? 1) > 0);
     const colorAvailable = (c: string) =>
       vs.some(
         (v) =>
           v.version === version &&
           v.color === c &&
           (storage ? v.storage === storage : true) &&
-          v.available,
+          v.available &&
+          (v.quantity ?? 1) > 0,
       );
     const colorHex = (c: string) =>
       vs.find((v) => v.version === version && v.color === c)?.colorHex ?? "#111111";
 
-    const selected: Variant | undefined = vs.find(
-      (v) => v.version === version && v.storage === storage && v.color === color,
+    const matchingVariants = vs.filter(
+      (v) => v.version === version && v.storage === storage && v.color === cMatch(color, vs, version, storage),
     );
 
-    return { versions, storages, colors, storageAvailable, colorAvailable, colorHex, selected };
-  }, [product, version, storage, color]);
+    const selected =
+      matchingVariants.find((v) => v.id === selectedVariantId) ??
+      matchingVariants.find((v) => v.available && (v.quantity ?? 1) > 0) ??
+      matchingVariants[0] ??
+      vs.find((v) => v.version === version && v.storage === storage && v.color === color) ??
+      vs[0];
+
+    return { versions, storages, colors, storageAvailable, colorAvailable, colorHex, matchingVariants, selected };
+  }, [product, version, storage, color, selectedVariantId]);
+
+  function cMatch(c: string, vs: Variant[], ver: string, st: string) {
+    if (vs.some((v) => v.version === ver && v.storage === st && v.color === c)) return c;
+    const first = vs.find((v) => v.version === ver && v.storage === st && v.available);
+    return first ? first.color : c;
+  }
 
   if (query.isLoading) {
     return (
@@ -223,6 +239,25 @@ export default function Produto() {
             )}
           </div>
 
+          {/* Status do Estoque */}
+          {selected && (
+            <div className="mt-2.5">
+              {(selected.quantity ?? 1) > 1 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-950">
+                  📦 {selected.quantity} unidades disponíveis em estoque
+                </span>
+              ) : (selected.quantity ?? 1) === 1 && isAvailable ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950">
+                  ⚡ Última unidade disponível em estoque!
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-red-100 px-3 py-1 text-xs font-bold text-red-950">
+                  ❌ Esgotado no momento
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Preço */}
           <div className="mt-5 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
             {price != null && isAvailable ? (
@@ -350,6 +385,47 @@ export default function Produto() {
               })}
             </div>
           </OptionGroup>
+
+          {/* Opções / Unidades em Estoque (quando há mais de uma unidade com baterias/detalhes diferentes da mesma cor) */}
+          {derived.matchingVariants.length > 1 && (
+            <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Opções / Unidades em Estoque">
+              <div className="flex flex-wrap gap-2">
+                {derived.matchingVariants.map((v, idx) => {
+                  const isSelectedUnit = selected?.id === v.id;
+                  const detailsLabel = [
+                    v.batteryHealth ? `Bat. ${v.batteryHealth}` : "",
+                    v.notes || "",
+                    v.warranty ? `Garantia: ${v.warranty}` : "",
+                    v.priceCash ? formatBRL(v.priceCash) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" • ");
+
+                  return (
+                    <button
+                      key={v.id ?? idx}
+                      type="button"
+                      onClick={() => setSelectedVariantId(v.id ?? null)}
+                      className={`inline-flex flex-col rounded-xl border-2 px-3.5 py-2 text-left text-xs font-bold transition ${
+                        isSelectedUnit
+                          ? "border-ink bg-ink !text-brand shadow-[2px_2px_0_0_#141414]"
+                          : v.available && (v.quantity ?? 1) > 0
+                            ? "border-ink/30 bg-white text-ink hover:border-ink"
+                            : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400"
+                      }`}
+                    >
+                      <span className="font-extrabold">Unidade #{idx + 1}</span>
+                      {detailsLabel && (
+                        <span className={`text-[11px] font-semibold ${isSelectedUnit ? "text-brand/80" : "text-neutral-500"}`}>
+                          {detailsLabel}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </OptionGroup>
+          )}
 
           {/* Comprar */}
           <div className="mt-6 space-y-3">

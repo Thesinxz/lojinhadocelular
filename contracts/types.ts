@@ -93,6 +93,7 @@ export type VariantInput = {
   warranty?: string;
   notes?: string;
   priceCash: number;
+  quantity?: number;
   available: boolean;
 };
 
