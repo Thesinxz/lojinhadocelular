@@ -91,6 +91,22 @@ export function getProductModelRank(name: string): number {
   return gen * 100 + tier * 10;
 }
 
+export function getProductGroupPriority(p: { brand?: string; name: string; category: string; condition: string }): number {
+  const brand = (p.brand || "").toLowerCase();
+  const name = p.name.toLowerCase();
+  const isApple = brand.includes("apple") || name.includes("iphone") || p.category.includes("iphone");
+  const isLacrado = p.condition === "lacrado" || p.condition === "novo" || p.category === "iphone_lacrado";
+  const isSeminovo = p.condition === "seminovo" || p.category === "iphone_seminovo";
+
+  if (isApple && isLacrado) {
+    return 3; // 1º LUGAR: iPhones Lacrados
+  }
+  if (isApple || isSeminovo) {
+    return 2; // 2º LUGAR: iPhones Seminovos
+  }
+  return 1;   // 3º LUGAR: Outras Marcas (Xiaomi, Realme, Tecno, Infinix, Androids, Acessórios)
+}
+
 export function sortProducts(
   products: ProductWithVariants[],
   sortOption: SortOption = "relevancia",
@@ -100,11 +116,6 @@ export function sortProducts(
     const priceB = minPrice(b) ?? 0;
     const rankA = getProductModelRank(a.name);
     const rankB = getProductModelRank(b.name);
-
-    const isLacradoA =
-      a.condition === "lacrado" || a.condition === "novo" || a.category === "iphone_lacrado" ? 1 : 0;
-    const isLacradoB =
-      b.condition === "lacrado" || b.condition === "novo" || b.category === "iphone_lacrado" ? 1 : 0;
 
     if (sortOption === "menor_preco") {
       return priceA - priceB;
@@ -116,25 +127,25 @@ export function sortProducts(
       if (rankA !== rankB) return rankB - rankA;
       return priceB - priceA;
     }
-    if (sortOption === "lacrados_primeiro") {
-      if (isLacradoA !== isLacradoB) return isLacradoB - isLacradoA;
-      if (rankA !== rankB) return rankB - rankA;
-      return priceB - priceA;
-    }
 
-    // Padrão (Relevância / Lançamentos):
-    // 1. Destaques (featured) primeiro
+    // Padrão ("relevancia" e "lacrados_primeiro"):
+    // 1º HIERARQUIA DE GRUPOS:
+    //   - Grupo 3: iPhones Lacrados
+    //   - Grupo 2: iPhones Seminovos
+    //   - Grupo 1: Outras Marcas (Xiaomi, Realme, Tecno, Infinix...)
+    const groupA = getProductGroupPriority(a);
+    const groupB = getProductGroupPriority(b);
+    if (groupA !== groupB) return groupB - groupA;
+
+    // 2º Destaques (featured) em cada grupo
     const featA = a.featured ? 1 : 0;
     const featB = b.featured ? 1 : 0;
     if (featA !== featB) return featB - featA;
 
-    // 2. Lacrados em primeiro lugar se empatar destaque
-    if (isLacradoA !== isLacradoB) return isLacradoB - isLacradoA;
-
-    // 3. Modelo mais recente primeiro (iPhone 16 > 15 > 14 > 13)
+    // 3º Modelo mais recente primeiro (iPhone 16 > 15 > 14 > 13)
     if (rankA !== rankB) return rankB - rankA;
 
-    // 4. Maior preço como desempate final
+    // 4º Maior preço como desempate
     return priceB - priceA;
   });
 }

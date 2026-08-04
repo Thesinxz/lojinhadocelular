@@ -48,9 +48,26 @@ function getProductModelRank(name: string): number {
   return gen * 100 + tier * 10;
 }
 
+function getProductGroupPriority(p: { brand?: string; name: string; category: string; condition: string }): number {
+  const brand = (p.brand || "").toLowerCase();
+  const name = p.name.toLowerCase();
+  const isApple = brand.includes("apple") || name.includes("iphone") || p.category.includes("iphone");
+  const isLacrado = p.condition === "lacrado" || p.condition === "novo" || p.category === "iphone_lacrado";
+  const isSeminovo = p.condition === "seminovo" || p.category === "iphone_seminovo";
+
+  if (isApple && isLacrado) {
+    return 3; // 1º LUGAR: iPhones Lacrados
+  }
+  if (isApple || isSeminovo) {
+    return 2; // 2º LUGAR: iPhones Seminovos
+  }
+  return 1;   // 3º LUGAR: Outras Marcas (Xiaomi, Realme, Tecno, Infinix, Androids, Acessórios)
+}
+
 function sortProductsBackend<
   T extends {
     name: string;
+    brand?: string;
     condition: string;
     category: string;
     featured: boolean;
@@ -58,16 +75,20 @@ function sortProductsBackend<
   },
 >(list: T[]): T[] {
   return [...list].sort((a, b) => {
+    // 1º HIERARQUIA DE GRUPOS:
+    //   - Grupo 3: iPhones Lacrados
+    //   - Grupo 2: iPhones Seminovos
+    //   - Grupo 1: Outras Marcas (Xiaomi, Realme, Tecno, Infinix...)
+    const groupA = getProductGroupPriority(a);
+    const groupB = getProductGroupPriority(b);
+    if (groupA !== groupB) return groupB - groupA;
+
+    // 2º Destaques (featured)
     const featA = a.featured ? 1 : 0;
     const featB = b.featured ? 1 : 0;
     if (featA !== featB) return featB - featA;
 
-    const isLacradoA =
-      a.condition === "lacrado" || a.condition === "novo" || a.category === "iphone_lacrado" ? 1 : 0;
-    const isLacradoB =
-      b.condition === "lacrado" || b.condition === "novo" || b.category === "iphone_lacrado" ? 1 : 0;
-    if (isLacradoA !== isLacradoB) return isLacradoB - isLacradoA;
-
+    // 3º Modelo mais recente primeiro (iPhone 16 > 15 > 14 > 13)
     const rankA = getProductModelRank(a.name);
     const rankB = getProductModelRank(b.name);
     if (rankA !== rankB) return rankB - rankA;
