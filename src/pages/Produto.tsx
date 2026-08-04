@@ -464,49 +464,8 @@ export default function Produto() {
             );
           })()}
 
-          {/* Comprar */}
-          <div className="mt-6 space-y-3">
-            {isAvailable ? (
-              <>
-                <a
-                  href={waLink(s.whatsappJardim, buyMessage)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-[#25D366] px-6 py-4 font-display text-lg font-bold text-ink shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
-                >
-                  <MessageCircle className="h-5 w-5" /> Comprar — Loja Jardim
-                </a>
-                <a
-                  href={waLink(s.whatsappGll, buyMessage)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-[#25D366] px-6 py-4 font-display text-lg font-bold text-ink shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
-                >
-                  <MessageCircle className="h-5 w-5" /> Comprar — Loja Guia Lopes
-                </a>
-              </>
-            ) : (
-              <div className="space-y-2">
-                <p className="rounded-xl border-2 border-dashed border-red-300 bg-red-50 p-3 text-center text-xs font-bold text-red-700">
-                  ⚠️ Esta opção ({storage} - {color}) está esgotada no momento.
-                </p>
-                <a
-                  href={waLink(
-                    s.whatsappJardim,
-                    `Olá! Tenho interesse no ${product.name} ${version} ${storage} na cor ${color}. Podem me avisar quando chegar em estoque?`,
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-4 font-display text-lg font-bold text-brand shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
-                >
-                  <MessageCircle className="h-5 w-5" /> Avise-me no WhatsApp quando chegar
-                </a>
-              </div>
-            )}
-          </div>
-
           {/* SOBRE ESTE APARELHO (Diferenciais e Observações da Variante) */}
-          <div className="mt-8 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
+          <div className="mt-6 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-ink bg-brand font-bold text-ink">
                 📱
@@ -555,6 +514,47 @@ export default function Produto() {
                 <span>Pronta entrega em Jardim e Guia Lopes</span>
               </div>
             </div>
+          </div>
+
+          {/* Comprar */}
+          <div className="mt-6 space-y-3">
+            {isAvailable ? (
+              <>
+                <a
+                  href={waLink(s.whatsappJardim, buyMessage)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-[#25D366] px-6 py-4 font-display text-lg font-bold text-ink shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
+                >
+                  <MessageCircle className="h-5 w-5" /> Comprar — Loja Jardim
+                </a>
+                <a
+                  href={waLink(s.whatsappGll, buyMessage)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-[#25D366] px-6 py-4 font-display text-lg font-bold text-ink shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
+                >
+                  <MessageCircle className="h-5 w-5" /> Comprar — Loja Guia Lopes
+                </a>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <p className="rounded-xl border-2 border-dashed border-red-300 bg-red-50 p-3 text-center text-xs font-bold text-red-700">
+                  ⚠️ Esta opção ({storage} - {color}) está esgotada no momento.
+                </p>
+                <a
+                  href={waLink(
+                    s.whatsappJardim,
+                    `Olá! Tenho interesse no ${product.name} ${version} ${storage} na cor ${color}. Podem me avisar quando chegar em estoque?`,
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-4 font-display text-lg font-bold text-brand shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
+                >
+                  <MessageCircle className="h-5 w-5" /> Avise-me no WhatsApp quando chegar
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
