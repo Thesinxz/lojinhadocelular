@@ -57,6 +57,27 @@
       "priceRange": "$$"
     }
     </script>
+
+    <!-- Prevent blank white screens on asset 404 after redeploys -->
+    <script>
+      window.addEventListener('error', function (e) {
+        var msg = (e && e.message) || '';
+        var target = e && e.target;
+        var isChunkError =
+          msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+          msg.indexOf('Loading chunk') !== -1 ||
+          msg.indexOf('Failed to load resource') !== -1;
+        var isScriptError = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
+        if (isChunkError || isScriptError) {
+          var lastReload = sessionStorage.getItem('chunk_reload');
+          var now = Date.now();
+          if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+            sessionStorage.setItem('chunk_reload', String(now));
+            window.location.reload();
+          }
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>
