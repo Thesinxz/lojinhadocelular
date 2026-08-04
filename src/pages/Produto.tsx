@@ -386,46 +386,60 @@ export default function Produto() {
             </div>
           </OptionGroup>
 
-          {/* Opções / Unidades em Estoque (quando há mais de uma unidade com baterias/detalhes diferentes da mesma cor) */}
-          {derived.matchingVariants.length > 1 && (
-            <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Opções / Unidades em Estoque">
-              <div className="flex flex-wrap gap-2">
-                {derived.matchingVariants.map((v, idx) => {
-                  const isSelectedUnit = selected?.id === v.id;
-                  const detailsLabel = [
-                    v.batteryHealth ? `Bat. ${v.batteryHealth}` : "",
-                    v.notes || "",
-                    v.warranty ? `Garantia: ${v.warranty}` : "",
-                    v.priceCash ? formatBRL(v.priceCash) : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" • ");
+          {/* Opções / Unidades em Estoque (apenas quando há unidades com características/preços diferentes da mesma cor) */}
+          {(() => {
+            const hasDifferentSpecs =
+              derived.matchingVariants.length > 1 &&
+              derived.matchingVariants.some(
+                (v, _, arr) =>
+                  v.batteryHealth !== arr[0].batteryHealth ||
+                  v.notes !== arr[0].notes ||
+                  v.priceCash !== arr[0].priceCash ||
+                  v.warranty !== arr[0].warranty,
+              );
 
-                  return (
-                    <button
-                      key={v.id ?? idx}
-                      type="button"
-                      onClick={() => setSelectedVariantId(v.id ?? null)}
-                      className={`inline-flex flex-col rounded-xl border-2 px-3.5 py-2 text-left text-xs font-bold transition ${
-                        isSelectedUnit
-                          ? "border-ink bg-ink !text-brand shadow-[2px_2px_0_0_#141414]"
-                          : v.available && (v.quantity ?? 1) > 0
-                            ? "border-ink/30 bg-white text-ink hover:border-ink"
-                            : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400"
-                      }`}
-                    >
-                      <span className="font-extrabold">Unidade #{idx + 1}</span>
-                      {detailsLabel && (
-                        <span className={`text-[11px] font-semibold ${isSelectedUnit ? "text-brand/80" : "text-neutral-500"}`}>
-                          {detailsLabel}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </OptionGroup>
-          )}
+            if (!hasDifferentSpecs) return null;
+
+            return (
+              <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Opções / Unidades em Estoque">
+                <div className="flex flex-wrap gap-2">
+                  {derived.matchingVariants.map((v, idx) => {
+                    const isSelectedUnit = selected?.id === v.id;
+                    const detailsLabel = [
+                      v.batteryHealth ? `Bat. ${v.batteryHealth}` : "",
+                      v.notes || "",
+                      v.warranty ? `Garantia: ${v.warranty}` : "",
+                      v.priceCash ? formatBRL(v.priceCash) : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" • ");
+
+                    return (
+                      <button
+                        key={v.id ?? idx}
+                        type="button"
+                        onClick={() => setSelectedVariantId(v.id ?? null)}
+                        className={`inline-flex flex-col rounded-xl border-2 px-3.5 py-2 text-left text-xs font-bold transition ${
+                          isSelectedUnit
+                            ? "border-ink bg-ink !text-brand shadow-[2px_2px_0_0_#141414]"
+                            : v.available && (v.quantity ?? 1) > 0
+                              ? "border-ink/30 bg-white text-ink hover:border-ink"
+                              : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400"
+                        }`}
+                      >
+                        <span className="font-extrabold">Unidade #{idx + 1}</span>
+                        {detailsLabel && (
+                          <span className={`text-[11px] font-semibold ${isSelectedUnit ? "text-brand/80" : "text-neutral-500"}`}>
+                            {detailsLabel}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </OptionGroup>
+            );
+          })()}
 
           {/* Comprar */}
           <div className="mt-6 space-y-3">
