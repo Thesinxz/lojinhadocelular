@@ -243,21 +243,20 @@ function Slide({
 
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2">
-      {/* Imagem com Tamanho Padronizado e Preenchimento Máximo do Quadro */}
-      <div className="relative hidden items-center justify-center p-4 md:flex">
-        <div className="relative flex aspect-square h-full max-h-[74vh] w-full max-w-[74vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
-          <div className="flex h-full w-full items-center justify-center p-2 md:p-4">
-            {activeItem?.imageUrl ? (
-              <img
-                key={activeItem.imageUrl}
-                src={activeItem.imageUrl}
-                alt={product.name}
-                className="max-h-full max-w-full object-contain scale-[1.10] transition-all duration-500 ease-in-out"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center font-bold text-neutral-300">Sem foto</div>
-            )}
-          </div>
+      {/* Imagem com Tamanho Padronizado e Margens Limpas */}
+      <div className="relative hidden items-center justify-center p-6 md:flex">
+        <div className="relative flex aspect-square h-full max-h-[60vh] w-full max-w-[60vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
+          {activeItem?.imageUrl ? (
+            <img
+              key={activeItem.imageUrl}
+              src={activeItem.imageUrl}
+              alt={product.name}
+              className="h-full w-full object-contain pt-14 pb-14 px-8 transition-all duration-500 ease-in-out"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center font-bold text-neutral-300">Sem foto</div>
+          )}
+
           <span className="absolute left-5 top-5 z-10 rounded-full border-2 border-ink bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-sm">
             {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
           </span>
@@ -293,7 +292,7 @@ function Slide({
         <p className="text-sm font-bold uppercase tracking-widest text-ink/60">
           {product.brand} • {categoryLabel}
         </p>
-        <h2 className="font-display text-4xl font-bold leading-none text-ink md:text-6xl">
+        <h2 className="font-display text-4xl font-bold leading-tight text-ink md:text-5xl lg:text-6xl break-words">
           {product.name}
         </h2>
 
