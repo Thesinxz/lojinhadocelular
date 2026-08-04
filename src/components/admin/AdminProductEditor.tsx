@@ -358,7 +358,8 @@ export default function AdminProductEditor({
         warranty: v.warranty,
         notes: v.notes,
         priceCash: parsePrice(v.priceReais),
-        available: v.available,
+        quantity: typeof v.quantity === "number" ? Math.max(0, v.quantity) : 1,
+        available: (v.quantity ?? 1) > 0 && v.available,
       }));
     if (variants.length === 0) {
       setError("Adicione pelo menos uma variante (armazenamento + cor).");
