@@ -33,7 +33,7 @@ export default function ProductCard({
             src={product.imageUrl}
             alt={product.name}
             loading="lazy"
-            className="h-full w-full object-contain p-3 transition duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain pt-10 pb-2 px-3 transition duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-neutral-300">
@@ -41,7 +41,7 @@ export default function ProductCard({
           </div>
         )}
         <span
-          className={`absolute left-3 top-3 rounded-full border-2 border-ink px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
+          className={`absolute left-2.5 top-2.5 z-10 rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide shadow-sm ${
             product.condition === "seminovo" ? "bg-white text-ink" : "bg-brand text-ink"
           }`}
         >
@@ -49,7 +49,7 @@ export default function ProductCard({
         </span>
 
         {(batteryHealth || product.condition === "seminovo") && (
-          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2.5 py-0.5 text-[10px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
+          <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
             🔋 {batteryHealth ? `Bat. ${batteryHealth}` : "Bat. 80%+"}
           </span>
         )}

@@ -181,12 +181,12 @@ export default function Produto() {
         {/* Imagem */}
         <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-neutral-100 shadow-[6px_6px_0_0_#141414]">
           {selected?.imageUrl || product.imageUrl ? (
-            <img src={selected?.imageUrl || product.imageUrl!} alt={product.name} className="aspect-square w-full object-contain p-4 transition-all duration-300" />
+            <img src={selected?.imageUrl || product.imageUrl!} alt={product.name} className="aspect-square w-full object-contain pt-12 pb-3 px-4 transition-all duration-300" />
           ) : (
             <div className="flex aspect-square items-center justify-center text-neutral-300">Sem foto</div>
           )}
           <span
-            className={`absolute left-4 top-4 rounded-full border-2 border-ink px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+            className={`absolute left-4 top-4 z-10 rounded-full border-2 border-ink px-3 py-1 text-xs font-bold uppercase tracking-wide shadow-sm ${
               product.condition === "seminovo" ? "bg-white text-ink" : "bg-brand text-ink"
             }`}
           >
