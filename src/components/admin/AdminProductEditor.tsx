@@ -737,6 +737,7 @@ export default function AdminProductEditor({
                 </button>
               </div>
 
+              {/* ESPECIFICAÇÕES PRINCIPAIS */}
               <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 <Field label="Armazenamento *">
                   <input
@@ -786,7 +787,10 @@ export default function AdminProductEditor({
                     className={inputCls}
                   />
                 </Field>
+              </div>
 
+              {/* ESTOQUE E BATERIA */}
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Field label="📦 Quantidade em Estoque (Unidades) *">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1">
@@ -864,25 +868,10 @@ export default function AdminProductEditor({
                     ))}
                   </div>
                 </Field>
+              </div>
 
-                <Field label="🖼️ Foto desta Cor (URL Opcional)">
-                  <input
-                    value={v.imageUrl ?? ""}
-                    onChange={(e) => setVariant(i, { imageUrl: e.target.value })}
-                    placeholder="https://i.ibb.co/..."
-                    className={inputCls}
-                  />
-                </Field>
-
-                <Field label="Versão (opcional)">
-                  <input
-                    value={v.version}
-                    onChange={(e) => setVariant(i, { version: e.target.value })}
-                    placeholder="ex: Pro, Pro Max..."
-                    className={inputCls}
-                  />
-                </Field>
-
+              {/* GARANTIA E OBSERVAÇÕES INDIVIDUAIS */}
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Field label="🛡️ Garantia desta Variante (opcional)">
                   <input
                     value={v.warranty ?? ""}
@@ -931,6 +920,27 @@ export default function AdminProductEditor({
                       </button>
                     ))}
                   </div>
+                </Field>
+              </div>
+
+              {/* FOTO EXCLUSIVA E VERSÃO */}
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label="🖼️ Foto desta Cor (URL Opcional)">
+                  <input
+                    value={v.imageUrl ?? ""}
+                    onChange={(e) => setVariant(i, { imageUrl: e.target.value })}
+                    placeholder="https://i.ibb.co/..."
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Versão (opcional)">
+                  <input
+                    value={v.version}
+                    onChange={(e) => setVariant(i, { version: e.target.value })}
+                    placeholder="ex: Pro, Pro Max..."
+                    className={inputCls}
+                  />
                 </Field>
               </div>
 
