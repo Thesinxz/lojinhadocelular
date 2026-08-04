@@ -28,6 +28,8 @@ const variantInput = z.object({
   colorHex: z.string().optional(),
   imageUrl: z.string().optional(),
   batteryHealth: z.string().optional(),
+  warranty: z.string().optional(),
+  notes: z.string().optional(),
   priceCash: z.number().int().min(0),
   available: z.boolean(),
 });
@@ -125,6 +127,8 @@ export const adminRouter = createRouter({
           colorHex: v.colorHex ?? "#111111",
           imageUrl: v.imageUrl || null,
           batteryHealth: v.batteryHealth || "",
+          warranty: v.warranty || "",
+          notes: v.notes || "",
           priceCash: v.priceCash,
           available: v.available,
         })),

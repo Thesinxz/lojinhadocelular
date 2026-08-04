@@ -90,6 +90,8 @@ export type VariantInput = {
   colorHex?: string;
   imageUrl?: string;
   batteryHealth?: string;
+  warranty?: string;
+  notes?: string;
   priceCash: number;
   available: boolean;
 };

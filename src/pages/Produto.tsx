@@ -9,6 +9,7 @@ import {
   Palette,
   Package,
   BatteryCharging,
+  FileText,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -201,9 +202,9 @@ export default function Produto() {
           </h1>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {product.warranty && (
+            {(selected?.warranty || product.warranty) && (
               <p className="inline-flex items-center gap-1.5 rounded-full bg-brand/40 px-3 py-1 text-xs font-bold text-ink">
-                <ShieldCheck className="h-3.5 w-3.5" /> {product.warranty}
+                <ShieldCheck className="h-3.5 w-3.5" /> {selected?.warranty || product.warranty}
               </p>
             )}
             {selected?.batteryHealth ? (
@@ -215,6 +216,11 @@ export default function Produto() {
                 <BatteryCharging className="h-4 w-4 text-emerald-700" /> Bateria Excelente (80%+)
               </p>
             ) : null}
+            {selected?.notes && (
+              <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-amber-200 px-3 py-1 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
+                <FileText className="h-4 w-4 text-ink" /> Obs: {selected.notes}
+              </p>
+            )}
           </div>
 
           {/* Preço */}

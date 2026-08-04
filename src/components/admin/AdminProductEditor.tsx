@@ -28,7 +28,7 @@ const EMPTY: FormState = {
   featured: false,
   active: true,
   variants: [
-    { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", batteryHealth: "85%", priceReais: "", available: true },
+    { version: "", storage: "128GB", color: "Preto", colorHex: "#1d1d1f", batteryHealth: "85%", warranty: "", notes: "", priceReais: "", available: true },
   ],
 };
 
@@ -121,6 +121,8 @@ export default function AdminProductEditor({
       color: firstColor.name,
       colorHex: firstColor.hex,
       batteryHealth: isSeminovo ? "85%" : "",
+      warranty: "",
+      notes: "",
       priceReais: "",
       available: true,
     };
@@ -146,6 +148,8 @@ export default function AdminProductEditor({
       color: c.name,
       colorHex: c.hex,
       batteryHealth: isSeminovo ? "85%" : "",
+      warranty: "",
+      notes: "",
       priceReais: "",
       available: true,
     }));
@@ -199,6 +203,8 @@ export default function AdminProductEditor({
             colorHex: v.colorHex ?? "#1d1d1f",
             imageUrl: v.imageUrl ?? "",
             batteryHealth: v.batteryHealth ?? "",
+            warranty: v.warranty ?? "",
+            notes: v.notes ?? "",
             priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
             available: v.available,
           })),
@@ -293,6 +299,8 @@ export default function AdminProductEditor({
             colorHex: v.colorHex ?? "#1d1d1f",
             imageUrl: v.imageUrl ?? "",
             batteryHealth: v.batteryHealth ?? "",
+            warranty: v.warranty ?? "",
+            notes: v.notes ?? "",
             priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
             available: v.available,
           })),
@@ -320,6 +328,8 @@ export default function AdminProductEditor({
         colorHex: v.colorHex,
         imageUrl: v.imageUrl,
         batteryHealth: v.batteryHealth,
+        warranty: v.warranty,
+        notes: v.notes,
         priceCash: parsePrice(v.priceReais),
         available: v.available,
       }));
@@ -818,6 +828,56 @@ export default function AdminProductEditor({
                     placeholder="ex: Pro, Pro Max..."
                     className={inputCls}
                   />
+                </Field>
+
+                <Field label="🛡️ Garantia desta Variante (opcional)">
+                  <input
+                    value={v.warranty ?? ""}
+                    onChange={(e) => setVariant(i, { warranty: e.target.value })}
+                    placeholder="ex: 3 meses de garantia, 1 ano, Garantia Apple Nov/2026"
+                    className={inputCls}
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {["3 meses de garantia", "6 meses de garantia", "1 ano de garantia", "Garantia Apple"].map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setVariant(i, { warranty: g })}
+                        className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                          v.warranty === g
+                            ? "border-blue-600 bg-blue-500 text-white"
+                            : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="📝 Observações / Detalhes desta Variante (opcional)">
+                  <input
+                    value={v.notes ?? ""}
+                    onChange={(e) => setVariant(i, { notes: e.target.value })}
+                    placeholder="ex: Sem marcas de uso, Com caixa e cabo, Tela trocada..."
+                    className={inputCls}
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {["Sem marcas de uso", "Com caixa e cabo", "Bateria trocada", "Detalhe mínimo na carcaça"].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setVariant(i, { notes: n })}
+                        className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                          v.notes === n
+                            ? "border-amber-600 bg-amber-500 text-white"
+                            : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
                 </Field>
               </div>
 

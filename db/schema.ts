@@ -38,6 +38,8 @@ export const variants = mysqlTable("variants", {
   colorHex: varchar("color_hex", { length: 9 }).default("#111111"),
   imageUrl: text("image_url"), // URL da foto específica desta variante/cor
   batteryHealth: varchar("battery_health", { length: 30 }).default(""), // ex: "85%", "100%", "Bateria Nova"
+  warranty: varchar("warranty", { length: 120 }).default(""), // ex: "3 meses", "1 ano", "Garantia Apple Nov/2026"
+  notes: text("notes"), // Observações/detalhes ex: "Sem marcas", "Com caixa e cabo"
   priceCash: int("price_cash").notNull(), // em centavos
   available: boolean("available").notNull().default(true),
 });

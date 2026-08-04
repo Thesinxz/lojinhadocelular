@@ -332,15 +332,27 @@ function Slide({
           <p className="mt-3 text-xl font-bold text-neutral-600">
             ou <span className="font-display text-3xl font-extrabold text-ink">{formatBRL(priceCents)}</span> à vista
           </p>
-          {product.variants.find((v) => v.batteryHealth)?.batteryHealth ? (
-            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-300 px-3.5 py-1 text-sm font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
-              🔋 Saúde da Bateria: {product.variants.find((v) => v.batteryHealth)?.batteryHealth}
-            </p>
-          ) : (
-            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-sm font-bold text-ink">
-              <ShieldCheck className="h-4 w-4" /> {product.warranty ?? "1 ano de garantia"}
-            </p>
-          )}
+          {(() => {
+            const activeVariant = product.variants.find((v) => v.color === activeItem?.color) ?? product.variants[0];
+            const displayWarranty = activeVariant?.warranty || product.warranty || "1 ano de garantia";
+            return (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-brand px-3 py-1 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414]">
+                  <ShieldCheck className="h-4 w-4" /> {displayWarranty}
+                </p>
+                {activeVariant?.batteryHealth && (
+                  <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-300 px-3 py-1 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
+                    🔋 Saúde da Bateria: {activeVariant.batteryHealth}
+                  </p>
+                )}
+                {activeVariant?.notes && (
+                  <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-amber-200 px-3 py-1 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
+                    📝 Obs: {activeVariant.notes}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* QR + WhatsApp */}
