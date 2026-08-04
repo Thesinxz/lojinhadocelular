@@ -82,6 +82,17 @@ export function detectColorHex(name: string): string | null {
   return null;
 }
 
+export function formatCurrencyInput(val: string): string {
+  if (!val) return "";
+  const digits = val.replace(/\D/g, "");
+  if (!digits) return "";
+  const cents = parseInt(digits, 10);
+  return (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export default function AdminProductEditor({
   productId,
   onClose,
@@ -124,6 +135,7 @@ export default function AdminProductEditor({
       warranty: "",
       notes: "",
       priceReais: "",
+      quantity: 1,
       available: true,
     };
 
@@ -151,6 +163,7 @@ export default function AdminProductEditor({
       warranty: "",
       notes: "",
       priceReais: "",
+      quantity: 1,
       available: true,
     }));
     setForm((f) => ({
@@ -162,26 +175,21 @@ export default function AdminProductEditor({
   const products = trpc.admin.products.useQuery();
   const upsert = trpc.admin.upsertProduct.useMutation({
     onSuccess: () => {
+      utils.admin.products.invalidate();
       try {
         localStorage.removeItem(draftKey);
       } catch {
         // ignore
       }
-      setIsDirty(false);
-      utils.admin.products.invalidate();
-      utils.shop.products.invalidate();
-      utils.shop.featured.invalidate();
       onClose();
     },
-    onError: (e) => setError(e.message),
+    onError: (err) => {
+      setError(err.message || "Erro ao salvar produto");
+    },
   });
 
-  // Carrega produto inicial ou restaura rascunho automaticamente
+  // Preenche dados se estiver editando ou restaura rascunho salvo
   useEffect(() => {
-    isHydrated.current = false;
-    setAutoRestored(false);
-    setIsDirty(false);
-
     let baseForm = EMPTY;
     if (productId != null && products.data) {
       const p = products.data.find((x) => x.id === productId);
@@ -205,7 +213,8 @@ export default function AdminProductEditor({
             batteryHealth: v.batteryHealth ?? "",
             warranty: v.warranty ?? "",
             notes: v.notes ?? "",
-            priceReais: (v.priceCash / 100).toFixed(2).replace(".", ","),
+            priceReais: formatCurrencyInput(String(v.priceCash)),
+            quantity: typeof v.quantity === "number" ? v.quantity : 1,
             available: v.available,
           })),
         };
@@ -221,9 +230,26 @@ export default function AdminProductEditor({
           const hasContent =
             parsed.form.name ||
             parsed.form.description ||
-            parsed.form.variants.some((v: any) => v.priceReais || v.color);
+            parsed.form.variants?.some((v: any) => v.priceReais || v.color);
           if (hasContent) {
-            setForm(parsed.form);
+            const sanitizedVariants = (parsed.form.variants || []).map((v: any) => ({
+              version: v.version ?? "",
+              storage: v.storage ?? "128GB",
+              color: v.color ?? "Preto",
+              colorHex: v.colorHex ?? "#1d1d1f",
+              imageUrl: v.imageUrl ?? "",
+              batteryHealth: v.batteryHealth ?? "",
+              warranty: v.warranty ?? "",
+              notes: v.notes ?? "",
+              priceReais: formatCurrencyInput(v.priceReais ?? ""),
+              quantity: typeof v.quantity === "number" ? v.quantity : 1,
+              available: v.available ?? true,
+            }));
+
+            setForm({
+              ...parsed.form,
+              variants: sanitizedVariants.length > 0 ? sanitizedVariants : EMPTY.variants,
+            });
             restoredFromDraft = true;
             setAutoRestored(true);
             setIsDirty(true);
@@ -236,7 +262,7 @@ export default function AdminProductEditor({
 
     if (!restoredFromDraft) {
       setForm(baseForm);
-    }
+    } 
 
     const t = setTimeout(() => {
       isHydrated.current = true;
@@ -312,8 +338,9 @@ export default function AdminProductEditor({
   }
 
   function parsePrice(str: string): number {
-    const n = Number(str.replace(/\./g, "").replace(",", "."));
-    return isNaN(n) ? 0 : Math.round(n * 100);
+    if (!str) return 0;
+    const digits = str.replace(/\D/g, "");
+    return parseInt(digits, 10) || 0;
   }
 
   function submit(e: React.FormEvent) {
@@ -780,10 +807,13 @@ export default function AdminProductEditor({
                 <Field label="Preço à Vista (R$) *">
                   <input
                     value={v.priceReais}
-                    onChange={(e) => setVariant(i, { priceReais: e.target.value })}
-                    placeholder="ex: 5.499,00"
+                    onChange={(e) => {
+                      const masked = formatCurrencyInput(e.target.value);
+                      setVariant(i, { priceReais: masked });
+                    }}
+                    placeholder="2.899,99"
                     required
-                    inputMode="decimal"
+                    inputMode="numeric"
                     className={inputCls}
                   />
                 </Field>
