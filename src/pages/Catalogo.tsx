@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Search } from "lucide-react";
+import { Search, ArrowUpDown } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import ProductCard from "@/components/ProductCard";
-import { useShopSettings } from "@/lib/shop";
+import { useShopSettings, sortProducts, type SortOption } from "@/lib/shop";
 import { CATEGORIES, BRANDS } from "@contracts/types";
 
 import SEO from "@/components/SEO";
@@ -14,6 +14,7 @@ export default function Catalogo() {
   const categoria = searchParams.get("categoria") ?? "";
   const [brand, setBrand] = useState("");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("relevancia");
 
   const query = trpc.shop.products.useQuery(
     {
@@ -25,20 +26,23 @@ export default function Catalogo() {
 
   const products = useMemo(() => {
     const list = query.data ?? [];
-    if (!search.trim()) return list;
-    const term = search.toLowerCase();
-    return list.filter(
-      (p) =>
-        p.name.toLowerCase().includes(term) ||
-        p.brand.toLowerCase().includes(term) ||
-        p.variants.some(
-          (v) =>
-            v.storage.toLowerCase().includes(term) ||
-            v.version.toLowerCase().includes(term) ||
-            v.color.toLowerCase().includes(term),
-        ),
-    );
-  }, [query.data, search]);
+    let filtered = list;
+    if (search.trim()) {
+      const term = search.toLowerCase();
+      filtered = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(term) ||
+          p.brand.toLowerCase().includes(term) ||
+          p.variants.some(
+            (v) =>
+              v.storage.toLowerCase().includes(term) ||
+              v.version.toLowerCase().includes(term) ||
+              v.color.toLowerCase().includes(term),
+          ),
+      );
+    }
+    return sortProducts(filtered, sortBy);
+  }, [query.data, search, sortBy]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -51,15 +55,33 @@ export default function Catalogo() {
         Estoque atualizado das duas unidades. Toque no produto para ver versões, cores e preços.
       </p>
 
-      {/* Busca */}
-      <div className="mt-6 flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-4 py-3 shadow-[3px_3px_0_0_#141414]">
-        <Search className="h-5 w-5 text-neutral-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por modelo, cor, armazenamento..."
-          className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-neutral-400"
-        />
+      {/* Busca e Ordenação */}
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 items-center gap-2 rounded-xl border-2 border-ink bg-white px-4 py-3 shadow-[3px_3px_0_0_#141414]">
+          <Search className="h-5 w-5 text-neutral-400 shrink-0" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por modelo, cor, armazenamento..."
+            className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-neutral-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-3 py-2.5 shadow-[3px_3px_0_0_#141414] shrink-0">
+          <ArrowUpDown className="h-4 w-4 text-ink" />
+          <span className="text-xs font-bold text-neutral-500">Ordem:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="bg-transparent text-xs font-bold text-ink outline-none cursor-pointer"
+          >
+            <option value="relevancia">⭐ Lançamentos & Lacrados primeiro</option>
+            <option value="modelo_recente">📱 Modelo mais recente (16 ➔ 15 ➔ 14)</option>
+            <option value="lacrados_primeiro">✨ Todos os Lacrados primeiro</option>
+            <option value="menor_preco">💲 Menor Preço</option>
+            <option value="maior_preco">💰 Maior Preço</option>
+          </select>
+        </div>
       </div>
 
       {/* Filtros de categoria */}

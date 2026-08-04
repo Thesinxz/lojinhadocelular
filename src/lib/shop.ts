@@ -60,3 +60,81 @@ export function availableColors(product: ProductWithVariants) {
 export function waLink(phone: string, message: string): string {
   return `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
 }
+
+export type SortOption = "relevancia" | "lacrados_primeiro" | "modelo_recente" | "menor_preco" | "maior_preco";
+
+export function getProductModelRank(name: string): number {
+  const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // Se for iPhone, extrai o número da geração (ex: "iphone 16 pro max" => 16)
+  const iphoneMatch = n.match(/iphone\s*(\d+)/i);
+  let gen = 0;
+  if (iphoneMatch) {
+    gen = parseInt(iphoneMatch[1], 10);
+  } else if (n.includes("iphone x") || n.includes("iphone xs") || n.includes("iphone xr")) {
+    gen = 10;
+  } else if (n.includes("iphone 8")) {
+    gen = 8;
+  } else if (n.includes("iphone 7")) {
+    gen = 7;
+  } else if (n.includes("iphone se")) {
+    gen = 9;
+  }
+
+  // Tier da versão (Pro Max = 0.9 > Pro = 0.8 > Plus = 0.3 > Normal = 0.1 > Mini = 0.05)
+  let tier = 0.1;
+  if (n.includes("pro max")) tier = 0.9;
+  else if (n.includes("pro")) tier = 0.8;
+  else if (n.includes("plus")) tier = 0.3;
+  else if (n.includes("mini")) tier = 0.05;
+
+  return gen * 100 + tier * 10;
+}
+
+export function sortProducts(
+  products: ProductWithVariants[],
+  sortOption: SortOption = "relevancia",
+): ProductWithVariants[] {
+  return [...products].sort((a, b) => {
+    const priceA = minPrice(a) ?? 0;
+    const priceB = minPrice(b) ?? 0;
+    const rankA = getProductModelRank(a.name);
+    const rankB = getProductModelRank(b.name);
+
+    const isLacradoA =
+      a.condition === "lacrado" || a.condition === "novo" || a.category === "iphone_lacrado" ? 1 : 0;
+    const isLacradoB =
+      b.condition === "lacrado" || b.condition === "novo" || b.category === "iphone_lacrado" ? 1 : 0;
+
+    if (sortOption === "menor_preco") {
+      return priceA - priceB;
+    }
+    if (sortOption === "maior_preco") {
+      return priceB - priceA;
+    }
+    if (sortOption === "modelo_recente") {
+      if (rankA !== rankB) return rankB - rankA;
+      return priceB - priceA;
+    }
+    if (sortOption === "lacrados_primeiro") {
+      if (isLacradoA !== isLacradoB) return isLacradoB - isLacradoA;
+      if (rankA !== rankB) return rankB - rankA;
+      return priceB - priceA;
+    }
+
+    // Padrão (Relevância / Lançamentos):
+    // 1. Destaques (featured) primeiro
+    const featA = a.featured ? 1 : 0;
+    const featB = b.featured ? 1 : 0;
+    if (featA !== featB) return featB - featA;
+
+    // 2. Lacrados em primeiro lugar se empatar destaque
+    if (isLacradoA !== isLacradoB) return isLacradoB - isLacradoA;
+
+    // 3. Modelo mais recente primeiro (iPhone 16 > 15 > 14 > 13)
+    if (rankA !== rankB) return rankB - rankA;
+
+    // 4. Maior preço como desempate final
+    return priceB - priceA;
+  });
+}

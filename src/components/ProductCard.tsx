@@ -40,18 +40,24 @@ export default function ProductCard({
             Sem foto
           </div>
         )}
-        <span
-          className={`absolute left-2.5 top-2.5 z-10 rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide shadow-sm ${
-            product.condition === "seminovo" ? "bg-white text-ink" : "bg-brand text-ink"
-          }`}
-        >
-          {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
-        </span>
-
-        {(batteryHealth || product.condition === "seminovo") && (
-          <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
-            🔋 {batteryHealth ? `Bat. ${batteryHealth}` : "Bat. 80%+"}
-          </span>
+        {product.condition === "seminovo" ? (
+          <>
+            <span className="absolute left-2.5 top-2.5 z-10 rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
+              📱 Seminovo
+            </span>
+            <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
+              🔋 {batteryHealth ? `Bat. ${batteryHealth}` : "Bat. 80%+"}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="absolute left-2.5 top-2.5 z-10 rounded-full border-2 border-ink bg-brand px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
+              ✨ Lacrado Novo
+            </span>
+            <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-amber-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
+              🛡️ {product.warranty || "1 Ano Garantia"}
+            </span>
+          </>
         )}
       </div>
 
