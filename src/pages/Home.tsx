@@ -144,12 +144,13 @@ export default function Home() {
             </div>
           ) : (
             <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {(featured.data ?? []).map((p) => (
+              {(featured.data ?? []).map((p, i) => (
                 <ProductCard
                   key={p.id}
                   product={p}
                   installmentsMax={s.installmentsMax}
                   fees={s.fees}
+                  priority={i < 4}
                 />
               ))}
             </div>

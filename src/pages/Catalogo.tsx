@@ -127,12 +127,13 @@ export default function Catalogo() {
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {products.map((p) => (
+          {products.map((p, i) => (
             <ProductCard
               key={p.id}
               product={p}
               installmentsMax={s.installmentsMax}
               fees={s.fees}
+              priority={i < 6}
             />
           ))}
         </div>

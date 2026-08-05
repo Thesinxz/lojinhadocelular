@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
@@ -7,10 +8,12 @@ export default function ProductCard({
   product,
   installmentsMax,
   fees,
+  priority = false,
 }: {
   product: ProductWithVariants;
   installmentsMax: number;
   fees: FeeTable;
+  priority?: boolean;
 }) {
   const price = minPrice(product);
   const colors = availableColors(product);
@@ -21,6 +24,14 @@ export default function ProductCard({
       : null;
 
   const batteryHealth = product.variants.find((v) => v.batteryHealth)?.batteryHealth;
+  const [isLoaded, setIsLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    if (imgRef.current?.complete) {
+      setIsLoaded(true);
+    }
+  }, []);
 
   return (
     <Link
@@ -28,12 +39,20 @@ export default function ProductCard({
       className="group flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#141414]"
     >
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
+        {!isLoaded && product.imageUrl && (
+          <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200" />
+        )}
         {product.imageUrl ? (
           <img
+            ref={imgRef}
             src={product.imageUrl}
             alt={product.name}
-            loading="lazy"
-            className="h-full w-full object-contain pt-10 pb-2 px-3 transition duration-300 group-hover:scale-105"
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            onLoad={() => setIsLoaded(true)}
+            className={`h-full w-full object-contain pt-10 pb-2 px-3 transition-opacity duration-300 group-hover:scale-105 ${
+              isLoaded ? "opacity-100" : "opacity-0"
+            }`}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-neutral-300">
