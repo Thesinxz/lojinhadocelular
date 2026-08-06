@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
-import { minPrice, availableColors, optimizeImageUrl } from "@/lib/shop";
+import { minPrice, availableColors, optimizeImageUrl, isEntryLevelSeminovo, isImportedEua } from "@/lib/shop";
 
 export default function ProductCard({
   product,
@@ -67,10 +67,10 @@ export default function ProductCard({
             Sem foto
           </div>
         )}
-        {product.condition === "seminovo" ? (
+        {product.condition === "seminovo" || product.category === "iphone_seminovo" ? (
           <>
             <span className="absolute left-2.5 top-2.5 z-10 rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
-              📱 Seminovo
+              {isEntryLevelSeminovo(product) ? "📱 Seminovo Entrada" : "📱 Seminovo Premium"}
             </span>
             <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
               🔋 {batteryHealth ? `Bat. ${batteryHealth}` : "Bat. 80%+"}
@@ -85,6 +85,12 @@ export default function ProductCard({
               🛡️ {product.warranty || "1 Ano Garantia"}
             </span>
           </>
+        )}
+
+        {isImportedEua(product) && (
+          <span className="absolute left-2.5 bottom-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-blue-600 px-2 py-0.5 text-[9px] font-black text-white shadow-[2px_2px_0_0_#141414]">
+            🇺🇸 Importado EUA
+          </span>
         )}
       </div>
 

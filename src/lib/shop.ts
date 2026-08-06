@@ -109,6 +109,20 @@ export function getProductModelRank(name: string): number {
   return gen * 100 + tier * 10;
 }
 
+/** Verifica se um produto é um iPhone Seminovo de Entrada (gerações 11, 12, 13, SE, 8 Plus) */
+export function isEntryLevelSeminovo(product: { name: string; condition: string; category: string }): boolean {
+  const isSeminovo = product.condition === "seminovo" || product.category === "iphone_seminovo";
+  if (!isSeminovo) return false;
+  const rank = getProductModelRank(product.name);
+  return rank > 0 && rank <= 1309;
+}
+
+/** Verifica se o produto tem procedência de importação dos EUA */
+export function isImportedEua(product: { name: string; category: string; description?: string | null; warranty?: string | null; variants?: { notes?: string | null }[] }): boolean {
+  const text = `${product.name} ${product.category} ${product.description || ""} ${product.warranty || ""} ${product.variants?.map(v => v.notes || "").join(" ") || ""}`.toLowerCase();
+  return text.includes("eua") || text.includes("usa") || text.includes("importad") || text.includes("norte-american");
+}
+
 export function getProductGroupPriority(p: { brand?: string; name: string; category: string; condition: string }): number {
   const brand = (p.brand || "").toLowerCase();
   const name = p.name.toLowerCase();

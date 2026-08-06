@@ -2,7 +2,8 @@ export type IphoneModelSpec = {
   name: string;
   year: number;
   capacities: string[];
-  colors: { name: string; hex: string }[];
+  colors: { name: string; hex: string; imageUrl?: string }[];
+  defaultImageUrl?: string;
 };
 
 export const IPHONE_CATALOG: IphoneModelSpec[] = [
@@ -11,9 +12,9 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2025,
     capacities: ["256GB", "512GB", "1TB", "2TB"],
     colors: [
-      { name: "Prateado", hex: "#e2e4e1" },
-      { name: "Laranja-cósmico", hex: "#e65c00" },
-      { name: "Azul-intenso", hex: "#1d3557" },
+      { name: "Prateado", hex: "#e2e4e1", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Laranja-cósmico", hex: "#e65c00", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Azul-intenso", hex: "#1d3557", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -21,9 +22,9 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2025,
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Prateado", hex: "#e2e4e1" },
-      { name: "Laranja-cósmico", hex: "#e65c00" },
-      { name: "Azul-intenso", hex: "#1d3557" },
+      { name: "Prateado", hex: "#e2e4e1", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Laranja-cósmico", hex: "#e65c00", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Azul-intenso", hex: "#1d3557", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -31,11 +32,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2025,
     capacities: ["256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Azul-névoa", hex: "#a7c1d9" },
-      { name: "Sálvia", hex: "#778e78" },
-      { name: "Lavanda", hex: "#b5a7cb" },
+      { name: "Preto", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-black?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Branco", hex: "#f7f7f7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-white?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Azul-névoa", hex: "#a7c1d9", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-ultramarine?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Sálvia", hex: "#778e78", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-teal?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Lavanda", hex: "#b5a7cb", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-pink?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -64,10 +65,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2024,
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Titânio-deserto", hex: "#c6aa91" },
-      { name: "Titânio natural", hex: "#bebaa7" },
-      { name: "Titânio branco", hex: "#f2f1ed" },
-      { name: "Titânio preto", hex: "#3c3b37" },
+      { name: "Titânio-deserto", hex: "#c6aa91", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -75,10 +76,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2024,
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Titânio-deserto", hex: "#c6aa91" },
-      { name: "Titânio natural", hex: "#bebaa7" },
-      { name: "Titânio branco", hex: "#f2f1ed" },
-      { name: "Titânio preto", hex: "#3c3b37" },
+      { name: "Titânio-deserto", hex: "#c6aa91", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -98,11 +99,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2024,
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Rosa", hex: "#faddd7" },
-      { name: "Verde-acinzentado", hex: "#8ab4ac" },
-      { name: "Ultramarino", hex: "#42506e" },
+      { name: "Preto", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-black?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Branco", hex: "#f7f7f7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-white?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Rosa", hex: "#faddd7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-pink?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Verde-acinzentado", hex: "#8ab4ac", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-teal?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Ultramarino", hex: "#42506e", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-ultramarine?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -119,10 +120,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2023,
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Titânio natural", hex: "#bebaa7" },
-      { name: "Titânio azul", hex: "#3b4453" },
-      { name: "Titânio branco", hex: "#f2f1ed" },
-      { name: "Titânio preto", hex: "#3c3b37" },
+      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio azul", hex: "#3b4453", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-bluetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -130,10 +131,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2023,
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Titânio natural", hex: "#bebaa7" },
-      { name: "Titânio azul", hex: "#3b4453" },
-      { name: "Titânio branco", hex: "#f2f1ed" },
-      { name: "Titânio preto", hex: "#3c3b37" },
+      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio azul", hex: "#3b4453", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-bluetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -153,11 +154,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2023,
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Azul", hex: "#a7c1d9" },
-      { name: "Verde", hex: "#b4caa4" },
-      { name: "Amarelo", hex: "#f3e08c" },
-      { name: "Rosa", hex: "#faddd7" },
+      { name: "Preto", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-black?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Azul", hex: "#a7c1d9", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-blue?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Verde", hex: "#b4caa4", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-green?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Amarelo", hex: "#f3e08c", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-yellow?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Rosa", hex: "#faddd7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-pink?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
@@ -165,10 +166,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     year: 2022,
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Roxo-profundo", hex: "#483d8b" },
-      { name: "Preto-espacial", hex: "#2e2c2e" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Roxo-profundo", hex: "#483d8b", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-deeppurple?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Preto-espacial", hex: "#2e2c2e", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-spaceblack?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Dourado", hex: "#fae7cf", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-gold?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Prateado", hex: "#e2e4e1", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-silver?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
   {
