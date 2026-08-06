@@ -183,8 +183,8 @@ export default function Home() {
                 },
                 {
                   icon: ShieldCheck,
-                  title: "1 ano de garantia de verdade",
-                  desc: "Todos os aparelhos, lacrados ou seminovos, saem com 1 ano de garantia pela loja. Comprou, ficou tranquilo.",
+                  title: "Garantia de verdade da loja",
+                  desc: "Aparelhos com garantia de 6 meses a 1 ano direto com a nossa loja. Comprou, ficou tranquilo.",
                 },
                 {
                   icon: BadgeCheck,

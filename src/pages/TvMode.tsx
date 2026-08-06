@@ -160,7 +160,7 @@ export default function TvMode() {
             </div>
           </div>
           <div className="hidden items-center gap-2 rounded-full border-2 border-ink bg-white px-4 py-1 text-xs font-bold text-ink md:flex">
-            <ShieldCheck className="h-4 w-4" /> 1 ano de garantia em todos os aparelhos
+            <ShieldCheck className="h-4 w-4 text-emerald-600" /> Aparelhos com até 1 ano de garantia
           </div>
         </div>
       )}

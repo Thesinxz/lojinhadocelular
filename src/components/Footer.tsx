@@ -19,7 +19,7 @@ export default function Footer() {
               </div>
             </div>
             <p className="text-sm text-white/70">
-              iPhones lacrados e seminovos importados dos EUA com 1 ano de garantia.
+              iPhones lacrados e seminovos importados com garantia de 6 meses a 1 ano.
               Xiaomi, Realme, Tecno, Infinix e assistência técnica especializada.
             </p>
           </div>
