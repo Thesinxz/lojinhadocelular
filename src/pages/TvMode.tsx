@@ -75,6 +75,30 @@ export default function TvMode() {
     return () => window.removeEventListener("keydown", onKey);
   }, [products.length, current]);
 
+  // Pré-carregamento proativo de imagens na memória da Smart TV (Instantâneo sem delay)
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    for (let offset = 0; offset <= 4; offset++) {
+      const p = products[(index + offset) % products.length];
+      if (!p) continue;
+
+      const urls = [
+        p.imageUrl,
+        ...p.variants.map((v) => v.imageUrl),
+        IPHONE_CATALOG.find((m) => p.name.toLowerCase().includes(m.name.toLowerCase()))?.colors[0]?.imageUrl,
+      ].filter(Boolean) as string[];
+
+      urls.forEach((url) => {
+        const optimized = optimizeImageUrl(url, 700);
+        if (optimized) {
+          const img = new Image();
+          img.src = optimized;
+        }
+      });
+    }
+  }, [index, products]);
+
   function toggleFullscreen() {
     const elem = document.documentElement as any;
     if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
@@ -270,24 +294,33 @@ function Slide({
   }, [product.name]);
 
   const rawImg = activeItem?.imageUrl || product.imageUrl || catalogFallbackImg || "";
-  const optimizedImg = rawImg ? optimizeImageUrl(rawImg, 1000) : "";
+  const optimizedImg = rawImg ? optimizeImageUrl(rawImg, 700) : "";
+  const [isLoaded, setIsLoaded] = useState(false);
 
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2">
       {/* Imagem em Destaque Expandida na TV */}
       <div className="relative flex items-center justify-center p-4 md:p-6 h-full w-full">
         <div className="relative flex aspect-square h-full max-h-[82vh] w-full max-w-[82vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
+          {!isLoaded && rawImg && (
+            <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200" />
+          )}
           {rawImg ? (
             <img
               key={rawImg}
               src={optimizedImg}
               alt={product.name}
+              loading="eager"
+              decoding="async"
+              onLoad={() => setIsLoaded(true)}
               onError={(e) => {
                 if (rawImg && e.currentTarget.src !== rawImg) {
                   e.currentTarget.src = rawImg;
                 }
               }}
-              className="h-full w-full object-contain pt-10 pb-10 px-6 transition-all duration-500 ease-in-out"
+              className={`h-full w-full object-contain pt-10 pb-10 px-6 transition-opacity duration-300 ${
+                isLoaded ? "opacity-100" : "opacity-0"
+              }`}
             />
           ) : (
             <div className="flex h-full items-center justify-center font-bold text-neutral-300">Sem foto</div>
