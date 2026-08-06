@@ -87,6 +87,9 @@ export function serveStaticFiles(app: App) {
       }
     }
 
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Pragma", "no-cache");
+    c.header("Expires", "0");
     return c.html(content);
   });
 }

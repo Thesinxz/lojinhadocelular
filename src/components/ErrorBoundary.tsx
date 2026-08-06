@@ -20,18 +20,20 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error) {
     console.error("Erro capturado pelo ErrorBoundary:", error);
-    // Se for erro de módulo dinâmico/chunk 404 por redeploy, recarrega automaticamente uma vez
+    // Se for erro de módulo dinâmico/chunk 404 por redeploy, força busca do novo HTML sem cache
     const msg = error.message || "";
     if (
       msg.includes("Failed to fetch dynamically imported module") ||
       msg.includes("Loading chunk") ||
-      msg.includes("dynamically imported module")
+      msg.includes("dynamically imported module") ||
+      msg.includes("Importing a module script failed")
     ) {
       const lastReload = sessionStorage.getItem("chunk_reload");
       const now = Date.now();
-      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+      if (!lastReload || now - parseInt(lastReload, 10) > 3000) {
         sessionStorage.setItem("chunk_reload", String(now));
-        window.location.reload();
+        const freshUrl = window.location.origin + window.location.pathname + "?v=" + now;
+        window.location.replace(freshUrl);
       }
     }
   }
@@ -48,13 +50,14 @@ export default class ErrorBoundary extends Component<Props, State> {
               Atualizamos o site!
             </h2>
             <p className="mt-2 text-sm text-neutral-600">
-              Novas ofertas e novidades foram publicadas. Clique no botão abaixo para recarregar a versão mais recente.
+              Novas ofertas e novidades foram publicadas. Clique no botão abaixo para carregar a versão mais recente.
             </p>
             <button
               type="button"
               onClick={() => {
                 sessionStorage.removeItem("chunk_reload");
-                window.location.reload();
+                const freshUrl = window.location.origin + window.location.pathname + "?v=" + Date.now();
+                window.location.replace(freshUrl);
               }}
               className="mt-6 w-full rounded-xl border-2 border-ink bg-ink py-3.5 font-display text-base font-bold text-brand shadow-[3px_3px_0_0_rgba(20,20,20,0.3)] transition hover:-translate-y-0.5"
             >
