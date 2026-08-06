@@ -25,7 +25,6 @@ export default function TvMode() {
   const [index, setIndex] = useState(0);
   const [colorIndexes, setColorIndexes] = useState<Record<number, number>>({});
   const [paused, setPaused] = useState(false);
-  const [started, setStarted] = useState(false);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<number | null>(null);
 
@@ -49,7 +48,7 @@ export default function TvMode() {
 
   // Avanço automático com barra de progresso
   useEffect(() => {
-    if (!started || paused || products.length <= 1) return;
+    if (paused || products.length <= 1) return;
     const startedAt = Date.now();
     setProgress(0);
     timerRef.current = window.setInterval(() => {
@@ -62,7 +61,7 @@ export default function TvMode() {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [started, paused, index, products.length, current]);
+  }, [paused, index, products.length, current]);
 
   // Navegação por teclado (controle/remoto da TV)
   useEffect(() => {
@@ -100,47 +99,27 @@ export default function TvMode() {
   }, [index, products]);
 
   function toggleFullscreen() {
-    const elem = document.documentElement as any;
-    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen().catch(() => {});
-      } else if (elem.webkitRequestFullscreen) {
-        elem.webkitRequestFullscreen();
-      } else if (elem.msRequestFullscreen) {
-        elem.msRequestFullscreen();
+    try {
+      const elem = document.documentElement as any;
+      if (!elem) return;
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(() => {});
+        } else if (elem.webkitRequestFullscreen) {
+          try { elem.webkitRequestFullscreen(); } catch (_) {}
+        } else if (elem.msRequestFullscreen) {
+          try { elem.msRequestFullscreen(); } catch (_) {}
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          try { (document as any).webkitExitFullscreen(); } catch (_) {}
+        }
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      }
+    } catch (e) {
+      console.warn("Fullscreen não suportado ou bloqueado no navegador:", e);
     }
-  }
-
-  function start() {
-    setStarted(true);
-    toggleFullscreen();
-  }
-
-  if (!started) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-brand px-6 text-center">
-        <img src="/images/logo.png" alt="Lojinha do Celular" className="w-64 max-w-[70vw] rounded-2xl border-4 border-ink shadow-[8px_8px_0_0_#141414]" />
-        <h1 className="mt-8 font-display text-3xl font-bold text-ink md:text-5xl">
-          Modo TV — Vitrine da Loja
-        </h1>
-        <p className="mt-2 max-w-md font-medium text-ink/70">
-          Os produtos do catálogo vão passar automaticamente em tela cheia.
-        </p>
-        <button
-          onClick={start}
-          className="mt-8 inline-flex items-center gap-3 rounded-2xl border-4 border-ink bg-ink px-10 py-5 font-display text-2xl font-bold text-brand shadow-[6px_6px_0_0_rgba(20,20,20,0.4)] transition hover:-translate-y-1"
-        >
-          <Play className="h-7 w-7" /> Iniciar vitrine
-        </button>
-      </div>
-    );
   }
 
   const [hideBars, setHideBars] = useState(false);
@@ -212,7 +191,10 @@ export default function TvMode() {
                 <ChevronRight className="h-5 w-5" />
               </button>
               <button
-                onClick={() => setHideBars(true)}
+                onClick={() => {
+                  setHideBars(true);
+                  toggleFullscreen();
+                }}
                 className="inline-flex items-center gap-1 rounded-lg border border-brand/40 bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand hover:bg-brand hover:text-ink transition"
                 title="Ocultar barras para maximizar tela na TV"
               >
