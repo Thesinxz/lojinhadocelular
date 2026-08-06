@@ -523,23 +523,119 @@ export default function AdminProductEditor({
         </Field>
         <Field label="Condição & Badge Principal *">
           <select
-            value={form.condition}
+            value={
+              form.condition === "lacrado"
+                ? "lacrado"
+                : form.warranty.includes("EUA") || form.warranty.includes("USA")
+                  ? "seminovo_eua"
+                  : form.name.includes("11") || form.name.includes("12") || form.name.includes("13")
+                    ? "seminovo_entrada"
+                    : form.condition
+            }
             onChange={(e) => {
-              const cond = e.target.value;
-              const isSeminovo = cond === "seminovo";
-              setForm((f) => ({
-                ...f,
-                condition: cond,
-                category: isSeminovo ? "iphone_seminovo" : "iphone_lacrado",
-                warranty: isSeminovo ? "6 meses de garantia" : "1 ano de garantia",
-              }));
+              const val = e.target.value;
+              if (val === "lacrado") {
+                setForm((f) => ({
+                  ...f,
+                  condition: "lacrado",
+                  category: "iphone_lacrado",
+                  warranty: "1 ano de garantia",
+                }));
+              } else if (val === "seminovo_eua") {
+                setForm((f) => ({
+                  ...f,
+                  condition: "seminovo",
+                  category: "iphone_seminovo",
+                  warranty: "1 ano de garantia (Importado EUA 🇺🇸)",
+                }));
+              } else if (val === "seminovo_entrada") {
+                setForm((f) => ({
+                  ...f,
+                  condition: "seminovo",
+                  category: "iphone_seminovo",
+                  warranty: "6 meses de garantia",
+                }));
+              } else if (val === "seminovo_premium") {
+                setForm((f) => ({
+                  ...f,
+                  condition: "seminovo",
+                  category: "iphone_seminovo",
+                  warranty: "6 meses de garantia",
+                }));
+              } else {
+                setForm((f) => ({
+                  ...f,
+                  condition: val,
+                  warranty: "1 ano de garantia",
+                }));
+              }
             }}
             className={inputCls}
           >
-            <option value="lacrado">✨ Lacrado Novo (Na caixa com selo)</option>
-            <option value="seminovo">📱 Seminovo (Revisado com garantia)</option>
+            <option value="lacrado">✨ iPhone Lacrado Novo (1 Ano de Garantia)</option>
+            <option value="seminovo_eua">🇺🇸 iPhone Seminovo EUA (1 Ano de Garantia)</option>
+            <option value="seminovo_entrada">📱 iPhone Seminovo de Entrada (6 Meses de Garantia)</option>
+            <option value="seminovo_premium">📱 iPhone Seminovo Premium (6 Meses de Garantia)</option>
             <option value="novo">✨ Novo Sem Uso</option>
           </select>
+          
+          {/* BOTÕES RÁPIDOS DE 1-CLIQUE */}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  condition: "lacrado",
+                  category: "iphone_lacrado",
+                  warranty: "1 ano de garantia",
+                }))
+              }
+              className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
+                form.condition === "lacrado"
+                  ? "border-amber-600 bg-brand text-ink shadow-sm"
+                  : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+              }`}
+            >
+              ✨ Lacrado Novo (1 Ano)
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  condition: "seminovo",
+                  category: "iphone_seminovo",
+                  warranty: "1 ano de garantia (Importado EUA 🇺🇸)",
+                }))
+              }
+              className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
+                form.condition === "seminovo" && form.warranty.includes("EUA")
+                  ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                  : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+              }`}
+            >
+              🇺🇸 Seminovo EUA (1 Ano)
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  condition: "seminovo",
+                  category: "iphone_seminovo",
+                  warranty: "6 meses de garantia",
+                }))
+              }
+              className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition ${
+                form.condition === "seminovo" && !form.warranty.includes("EUA")
+                  ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+                  : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+              }`}
+            >
+              📱 Seminovo Entrada (6 Meses)
+            </button>
+          </div>
         </Field>
         <Field label="URL da imagem">
           <input
