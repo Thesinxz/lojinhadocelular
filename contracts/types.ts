@@ -91,6 +91,7 @@ export type VariantInput = {
   imageUrl?: string;
   batteryHealth?: string;
   warranty?: string;
+  condition?: string;
   notes?: string;
   priceCash: number;
   quantity?: number;

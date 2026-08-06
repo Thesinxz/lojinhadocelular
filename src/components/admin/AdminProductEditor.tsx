@@ -1073,17 +1073,76 @@ export default function AdminProductEditor({
                 </Field>
               </div>
 
-              {/* GARANTIA E OBSERVAÇÕES INDIVIDUAIS */}
+              {/* GARANTIA, CONDIÇÃO E OBSERVAÇÕES INDIVIDUAIS */}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <Field label="🛡️ Garantia desta Variante (opcional)">
+                <Field label="🏷️ Condição & Selo Desta Variante *">
+                  <select
+                    value={v.condition || (v.warranty?.includes("EUA") ? "seminovo_eua" : "seminovo_entrada")}
+                    onChange={(e) => {
+                      const cVal = e.target.value;
+                      if (cVal === "lacrado") {
+                        setVariant(i, { condition: "lacrado", warranty: "1 ano de garantia" });
+                      } else if (cVal === "seminovo_eua") {
+                        setVariant(i, { condition: "seminovo_eua", warranty: "1 ano de garantia (Importado EUA 🇺🇸)" });
+                      } else if (cVal === "seminovo_entrada") {
+                        setVariant(i, { condition: "seminovo_entrada", warranty: "6 meses de garantia" });
+                      } else {
+                        setVariant(i, { condition: cVal });
+                      }
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="lacrado">✨ Lacrado Novo (1 Ano)</option>
+                    <option value="seminovo_eua">🇺🇸 Seminovo EUA (1 Ano de Garantia)</option>
+                    <option value="seminovo_entrada">🔄 Seminovo (Pego na Troca - 6 Meses)</option>
+                    <option value="novo">✨ Novo Sem Uso</option>
+                  </select>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setVariant(i, { condition: "lacrado", warranty: "1 ano de garantia" })}
+                      className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                        v.condition === "lacrado"
+                          ? "border-amber-600 bg-brand text-ink shadow-sm"
+                          : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                      }`}
+                    >
+                      ✨ Lacrado (1 Ano)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVariant(i, { condition: "seminovo_eua", warranty: "1 ano de garantia (Importado EUA 🇺🇸)" })}
+                      className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                        v.condition === "seminovo_eua" || v.warranty?.includes("EUA")
+                          ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                          : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                      }`}
+                    >
+                      🇺🇸 Seminovo EUA (1 Ano)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVariant(i, { condition: "seminovo_entrada", warranty: "6 meses de garantia" })}
+                      className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                        v.condition === "seminovo_entrada" || (!v.condition && !v.warranty?.includes("EUA"))
+                          ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+                          : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                      }`}
+                    >
+                      🔄 Pego na Troca (6 Meses)
+                    </button>
+                  </div>
+                </Field>
+
+                <Field label="🛡️ Garantia desta Variante">
                   <input
                     value={v.warranty ?? ""}
                     onChange={(e) => setVariant(i, { warranty: e.target.value })}
-                    placeholder="ex: 3 meses de garantia, 1 ano, Garantia Apple Nov/2026"
+                    placeholder="ex: 1 ano de garantia, 6 meses..."
                     className={inputCls}
                   />
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {["3 meses de garantia", "6 meses de garantia", "1 ano de garantia", "Garantia Apple"].map((g) => (
+                    {["1 ano de garantia (Importado EUA 🇺🇸)", "6 meses de garantia", "1 ano de garantia", "3 meses de garantia"].map((g) => (
                       <button
                         key={g}
                         type="button"

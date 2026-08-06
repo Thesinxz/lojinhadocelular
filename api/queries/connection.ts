@@ -48,6 +48,7 @@ export async function ensureTables() {
     await pool.query(`ALTER TABLE variants ADD COLUMN battery_health VARCHAR(30) DEFAULT ''`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN image_url TEXT`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN warranty VARCHAR(120) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN \`condition\` VARCHAR(30) DEFAULT ''`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN notes TEXT`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN quantity INT NOT NULL DEFAULT 1`).catch(() => {});
 

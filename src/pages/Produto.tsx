@@ -14,7 +14,7 @@ import {
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
-import { useShopSettings, waLink, optimizeImageUrl } from "@/lib/shop";
+import { useShopSettings, waLink, optimizeImageUrl, isImportedEua } from "@/lib/shop";
 
 import SEO from "@/components/SEO";
 
@@ -231,13 +231,32 @@ export default function Produto() {
           ) : (
             <div className="flex aspect-square items-center justify-center text-neutral-300">Sem foto</div>
           )}
-          <span
-            className={`absolute left-4 top-4 z-10 rounded-full border-2 border-ink px-3 py-1 text-xs font-bold uppercase tracking-wide shadow-sm ${
-              product.condition === "seminovo" ? "bg-white text-ink" : "bg-brand text-ink"
-            }`}
-          >
-            {product.condition === "seminovo" ? "Seminovo" : product.condition === "lacrado" ? "Lacrado" : "Novo"}
-          </span>
+          {(() => {
+            const vCond = selected?.condition || product.condition;
+            const vWarr = selected?.warranty || product.warranty || "";
+            const isEua = vCond === "seminovo_eua" || vWarr.includes("EUA") || isImportedEua(product);
+            const isLacrado = vCond === "lacrado" || product.condition === "lacrado";
+
+            if (isLacrado) {
+              return (
+                <span className="absolute left-4 top-4 z-10 rounded-full border-2 border-ink bg-brand px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-ink shadow-sm">
+                  ✨ Lacrado Novo
+                </span>
+              );
+            }
+            if (isEua) {
+              return (
+                <span className="absolute left-4 top-4 z-10 rounded-full border-2 border-ink bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-sm">
+                  🇺🇸 Seminovo EUA (1 Ano)
+                </span>
+              );
+            }
+            return (
+              <span className="absolute left-4 top-4 z-10 rounded-full border-2 border-ink bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink shadow-sm">
+                🔄 Seminovo (Pego na Troca)
+              </span>
+            );
+          })()}
         </div>
 
         {/* Detalhes */}
