@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { ArrowLeft, Plus, Trash2, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
-import { CATEGORIES, BRANDS, CONDITIONS, type VariantInput } from "@contracts/types";
+import { CATEGORIES, BRANDS, type VariantInput } from "@contracts/types";
 import { IPHONE_CATALOG } from "@/lib/iphoneCatalog";
 
 type FormState = {
@@ -521,7 +521,7 @@ export default function AdminProductEditor({
             ))}
           </select>
         </Field>
-        <Field label="Condição *">
+        <Field label="Condição & Badge Principal *">
           <select
             value={form.condition}
             onChange={(e) => {
@@ -536,9 +536,9 @@ export default function AdminProductEditor({
             }}
             className={inputCls}
           >
-            {CONDITIONS.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
+            <option value="lacrado">✨ Lacrado Novo (Na caixa com selo)</option>
+            <option value="seminovo">📱 Seminovo (Revisado com garantia)</option>
+            <option value="novo">✨ Novo Sem Uso</option>
           </select>
         </Field>
         <Field label="URL da imagem">
@@ -549,14 +549,73 @@ export default function AdminProductEditor({
             className={inputCls}
           />
         </Field>
-        <Field label="Garantia">
+        <Field label="Garantia & Selo de Procedência">
           <input
             value={form.warranty}
             onChange={(e) => setForm({ ...form, warranty: e.target.value })}
-            placeholder="1 ano de garantia"
+            placeholder="ex: 1 ano de garantia, 6 meses, EUA..."
             className={inputCls}
           />
+          <div className="mt-2 flex flex-wrap gap-1">
+            {[
+              "1 ano de garantia (Importado EUA 🇺🇸)",
+              "6 meses de garantia (Importado EUA 🇺🇸)",
+              "Garantia Apple Oficial 🍎",
+              "1 ano de garantia",
+              "6 meses de garantia",
+              "3 meses de garantia",
+            ].map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setForm({ ...form, warranty: chip })}
+                className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition ${
+                  form.warranty === chip
+                    ? "border-blue-600 bg-blue-500 text-white"
+                    : "border-neutral-200 bg-neutral-100 text-ink hover:bg-neutral-200"
+                }`}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
         </Field>
+      </div>
+
+      {/* PRÉVIA DOS SELOS E BADGES NO SITE */}
+      <div className="mt-5 rounded-2xl border-2 border-ink bg-neutral-50 p-4 shadow-[2px_2px_0_0_#141414]">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-ink">🏷️ Prévia dos Selos no Catálogo:</span>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {form.condition === "seminovo" ? (
+            <>
+              <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-sm">
+                📱 {form.name.includes("11") || form.name.includes("12") || form.name.includes("13") ? "Seminovo Entrada" : "Seminovo Premium"}
+              </span>
+              <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-sm">
+                🔋 Bat. 85%+
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="rounded-full border-2 border-ink bg-brand px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-sm">
+                ✨ Lacrado Novo
+              </span>
+              <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-amber-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-sm">
+                🛡️ {form.warranty || "1 Ano Garantia"}
+              </span>
+            </>
+          )}
+
+          {(form.warranty.toLowerCase().includes("eua") ||
+            form.description.toLowerCase().includes("eua") ||
+            form.variants.some((v) => v.notes?.toLowerCase().includes("eua"))) && (
+            <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-blue-600 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
+              🇺🇸 Importado EUA
+            </span>
+          )}
+        </div>
       </div>
 
       {form.imageUrl && (
