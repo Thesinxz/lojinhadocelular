@@ -686,9 +686,17 @@ export default function AdminProductEditor({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {form.condition === "seminovo" ? (
             <>
-              <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-sm">
-                📱 {form.name.includes("11") || form.name.includes("12") || form.name.includes("13") ? "Seminovo Entrada" : "Seminovo Premium"}
-              </span>
+              {form.warranty.toLowerCase().includes("eua") ||
+              form.description.toLowerCase().includes("eua") ||
+              form.variants.some((v) => v.notes?.toLowerCase().includes("eua")) ? (
+                <span className="rounded-full border-2 border-ink bg-blue-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
+                  🇺🇸 Seminovo EUA (1 Ano)
+                </span>
+              ) : (
+                <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-sm">
+                  🔄 Seminovo (Pego na Troca)
+                </span>
+              )}
               <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-sm">
                 🔋 Bat. 85%+
               </span>
@@ -702,14 +710,6 @@ export default function AdminProductEditor({
                 🛡️ {form.warranty || "1 Ano Garantia"}
               </span>
             </>
-          )}
-
-          {(form.warranty.toLowerCase().includes("eua") ||
-            form.description.toLowerCase().includes("eua") ||
-            form.variants.some((v) => v.notes?.toLowerCase().includes("eua"))) && (
-            <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-blue-600 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
-              🇺🇸 Importado EUA
-            </span>
           )}
         </div>
       </div>
