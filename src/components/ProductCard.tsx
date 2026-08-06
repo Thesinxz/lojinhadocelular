@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
-import { minPrice, availableColors } from "@/lib/shop";
+import { minPrice, availableColors, optimizeImageUrl } from "@/lib/shop";
 
 export default function ProductCard({
   product,
@@ -33,23 +33,31 @@ export default function ProductCard({
     }
   }, []);
 
+  const rawUrl = product.imageUrl;
+  const optimizedUrl = optimizeImageUrl(rawUrl, 600);
+
   return (
     <Link
       to={`/produto/${product.id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#141414]"
     >
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
-        {!isLoaded && product.imageUrl && (
+        {!isLoaded && rawUrl && (
           <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200" />
         )}
-        {product.imageUrl ? (
+        {rawUrl ? (
           <img
             ref={imgRef}
-            src={product.imageUrl}
+            src={optimizedUrl}
             alt={product.name}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             onLoad={() => setIsLoaded(true)}
+            onError={(e) => {
+              if (rawUrl && e.currentTarget.src !== rawUrl) {
+                e.currentTarget.src = rawUrl;
+              }
+            }}
             className={`h-full w-full object-contain pt-10 pb-2 px-3 transition-opacity duration-300 group-hover:scale-105 ${
               isLoaded ? "opacity-100" : "opacity-0"
             }`}

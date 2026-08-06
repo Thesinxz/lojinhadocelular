@@ -4,7 +4,7 @@ import { ShieldCheck, Play, Pause, ChevronLeft, ChevronRight, Expand } from "luc
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
-import { useShopSettings } from "@/lib/shop";
+import { useShopSettings, optimizeImageUrl } from "@/lib/shop";
 
 const SLIDE_SECONDS = 7;
 
@@ -249,8 +249,14 @@ function Slide({
           {activeItem?.imageUrl ? (
             <img
               key={activeItem.imageUrl}
-              src={activeItem.imageUrl}
+              src={optimizeImageUrl(activeItem.imageUrl, 800)}
               alt={product.name}
+              onError={(e) => {
+                const raw = activeItem.imageUrl;
+                if (raw && e.currentTarget.src !== raw) {
+                  e.currentTarget.src = raw;
+                }
+              }}
               className="h-full w-full object-contain pt-14 pb-14 px-8 transition-all duration-500 ease-in-out"
             />
           ) : (

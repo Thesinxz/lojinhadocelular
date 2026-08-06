@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { optimizeImageUrl } from "@/lib/shop";
 
 const SLIDE_MS = 4500;
 
@@ -16,7 +17,7 @@ export default function HeroCarousel({ images }: { images: string[] }) {
   useEffect(() => {
     images.forEach((src) => {
       const img = new Image();
-      img.src = src;
+      img.src = optimizeImageUrl(src, 900);
     });
   }, [images]);
 
@@ -25,16 +26,24 @@ export default function HeroCarousel({ images }: { images: string[] }) {
   return (
     <div className="relative mx-auto w-full max-w-sm md:max-w-none">
       <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414] md:aspect-[5/5]">
-        {images.map((src, i) => (
-          <img
-            key={src}
-            src={src}
-            alt={`iPhone ${i + 1} — Lojinha do Celular`}
-            loading={i === 0 ? "eager" : "lazy"}
-            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
-            style={{ opacity: i === index ? 1 : 0 }}
-          />
-        ))}
+        {images.map((rawSrc, i) => {
+          const src = optimizeImageUrl(rawSrc, 900);
+          return (
+            <img
+              key={rawSrc}
+              src={src}
+              alt={`iPhone ${i + 1} — Lojinha do Celular`}
+              loading={i === 0 ? "eager" : "lazy"}
+              onError={(e) => {
+                if (rawSrc && e.currentTarget.src !== rawSrc) {
+                  e.currentTarget.src = rawSrc;
+                }
+              }}
+              className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+              style={{ opacity: i === index ? 1 : 0 }}
+            />
+          );
+        })}
 
         {/* Selo */}
         <span className="absolute left-4 top-4 rounded-full border-2 border-ink bg-brand px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-ink">

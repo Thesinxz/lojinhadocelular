@@ -48,6 +48,24 @@ export function minPrice(product: ProductWithVariants): number | null {
   return Math.min(...prices);
 }
 
+/** 
+ * Otimiza qualquer URL de imagem externa (ex: ImgBB, Amazon, Unsplash) usando CDN Cloudflare Edge (wsrv.nl).
+ * Converte imagens pesadas (ex: 5MB PNGs) para WebP ultra-leve (~40KB) com cache de borda no Brasil!
+ */
+export function optimizeImageUrl(url: string | null | undefined, width = 600): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+
+  // Se já for imagem local ou data URI, mantém original
+  if (trimmed.startsWith("/") || trimmed.startsWith("data:")) return trimmed;
+
+  // Se já for otimizada pelo wsrv.nl
+  if (trimmed.includes("wsrv.nl")) return trimmed;
+
+  return `https://wsrv.nl/?url=${encodeURIComponent(trimmed)}&w=${width}&output=webp&q=80`;
+}
+
 /** Cores disponíveis de um produto (sem duplicar) */
 export function availableColors(product: ProductWithVariants) {
   const map = new Map<string, string>();

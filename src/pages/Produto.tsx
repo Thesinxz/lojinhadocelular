@@ -14,7 +14,7 @@ import {
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
-import { useShopSettings, waLink } from "@/lib/shop";
+import { useShopSettings, waLink, optimizeImageUrl } from "@/lib/shop";
 
 import SEO from "@/components/SEO";
 
@@ -217,7 +217,17 @@ export default function Produto() {
         {/* Imagem */}
         <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-neutral-100 shadow-[6px_6px_0_0_#141414]">
           {selected?.imageUrl || product.imageUrl ? (
-            <img src={selected?.imageUrl || product.imageUrl!} alt={product.name} className="aspect-square w-full object-contain pt-14 pb-4 px-4 transition-all duration-300" />
+            <img
+              src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 900)}
+              alt={product.name}
+              onError={(e) => {
+                const raw = selected?.imageUrl || product.imageUrl;
+                if (raw && e.currentTarget.src !== raw) {
+                  e.currentTarget.src = raw;
+                }
+              }}
+              className="aspect-square w-full object-contain pt-14 pb-4 px-4 transition-all duration-300"
+            />
           ) : (
             <div className="flex aspect-square items-center justify-center text-neutral-300">Sem foto</div>
           )}
