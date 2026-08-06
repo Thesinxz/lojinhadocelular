@@ -419,53 +419,50 @@ export default function Produto() {
             </div>
           </OptionGroup>
 
-          {/* Opções / Unidades em Estoque (apenas quando há unidades com características/preços diferentes da mesma cor) */}
+          {/* Opções / Unidades em Estoque (quando há unidades da mesma cor) */}
           {(() => {
-            const hasDifferentSpecs =
-              derived.matchingVariants.length > 1 &&
-              derived.matchingVariants.some(
-                (v, _, arr) =>
-                  v.batteryHealth !== arr[0].batteryHealth ||
-                  v.notes !== arr[0].notes ||
-                  v.priceCash !== arr[0].priceCash ||
-                  v.warranty !== arr[0].warranty,
-              );
+            const hasMultipleUnits = derived.matchingVariants.length > 1;
 
-            if (!hasDifferentSpecs) return null;
+            if (!hasMultipleUnits) return null;
 
             return (
-              <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Opções / Unidades em Estoque">
-                <div className="flex flex-wrap gap-2">
+              <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Selecione a Unidade / Aparelho Especifico">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {derived.matchingVariants.map((v, idx) => {
                     const isSelectedUnit = selected?.id === v.id;
-                    const detailsLabel = [
-                      v.batteryHealth ? `Bat. ${v.batteryHealth}` : "",
-                      v.notes || "",
-                      v.warranty ? `Garantia: ${v.warranty}` : "",
-                      v.priceCash ? formatBRL(v.priceCash) : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" • ");
-
                     return (
                       <button
                         key={v.id ?? idx}
                         type="button"
                         onClick={() => setSelectedVariantId(v.id ?? null)}
-                        className={`inline-flex flex-col rounded-xl border-2 px-3.5 py-2 text-left text-xs font-bold transition ${
+                        className={`flex flex-col gap-1 rounded-2xl border-2 p-3 text-left transition ${
                           isSelectedUnit
-                            ? "border-ink bg-ink !text-brand shadow-[2px_2px_0_0_#141414]"
+                            ? "border-ink bg-brand/20 shadow-[3px_3px_0_0_#141414]"
                             : v.available && (v.quantity ?? 1) > 0
                               ? "border-ink/30 bg-white text-ink hover:border-ink"
                               : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400"
                         }`}
                       >
-                        <span className="font-extrabold">Unidade #{idx + 1}</span>
-                        {detailsLabel && (
-                          <span className={`text-[11px] font-semibold ${isSelectedUnit ? "text-brand/80" : "text-neutral-500"}`}>
-                            {detailsLabel}
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-ink text-sm">
+                            📱 Unidade #{idx + 1} {v.batteryHealth ? `• Bat. ${v.batteryHealth}` : ""}
                           </span>
-                        )}
+                          <span className="font-display font-extrabold text-ink">
+                            {formatBRL(v.priceCash)}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
+                          {v.warranty && (
+                            <span className="rounded-md bg-amber-100 px-2 py-0.5 font-bold text-amber-900">
+                              🛡️ {v.warranty}
+                            </span>
+                          )}
+                          {v.notes && (
+                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 font-semibold text-neutral-700">
+                              📝 {v.notes}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}

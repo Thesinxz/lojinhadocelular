@@ -902,24 +902,39 @@ export default function AdminProductEditor({
               key={i}
               className="rounded-2xl border-2 border-ink bg-white p-4 shadow-[4px_4px_0_0_#141414] transition"
             >
-              <div className="flex items-center justify-between border-b border-neutral-100 pb-3 mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3 mb-3">
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-black text-ink">
                     {i + 1}
                   </span>
                   <span className="font-display text-sm font-bold text-ink">
-                    Variante: {v.color || "Sem Cor"} — {v.storage || "Sem Armazenamento"}
+                    Unidade #{i + 1}: {v.color || "Sem Cor"} — {v.storage || "Sem Armazenamento"} {v.batteryHealth ? `(Bat. ${v.batteryHealth})` : ""}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm({ ...form, variants: form.variants.filter((_, idx) => idx !== i) })
-                  }
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Excluir variante
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dup = { ...v, notes: v.notes ? `${v.notes} (Unidade 2)` : "" };
+                      const newVars = [...form.variants];
+                      newVars.splice(i + 1, 0, dup);
+                      setForm({ ...form, variants: newVars });
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 transition"
+                    title="Duplicar para criar outra unidade deste mesmo modelo com bateria diferente"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Duplicar (Outra Unidade)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({ ...form, variants: form.variants.filter((_, idx) => idx !== i) })
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Excluir
+                  </button>
+                </div>
               </div>
 
               {/* ESPECIFICAÇÕES PRINCIPAIS */}
