@@ -5,6 +5,7 @@ import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
 import { useShopSettings, optimizeImageUrl } from "@/lib/shop";
+import { IPHONE_CATALOG } from "@/lib/iphoneCatalog";
 
 const SLIDE_SECONDS = 7;
 
@@ -74,9 +75,28 @@ export default function TvMode() {
     return () => window.removeEventListener("keydown", onKey);
   }, [products.length, current]);
 
+  function toggleFullscreen() {
+    const elem = document.documentElement as any;
+    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  }
+
   function start() {
     setStarted(true);
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    toggleFullscreen();
   }
 
   if (!started) {
@@ -152,18 +172,22 @@ export default function TvMode() {
             📍 {s.addressJardim} &nbsp;•&nbsp; {s.addressGll} &nbsp;•&nbsp; Importados
             dos EUA &nbsp;•&nbsp; Seminovos revisados &nbsp;•&nbsp; Assistência técnica
           </p>
-          <div className="hidden shrink-0 items-center gap-2 md:flex">
-            <button onClick={prevSlide} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Anterior">
-              <ChevronLeft className="h-5 w-5" />
+          <div className="flex shrink-0 items-center gap-2">
+            <button onClick={prevSlide} className="cursor-pointer rounded-lg p-2 text-brand hover:bg-white/10" aria-label="Anterior" title="Anterior">
+              <ChevronLeft className="h-6 w-6" />
             </button>
-            <button onClick={() => setPaused((p) => !p)} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Pausar">
-              {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+            <button onClick={() => setPaused((p) => !p)} className="cursor-pointer rounded-lg p-2 text-brand hover:bg-white/10" aria-label="Pausar" title="Pausar">
+              {paused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
             </button>
-            <button onClick={nextSlide} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Próximo">
-              <ChevronRight className="h-5 w-5" />
+            <button onClick={nextSlide} className="cursor-pointer rounded-lg p-2 text-brand hover:bg-white/10" aria-label="Próximo" title="Próximo">
+              <ChevronRight className="h-6 w-6" />
             </button>
-            <button onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})} className="cursor-pointer rounded-lg p-1.5 text-brand hover:bg-white/10" aria-label="Tela cheia">
-              <Expand className="h-5 w-5" />
+            <button
+              onClick={toggleFullscreen}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand hover:text-ink transition"
+              title="Alternar Tela Cheia / Fullscreen"
+            >
+              <Expand className="h-4 w-4" /> Tela Cheia
             </button>
           </div>
         </div>
@@ -241,23 +265,29 @@ function Slide({
       .catch(() => {});
   }, [product.id]);
 
+  const catalogFallbackImg = useMemo(() => {
+    return IPHONE_CATALOG.find((m) => product.name.toLowerCase().includes(m.name.toLowerCase()))?.colors[0]?.imageUrl;
+  }, [product.name]);
+
+  const rawImg = activeItem?.imageUrl || product.imageUrl || catalogFallbackImg || "";
+  const optimizedImg = rawImg ? optimizeImageUrl(rawImg, 1000) : "";
+
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2">
-      {/* Imagem com Tamanho Padronizado e Margens Limpas */}
-      <div className="relative hidden items-center justify-center p-6 md:flex">
-        <div className="relative flex aspect-square h-full max-h-[60vh] w-full max-w-[60vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
-          {activeItem?.imageUrl ? (
+      {/* Imagem em Destaque Expandida na TV */}
+      <div className="relative flex items-center justify-center p-4 md:p-6 h-full w-full">
+        <div className="relative flex aspect-square h-full max-h-[82vh] w-full max-w-[82vh] items-center justify-center overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[10px_10px_0_0_#141414]">
+          {rawImg ? (
             <img
-              key={activeItem.imageUrl}
-              src={optimizeImageUrl(activeItem.imageUrl, 800)}
+              key={rawImg}
+              src={optimizedImg}
               alt={product.name}
               onError={(e) => {
-                const raw = activeItem.imageUrl;
-                if (raw && e.currentTarget.src !== raw) {
-                  e.currentTarget.src = raw;
+                if (rawImg && e.currentTarget.src !== rawImg) {
+                  e.currentTarget.src = rawImg;
                 }
               }}
-              className="h-full w-full object-contain pt-14 pb-14 px-8 transition-all duration-500 ease-in-out"
+              className="h-full w-full object-contain pt-10 pb-10 px-6 transition-all duration-500 ease-in-out"
             />
           ) : (
             <div className="flex h-full items-center justify-center font-bold text-neutral-300">Sem foto</div>
