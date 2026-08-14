@@ -1,10 +1,9 @@
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables } from "./queries/connection";
-import { products } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { products, settings } from "../db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { getSetting } from "./auth";
-import { SETTING_KEYS } from "../contracts/types";
+import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
 
 const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.whatsappJardim,
@@ -107,8 +106,8 @@ export const shopRouter = createRouter({
     .input(
       z
         .object({
-          category: z.string().optional(),
-          brand: z.string().optional(),
+          category: z.enum(["iphone_lacrado", "iphone_seminovo", "android", "acessorio"]).optional(),
+          brand: z.string().max(60).optional(),
         })
         .optional(),
     )
@@ -121,18 +120,12 @@ export const shopRouter = createRouter({
         const db = getDb();
         await ensureTables();
         const filters = [eq(products.active, true)];
-        if (input?.category)
-          filters.push(
-            eq(
-              products.category,
-              input.category as
-                | "iphone_lacrado"
-                | "iphone_seminovo"
-                | "android"
-                | "acessorio",
-            ),
-          );
-        if (input?.brand) filters.push(eq(products.brand, input.brand));
+        if (input?.category) {
+          filters.push(eq(products.category, input.category));
+        }
+        if (input?.brand) {
+          filters.push(eq(products.brand, input.brand));
+        }
 
         const list = await db.query.products.findMany({
           where: and(...filters),
@@ -163,22 +156,46 @@ export const shopRouter = createRouter({
   }),
 
   product: publicQuery
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
       ctx.resHeaders.set("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
-      const db = getDb();
-      const product = await db.query.products.findFirst({
-        where: and(eq(products.id, input.id), eq(products.active, true)),
-        with: { variants: true },
-      });
-      return product ?? null;
+      try {
+        const db = getDb();
+        await ensureTables();
+        const product = await db.query.products.findFirst({
+          where: and(eq(products.id, input.id), eq(products.active, true)),
+          with: { variants: true },
+        });
+        return product ?? null;
+      } catch (err) {
+        console.error("Erro ao consultar produto por ID:", err);
+        return null;
+      }
     }),
 
-  // Configurações públicas da loja (sem a senha do admin)
+  // Configurações públicas da loja consultadas em batch único
   settings: publicQuery.query(async () => {
-    const entries = await Promise.all(
-      PUBLIC_SETTING_KEYS.map(async (key) => [key, await getSetting(key)] as const),
-    );
-    return Object.fromEntries(entries) as Record<string, string>;
+    try {
+      const db = getDb();
+      await ensureTables();
+      const rows = await db
+        .select()
+        .from(settings)
+        .where(inArray(settings.key, [...PUBLIC_SETTING_KEYS]));
+
+      const result: Record<string, string> = {};
+      for (const key of PUBLIC_SETTING_KEYS) {
+        const found = rows.find((r) => r.key === key);
+        result[key] = found?.value ?? DEFAULT_SETTINGS[key] ?? "";
+      }
+      return result;
+    } catch (err) {
+      console.error("Erro ao consultar settings públicas:", err);
+      const fallback: Record<string, string> = {};
+      for (const key of PUBLIC_SETTING_KEYS) {
+        fallback[key] = DEFAULT_SETTINGS[key] ?? "";
+      }
+      return fallback;
+    }
   }),
 });

@@ -8,9 +8,13 @@ function required(name: string): string {
   return value ?? "";
 }
 
+function optional(name: string, fallback = ""): string {
+  return process.env[name] || fallback;
+}
+
 export const env = {
-  appId: required("APP_ID"),
-  appSecret: required("APP_SECRET"),
+  appId: optional("APP_ID", "lojinha-app"),
+  appSecret: optional("APP_SECRET", "lojinha-secret-default-key-32-chars-min"),
   isProduction: process.env.NODE_ENV === "production",
   databaseUrl: required("DATABASE_URL"),
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, MessageCircle, MapPin } from "lucide-react";
 import { useShopSettings, waLink } from "@/lib/shop";
+import { safeSessionStorage } from "@/lib/storage";
 
 const SESSION_KEY = "popup_seen";
 
@@ -9,22 +10,25 @@ export default function WelcomePopup() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (window.location.pathname.startsWith("/admin")) return;
-    if (!s.loading && s.popupEnabled && !sessionStorage.getItem(SESSION_KEY)) {
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) return;
+    if (!s.loading && s.popupEnabled && !safeSessionStorage.getItem(SESSION_KEY)) {
       const t = setTimeout(() => setOpen(true), 800);
       return () => clearTimeout(t);
     }
   }, [s.loading, s.popupEnabled]);
 
   function close() {
-    sessionStorage.setItem(SESSION_KEY, "1");
+    safeSessionStorage.setItem(SESSION_KEY, "1");
     setOpen(false);
   }
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-4 backdrop-blur-sm sm:items-center" onClick={close}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center sm:pb-4"
+      onClick={close}
+    >
       <div
         className="w-full max-w-md overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[8px_8px_0_0_#141414]"
         onClick={(e) => e.stopPropagation()}

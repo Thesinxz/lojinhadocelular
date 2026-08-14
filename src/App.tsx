@@ -24,7 +24,7 @@ function ScrollToHash() {
       }, 150);
       return () => clearTimeout(t);
     }
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, left: 0 });
   }, [location.pathname, location.hash]);
   return null;
 }
@@ -35,16 +35,17 @@ export default function App() {
 
   if (isTv) {
     return (
-      <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-brand font-display text-2xl font-bold text-ink">Carregando...</div>}>
+      <Suspense fallback={<div className="flex min-h-[100dvh] items-center justify-center bg-brand font-display text-2xl font-bold text-ink">Carregando...</div>}>
         <Routes>
           <Route path="/tv" element={<TvMode />} />
+          <Route path="/tv/*" element={<TvMode />} />
         </Routes>
       </Suspense>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white font-sans text-ink">
+    <div className="flex min-h-[100dvh] flex-col bg-white font-sans text-ink">
       <ScrollToHash />
       <Header />
       <main className="flex-1">

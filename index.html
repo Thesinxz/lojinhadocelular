@@ -23,17 +23,23 @@
 
     <link rel="icon" type="image/png" href="/images/favicon.png" />
     <link rel="apple-touch-icon" href="/images/favicon.png" />
+    <!-- Carregamento otimizado não-bloqueante de fontes -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
 
     <!-- Otimização de carregamento rápido de imagens CDN -->
-    <link rel="preconnect" href="https://i.ibb.co" />
+    <link rel="preconnect" href="https://wsrv.nl" crossorigin />
+    <link rel="dns-prefetch" href="https://wsrv.nl" />
+    <link rel="preconnect" href="https://i.ibb.co" crossorigin />
     <link rel="dns-prefetch" href="https://i.ibb.co" />
+    <link rel="preconnect" href="https://store.storeimages.cdn-apple.com" crossorigin />
+    <link rel="dns-prefetch" href="https://store.storeimages.cdn-apple.com" />
     <link rel="preconnect" href="https://images.unsplash.com" />
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
-    <link rel="preconnect" href="https://m.media-amazon.com" />
-    <link rel="dns-prefetch" href="https://m.media-amazon.com" />
 
     <title>Lojinha do Celular — iPhones e Android em Jardim-MS</title>
 
@@ -69,21 +75,30 @@
     <!-- Prevent blank white screens on asset 404 after redeploys -->
     <script>
       window.addEventListener('error', function (e) {
-        var msg = (e && e.message) || '';
-        var target = e && e.target;
-        var isChunkError =
-          msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
-          msg.indexOf('Loading chunk') !== -1 ||
-          msg.indexOf('Failed to load resource') !== -1;
-        var isScriptError = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
-        if (isChunkError || isScriptError) {
-          var lastReload = sessionStorage.getItem('chunk_reload');
-          var now = Date.now();
-          if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
-            sessionStorage.setItem('chunk_reload', String(now));
-            window.location.reload();
+        try {
+          var msg = (e && e.message) || '';
+          var target = e && e.target;
+          var isChunkError =
+            msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+            msg.indexOf('Loading chunk') !== -1 ||
+            msg.indexOf('Failed to load resource') !== -1;
+          var isScriptError = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
+          if (isChunkError || isScriptError) {
+            var lastReload = null;
+            try {
+              lastReload = window.sessionStorage ? window.sessionStorage.getItem('chunk_reload') : null;
+            } catch (err) {}
+            var now = Date.now();
+            if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+              try {
+                if (window.sessionStorage) {
+                  window.sessionStorage.setItem('chunk_reload', String(now));
+                }
+              } catch (err) {}
+              window.location.reload();
+            }
           }
-        }
+        } catch (globalErr) {}
       }, true);
     </script>
   </head>

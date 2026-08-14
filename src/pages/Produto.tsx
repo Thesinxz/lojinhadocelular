@@ -10,11 +10,13 @@ import {
   Package,
   BatteryCharging,
   FileText,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
-import { useShopSettings, waLink, optimizeImageUrl, isImportedEua } from "@/lib/shop";
+import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet, isImportedEua } from "@/lib/shop";
 
 import SEO from "@/components/SEO";
 
@@ -22,10 +24,13 @@ type Variant = ProductWithVariants["variants"][number];
 
 export default function Produto() {
   const { id } = useParams<{ id: string }>();
+  const numericId = Number(id);
+  const isValidId = !Number.isNaN(numericId) && numericId > 0;
+
   const s = useShopSettings();
   const query = trpc.shop.product.useQuery(
-    { id: Number(id) },
-    { enabled: !!id, staleTime: 1000 * 30 },
+    { id: numericId },
+    { enabled: isValidId, staleTime: 1000 * 30 },
   );
   const product = query.data;
 
@@ -38,7 +43,8 @@ export default function Produto() {
   // Seleção inicial: primeira combinação disponível
   useEffect(() => {
     if (!product) return;
-    const first = product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ?? product.variants[0];
+    const first =
+      product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ?? product.variants[0];
     if (first) {
       setVersion(first.version);
       setStorage(first.storage);
@@ -129,11 +135,81 @@ export default function Produto() {
 
   function pickVersion(ver: string) {
     setVersion(ver);
-    const first = product!.variants.find((v) => v.version === ver && v.available);
+    if (!product) return;
+    const first =
+      product.variants.find((v) => v.version === ver && v.available && (v.quantity ?? 1) > 0) ??
+      product.variants.find((v) => v.version === ver) ??
+      product.variants[0];
     if (first) {
       setStorage(first.storage);
       setColor(first.color);
+      setSelectedVariantId(first.id ?? null);
     }
+  }
+
+  const selected = derived?.selected;
+  const isAvailable = !!selected?.available;
+  const price = selected?.priceCash ?? null;
+  const maxFee = s.fees[String(s.installmentsMax)] ?? 0;
+  const categoryLabel = product
+    ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)
+    : "";
+
+  const buyMessage = product
+    ? `Olá! Quero comprar o ${product.name}${
+        version ? ` ${version}` : ""
+      } ${storage} na cor ${color}${price != null ? ` (${formatBRL(price)} à vista)` : ""}. Está disponível?`
+    : "";
+
+  const prodTitle = product
+    ? `${product.name}${version ? ` ${version}` : ""} ${storage} ${color}`
+    : "";
+  const prodDesc = product
+    ? product.description ||
+      `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`
+    : "";
+  const prodImage = product?.imageUrl || "/images/logo.png";
+  const prodUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  const productJsonLd = useMemo(() => {
+    if (!product) return undefined;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": prodTitle,
+      "image":
+        prodImage.startsWith("/") && typeof window !== "undefined"
+          ? `${window.location.origin}${prodImage}`
+          : prodImage,
+      "description": prodDesc,
+      "brand": {
+        "@type": "Brand",
+        "name": product.brand,
+      },
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "BRL",
+        "price": price != null ? (price / 100).toFixed(2) : undefined,
+        "itemCondition":
+          product.condition === "seminovo"
+            ? "https://schema.org/UsedCondition"
+            : "https://schema.org/NewCondition",
+        "availability": isAvailable
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+      },
+    };
+  }, [product, prodTitle, prodDesc, prodImage, price, isAvailable]);
+
+  if (!isValidId) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-20 text-center">
+        <p className="font-display text-xl font-bold text-neutral-500">Endereço de produto inválido</p>
+        <Link to="/catalogo" className="mt-4 inline-block font-semibold text-ink underline">
+          Voltar ao catálogo
+        </Link>
+      </div>
+    );
   }
 
   if (query.isLoading) {
@@ -151,6 +227,36 @@ export default function Produto() {
     );
   }
 
+  if (query.isError) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-20 text-center">
+        <div className="rounded-3xl border-2 border-ink bg-white p-8 shadow-[4px_4px_0_0_#141414]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-brand">
+            <AlertCircle className="h-6 w-6 text-ink" />
+          </div>
+          <h2 className="mt-3 font-display text-lg font-bold text-ink">Erro ao carregar detalhes do produto</h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            Não foi possível comunicar com o servidor. Tente novamente em instantes.
+          </p>
+          <div className="mt-5 flex justify-center gap-3">
+            <button
+              onClick={() => query.refetch()}
+              className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-4 py-2.5 text-sm font-bold text-brand shadow-[2px_2px_0_0_rgba(20,20,20,0.3)] hover:-translate-y-0.5 transition"
+            >
+              <RefreshCw className="h-4 w-4" /> Recarregar
+            </button>
+            <Link
+              to="/catalogo"
+              className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-bold text-ink hover:bg-neutral-50"
+            >
+              Voltar ao catálogo
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!product || !derived) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-20 text-center">
@@ -161,41 +267,6 @@ export default function Produto() {
       </div>
     );
   }
-
-  const selected = derived.selected;
-  const isAvailable = !!selected?.available;
-  const price = selected?.priceCash ?? null;
-  const maxFee = s.fees[String(s.installmentsMax)] ?? 0;
-  const categoryLabel =
-    CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
-
-  const buyMessage = `Olá! Quero comprar o ${product.name}${
-    version ? ` ${version}` : ""
-  } ${storage} na cor ${color}${price != null ? ` (${formatBRL(price)} à vista)` : ""}. Está disponível?`;
-
-  const prodTitle = `${product.name}${version ? ` ${version}` : ""} ${storage} ${color}`;
-  const prodDesc = product.description || `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`;
-  const prodImage = product.imageUrl || "/images/logo.png";
-  const prodUrl = typeof window !== "undefined" ? window.location.href : "";
-
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    "name": prodTitle,
-    "image": prodImage.startsWith("/") && typeof window !== "undefined" ? `${window.location.origin}${prodImage}` : prodImage,
-    "description": prodDesc,
-    "brand": {
-      "@type": "Brand",
-      "name": product.brand
-    },
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "BRL",
-      "price": price != null ? (price / 100).toFixed(2) : undefined,
-      "itemCondition": product.condition === "seminovo" ? "https://schema.org/UsedCondition" : "https://schema.org/NewCondition",
-      "availability": isAvailable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
-    }
-  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
@@ -218,8 +289,13 @@ export default function Produto() {
         <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-neutral-100 shadow-[6px_6px_0_0_#141414]">
           {selected?.imageUrl || product.imageUrl ? (
             <img
-              src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 900)}
+              src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 720, 80)}
+              srcSet={getImageSrcSet(selected?.imageUrl || product.imageUrl!)}
+              sizes="(max-width: 768px) 100vw, 500px"
               alt={product.name}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               onError={(e) => {
                 const raw = selected?.imageUrl || product.imageUrl;
                 if (raw && e.currentTarget.src !== raw) {
@@ -445,7 +521,7 @@ export default function Produto() {
             if (!hasMultipleUnits) return null;
 
             return (
-              <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Selecione a Unidade / Aparelho Especifico">
+              <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Selecione a Unidade / Aparelho Específico">
                 <div className="grid gap-2 sm:grid-cols-2">
                   {derived.matchingVariants.map((v, idx) => {
                     const isSelectedUnit = selected?.id === v.id;

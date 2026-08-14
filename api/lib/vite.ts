@@ -6,6 +6,15 @@ import path from "path";
 
 type App = Hono<{ Bindings: HttpBindings }>;
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function serveStaticFiles(app: App) {
   const distPath = path.resolve(import.meta.dirname, "../dist/public");
 
@@ -18,6 +27,9 @@ export function serveStaticFiles(app: App) {
     }
 
     const indexPath = path.resolve(distPath, "index.html");
+    if (!fs.existsSync(indexPath)) {
+      return c.text("App build not found", 500);
+    }
     let content = fs.readFileSync(indexPath, "utf-8");
 
     const url = new URL(c.req.url);
@@ -37,15 +49,18 @@ export function serveStaticFiles(app: App) {
         });
 
         if (product) {
-          const title = `${product.name} — Lojinha do Celular`;
-          const desc = product.description
+          const rawTitle = `${product.name} — Lojinha do Celular`;
+          const rawDesc = product.description
             ? product.description.replace(/[\r\n]+/g, " ").slice(0, 160)
             : `Confira ${product.name} na Lojinha do Celular. Importados dos EUA com garantia e entrega rápida em Jardim-MS e Guia Lopes da Laguna.`;
-          
-          let img = product.imageUrl || `${origin}/images/logo.png`;
-          if (img.startsWith("/")) img = `${origin}${img}`;
 
-          const prodUrl = `${origin}${pathname}`;
+          let rawImg = product.imageUrl || `${origin}/images/logo.png`;
+          if (rawImg.startsWith("/")) rawImg = `${origin}${rawImg}`;
+
+          const title = escapeHtml(rawTitle);
+          const desc = escapeHtml(rawDesc);
+          const img = escapeHtml(rawImg);
+          const prodUrl = escapeHtml(`${origin}${pathname}`);
 
           content = content
             .replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`)

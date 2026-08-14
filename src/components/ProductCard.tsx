@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
-import { minPrice, availableColors, optimizeImageUrl, isImportedEua } from "@/lib/shop";
+import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet, isImportedEua } from "@/lib/shop";
 
 export default function ProductCard({
   product,
@@ -34,12 +34,14 @@ export default function ProductCard({
   }, []);
 
   const rawUrl = product.imageUrl;
-  const optimizedUrl = optimizeImageUrl(rawUrl, 600);
+  // Imagem ultra-leve e progressiva para visualização rápida no catálogo
+  const optimizedUrl = optimizeImageUrl(rawUrl, 360, 75);
+  const srcSet = getImageSrcSet(rawUrl);
 
   return (
     <Link
       to={`/produto/${product.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#141414]"
+      className="group flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-[4px_4px_0_0_#141414] transition active:scale-[0.99] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#141414]"
     >
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
         {!isLoaded && rawUrl && (
@@ -49,16 +51,20 @@ export default function ProductCard({
           <img
             ref={imgRef}
             src={optimizedUrl}
+            srcSet={srcSet}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
             alt={product.name}
             loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
             onLoad={() => setIsLoaded(true)}
             onError={(e) => {
+              // Se o proxy falhar por algum motivo, fallback imediato para a URL original
               if (rawUrl && e.currentTarget.src !== rawUrl) {
                 e.currentTarget.src = rawUrl;
               }
             }}
-            className={`h-full w-full object-contain pt-10 pb-2 px-3 transition-opacity duration-300 group-hover:scale-105 ${
+            className={`h-full w-full object-contain pt-10 pb-2 px-3 transition-opacity duration-200 group-hover:scale-105 ${
               isLoaded ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -67,31 +73,35 @@ export default function ProductCard({
             Sem foto
           </div>
         )}
-        {product.condition === "seminovo" || product.category === "iphone_seminovo" ? (
-          <>
-            {isImportedEua(product) ? (
-              <span className="absolute left-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-blue-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-[2px_2px_0_0_#141414]">
-                🇺🇸 Seminovo EUA (1 Ano)
+
+        {/* Badges superiores organizados sem colisão */}
+        <div className="absolute left-2 top-2 right-2 z-10 flex items-start justify-between gap-1 pointer-events-none">
+          {product.condition === "seminovo" || product.category === "iphone_seminovo" ? (
+            <>
+              {isImportedEua(product) ? (
+                <span className="truncate rounded-full border-2 border-ink bg-blue-600 px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white shadow-[2px_2px_0_0_#141414]">
+                  🇺🇸 EUA (1 Ano)
+                </span>
+              ) : (
+                <span className="truncate rounded-full border-2 border-ink bg-white px-2 py-0.5 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
+                  🔄 Seminovo
+                </span>
+              )}
+              <span className="shrink-0 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
+                🔋 {batteryHealth ? `${batteryHealth}` : "80%+"}
               </span>
-            ) : (
-              <span className="absolute left-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
-                🔄 Seminovo (Pego na Troca)
+            </>
+          ) : (
+            <>
+              <span className="truncate rounded-full border-2 border-ink bg-brand px-2 py-0.5 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
+                ✨ Lacrado
               </span>
-            )}
-            <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
-              🔋 {batteryHealth ? `Bat. ${batteryHealth}` : "Bat. 80%+"}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="absolute left-2.5 top-2.5 z-10 rounded-full border-2 border-ink bg-brand px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-[2px_2px_0_0_#141414]">
-              ✨ Lacrado Novo
-            </span>
-            <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full border-2 border-ink bg-amber-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
-              🛡️ {product.warranty || "1 Ano Garantia"}
-            </span>
-          </>
-        )}
+              <span className="shrink-0 rounded-full border-2 border-ink bg-amber-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-[2px_2px_0_0_#141414]">
+                🛡️ 1 Ano
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">

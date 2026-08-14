@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
-import { Lock, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Settings, Package } from "lucide-react";
+import { Lock, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Settings, Package, RefreshCw } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { formatBRL, CATEGORIES } from "@contracts/types";
 import { minPrice } from "@/lib/shop";
+import { safeStorage } from "@/lib/storage";
 import AdminProductEditor from "@/components/admin/AdminProductEditor";
 import AdminSettings from "@/components/admin/AdminSettings";
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [token, setToken] = useState(() => localStorage.getItem("admin_token") ?? "");
+  const [token, setToken] = useState(() => safeStorage.getItem("admin_token") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -47,7 +48,7 @@ export default function Admin() {
   const utils = trpc.useUtils();
   const login = trpc.admin.login.useMutation({
     onSuccess: (data) => {
-      localStorage.setItem("admin_token", data.token);
+      safeStorage.setItem("admin_token", data.token);
       setToken(data.token);
       setError("");
     },
@@ -56,14 +57,21 @@ export default function Admin() {
 
   const products = trpc.admin.products.useQuery(undefined, {
     enabled: !!token,
-    retry: false,
+    retry: 1,
   });
 
   useEffect(() => {
     if (products.error) {
-      localStorage.removeItem("admin_token");
-      setToken("");
-      setError("Sessão expirada. Digite a senha para entrar.");
+      const isUnauthorized =
+        (products.error as { data?: { httpStatus?: number } })?.data?.httpStatus === 401 ||
+        products.error.message.includes("UNAUTHORIZED") ||
+        products.error.message.includes("Não autorizado");
+
+      if (isUnauthorized) {
+        safeStorage.removeItem("admin_token");
+        setToken("");
+        setError("Sessão expirada. Digite a senha para entrar.");
+      }
     }
   }, [products.error]);
 
@@ -72,13 +80,13 @@ export default function Admin() {
   });
 
   function logout() {
-    localStorage.removeItem("admin_token");
+    safeStorage.removeItem("admin_token");
     setToken("");
   }
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    localStorage.removeItem("admin_token");
+    safeStorage.removeItem("admin_token");
     setToken("");
     setError("");
     login.mutate({ password: password.trim() });
@@ -197,6 +205,18 @@ export default function Admin() {
                 <div key={i} className="h-24 animate-pulse rounded-2xl bg-neutral-200" />
               ))}
 
+            {products.isError && !products.error.message.includes("UNAUTHORIZED") && (
+              <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-6 text-center">
+                <p className="font-semibold text-red-700">Erro ao carregar produtos do servidor.</p>
+                <button
+                  onClick={() => products.refetch()}
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-4 py-2 text-sm font-bold text-ink shadow-[2px_2px_0_0_#141414] hover:bg-neutral-50"
+                >
+                  <RefreshCw className="h-4 w-4" /> Tentar novamente
+                </button>
+              </div>
+            )}
+
             {(products.data ?? []).map((p) => {
               const price = minPrice(p);
               return (
@@ -259,7 +279,7 @@ export default function Admin() {
               );
             })}
 
-            {products.data?.length === 0 && (
+            {!products.isLoading && !products.isError && products.data?.length === 0 && (
               <p className="rounded-2xl border-2 border-dashed border-neutral-300 p-10 text-center text-sm text-neutral-400">
                 Nenhum produto cadastrado ainda. Clique em "Adicionar produto".
               </p>

@@ -25,7 +25,10 @@ export async function ensureTables() {
         warranty VARCHAR(120) DEFAULT '1 ano de garantia',
         featured BOOLEAN NOT NULL DEFAULT FALSE,
         active BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_products_active_featured (active, featured),
+        INDEX idx_products_active_category (active, category),
+        INDEX idx_products_created_at (created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
@@ -39,18 +42,23 @@ export async function ensureTables() {
         color_hex VARCHAR(9) DEFAULT '#111111',
         image_url TEXT,
         battery_health VARCHAR(30) DEFAULT '',
+        warranty VARCHAR(120) DEFAULT '',
+        \`condition\` VARCHAR(30) DEFAULT '',
+        notes TEXT,
         price_cash INT NOT NULL,
-        available BOOLEAN NOT NULL DEFAULT TRUE
+        quantity INT NOT NULL DEFAULT 1,
+        available BOOLEAN NOT NULL DEFAULT TRUE,
+        INDEX idx_variants_product_id (product_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Adiciona colunas adicionais caso a tabela já exista
-    await pool.query(`ALTER TABLE variants ADD COLUMN battery_health VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN image_url TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN warranty VARCHAR(120) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN \`condition\` VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN notes TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN quantity INT NOT NULL DEFAULT 1`).catch(() => {});
+    // Migrações incrementais seguras
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS battery_health VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS image_url TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS warranty VARCHAR(120) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS \`condition\` VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS quantity INT NOT NULL DEFAULT 1`).catch(() => {});
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -67,7 +75,16 @@ export async function ensureTables() {
 
 export function getDb(): MySql2Database<typeof fullSchema> {
   if (!instance) {
-    pool = mysql.createPool(env.databaseUrl);
+    pool = mysql.createPool({
+      uri: env.databaseUrl,
+      waitForConnections: true,
+      connectionLimit: 15,
+      maxIdle: 10,
+      idleTimeout: 60000,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+    });
     ensureTables().catch(() => {});
     instance = drizzle(pool, {
       mode: "default",

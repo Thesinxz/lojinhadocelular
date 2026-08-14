@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { SETTING_KEYS, parseFees, type FeeTable } from "@contracts/types";
@@ -7,6 +8,15 @@ export function useShopSettings() {
     staleTime: 1000 * 60 * 5,
   });
   const s = query.data ?? {};
+
+  const heroImages = useMemo(() => {
+    return parseHeroImages(s[SETTING_KEYS.heroImages]);
+  }, [s[SETTING_KEYS.heroImages]]);
+
+  const fees = useMemo(() => {
+    return parseFees(s[SETTING_KEYS.installmentFees]) as FeeTable;
+  }, [s[SETTING_KEYS.installmentFees]]);
+
   return {
     loading: query.isLoading,
     whatsappJardim: s[SETTING_KEYS.whatsappJardim] ?? "",
@@ -16,10 +26,10 @@ export function useShopSettings() {
     mapsJardim: s[SETTING_KEYS.mapsJardim] ?? "",
     mapsGll: s[SETTING_KEYS.mapsGll] ?? "",
     installmentsMax: Number(s[SETTING_KEYS.installmentsMax] ?? "12") || 12,
-    fees: parseFees(s[SETTING_KEYS.installmentFees]) as FeeTable,
+    fees,
     debitPixFee: Number(s[SETTING_KEYS.debitPixFee] ?? "2.39") || 0,
     popupEnabled: (s[SETTING_KEYS.popupEnabled] ?? "1") === "1",
-    heroImages: parseHeroImages(s[SETTING_KEYS.heroImages]),
+    heroImages,
   };
 }
 
@@ -48,22 +58,53 @@ export function minPrice(product: ProductWithVariants): number | null {
   return Math.min(...prices);
 }
 
-/** 
- * Otimiza qualquer URL de imagem externa (ex: ImgBB, Amazon, Unsplash) usando CDN Cloudflare Edge (wsrv.nl).
- * Converte imagens pesadas (ex: 5MB PNGs) para WebP ultra-leve (~40KB) com cache de borda no Brasil!
+/**
+ * Normaliza e otimiza imagens (ImgBB, Unsplash, Apple CDN, etc.) usando CDN Cloudflare de borda (wsrv.nl).
+ * Converte imagens pesadas de 5MB–10MB para WebP/AVIF progressivo de ~15KB–35KB!
+ *
+ * Parâmetros:
+ * - w: largura redimensionada ideal
+ * - output=webp: compressão de alta eficiência
+ * - q=75: equilíbrio perfeito entre nitidez e tamanho
+ * - il: carregamento progressivo (interlaced) para exibição imediata
+ * - af: auto format (serve AVIF ou WebP conforme suporte do navegador)
+ * - n=-1: remove metadados EXIF/ICC inúteis para reduzir KB
  */
-export function optimizeImageUrl(url: string | null | undefined, width = 600): string {
+export function optimizeImageUrl(
+  url: string | null | undefined,
+  width = 360,
+  quality = 75,
+): string {
   if (!url) return "";
-  const trimmed = url.trim();
+  let trimmed = url.trim();
   if (!trimmed) return "";
 
-  // Se já for imagem local ou data URI, mantém original
+  // Imagens locais ou data URIs mantêm original
   if (trimmed.startsWith("/") || trimmed.startsWith("data:")) return trimmed;
 
-  // Se já for otimizada pelo wsrv.nl
-  if (trimmed.includes("wsrv.nl")) return trimmed;
+  // Se for página de visualização do ImgBB (ex: https://ibb.co/xyz ou https://pt-br.imgbb.com/xyz),
+  // e não o link direto (i.ibb.co), ainda passa pela CDN
+  if (trimmed.includes("wsrv.nl")) {
+    return trimmed;
+  }
 
-  return `https://wsrv.nl/?url=${encodeURIComponent(trimmed)}&w=${width}&output=webp&q=80`;
+  // Aceleração via CDN Edge com WebP/AVIF progressivo
+  return `https://wsrv.nl/?url=${encodeURIComponent(trimmed)}&w=${width}&output=webp&q=${quality}&il&af&n=-1`;
+}
+
+/**
+ * Gera srcset responsivo para telas normais (@1x) e telas Retina de alta densidade (@2x / @3x)
+ */
+export function getImageSrcSet(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith("/") || trimmed.startsWith("data:")) return undefined;
+
+  const w320 = optimizeImageUrl(trimmed, 320, 75);
+  const w480 = optimizeImageUrl(trimmed, 480, 75);
+  const w640 = optimizeImageUrl(trimmed, 640, 75);
+
+  return `${w320} 320w, ${w480} 480w, ${w640} 640w`;
 }
 
 /** Cores disponíveis de um produto (sem duplicar) */

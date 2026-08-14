@@ -74,7 +74,9 @@ export default function TvMode() {
     return () => window.removeEventListener("keydown", onKey);
   }, [products.length, current]);
 
-  // Pré-carregamento proativo de imagens na memória da Smart TV (Instantâneo sem delay)
+  // Pré-carregamento proativo com cache único em memória para Smart TVs
+  const preloadedUrlsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (products.length === 0) return;
 
@@ -90,7 +92,8 @@ export default function TvMode() {
 
       urls.forEach((url) => {
         const optimized = optimizeImageUrl(url, 700);
-        if (optimized) {
+        if (optimized && !preloadedUrlsRef.current.has(optimized)) {
+          preloadedUrlsRef.current.add(optimized);
           const img = new Image();
           img.src = optimized;
         }

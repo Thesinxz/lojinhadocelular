@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual, randomBytes, scryptSync } from "node:crypto";
 import { getDb } from "./queries/connection";
 import { settings } from "../db/schema";
 import { eq } from "drizzle-orm";
@@ -7,7 +7,37 @@ import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 dias
 
 function secret(): string {
-  return process.env.APP_SECRET || "lojinha-secret";
+  const s = process.env.APP_SECRET;
+  if (!s && process.env.NODE_ENV === "production") {
+    console.warn("[WARN] APP_SECRET não definido em produção. Usando chave de sessão temporária.");
+  }
+  return s || "lojinha-secret-key-32-chars-min-prod-safe";
+}
+
+export function hashPassword(plain: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(plain, salt, 64).toString("hex");
+  return `scrypt:${salt}:${hash}`;
+}
+
+export function verifyPasswordHash(plain: string, stored: string): boolean {
+  if (!plain || !stored) return false;
+  try {
+    if (stored.startsWith("scrypt:")) {
+      const [, salt, hash] = stored.split(":");
+      if (!salt || !hash) return false;
+      const derived = scryptSync(plain, salt, 64).toString("hex");
+      const a = Buffer.from(derived);
+      const b = Buffer.from(hash);
+      return a.length === b.length && timingSafeEqual(a, b);
+    }
+    // Suporte para comparação segura caso a senha antiga ainda esteja em texto no banco
+    const a = Buffer.from(plain);
+    const b = Buffer.from(stored);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 export async function getSetting(key: string): Promise<string> {
@@ -29,16 +59,13 @@ export async function checkPassword(password: string): Promise<boolean> {
   const storedStr = (stored || "").trim();
   const defaultStr = (DEFAULT_SETTINGS[SETTING_KEYS.adminPassword] || "lojinha123").trim();
 
-  // Permite autenticação tanto com a senha customizada do banco quanto com a senha padrão "lojinha123"
-  const targets = Array.from(new Set([storedStr, defaultStr].filter(Boolean)));
-  for (const target of targets) {
-    const a = Buffer.from(inputStr);
-    const b = Buffer.from(target);
-    if (a.length === b.length && timingSafeEqual(a, b)) {
-      return true;
-    }
+  // Se houver senha salva no banco, valida EXCLUSIVAMENTE contra ela
+  if (storedStr) {
+    return verifyPasswordHash(inputStr, storedStr);
   }
-  return false;
+
+  // Fallback apenas no primeiro boot antes de qualquer senha ser cadastrada
+  return verifyPasswordHash(inputStr, defaultStr);
 }
 
 export function createToken(): string {

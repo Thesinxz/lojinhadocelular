@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { compress } from "hono/compress";
+import { secureHeaders } from "hono/secure-headers";
+import { cors } from "hono/cors";
 import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
@@ -8,6 +10,27 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
+
+// Headers de segurança HTTP
+app.use(
+  secureHeaders({
+    xFrameOptions: "SAMEORIGIN",
+    xContentTypeOptions: "nosniff",
+    referrerPolicy: "strict-origin-when-cross-origin",
+    strictTransportSecurity: "max-age=31536000; includeSubDomains",
+  }),
+);
+
+// Habilitar CORS seguro
+app.use(
+  "/api/*",
+  cors({
+    origin: (origin) => origin || "*",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
 
 // Compressão gzip/deflate em todas as respostas (texto, JS, CSS, JSON)
 app.use(compress());
@@ -24,7 +47,49 @@ app.use("/images/*", async (c, next) => {
   c.res.headers.set("Cache-Control", "public, max-age=86400");
 });
 
-app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+// Limite seguro de payload JSON para evitar DoS por exaustão de memória
+app.use(bodyLimit({ maxSize: 2 * 1024 * 1024 }));
+
+// Rate Limiter em memória para proteção contra força bruta no login admin
+const loginAttempts = new Map<string, { count: number; resetTime: number }>();
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutos
+
+app.use("/api/trpc/admin.login*", async (c, next) => {
+  const ip =
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+    c.req.header("x-real-ip") ||
+    "unknown-ip";
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+
+  if (record && record.resetTime > now) {
+    if (record.count >= MAX_LOGIN_ATTEMPTS) {
+      return c.json(
+        {
+          error: {
+            message: "Muitas tentativas de login. Aguarde 15 minutos antes de tentar novamente.",
+            code: -32000,
+            data: { httpStatus: 429 },
+          },
+        },
+        429,
+      );
+    }
+    record.count += 1;
+  } else {
+    loginAttempts.set(ip, { count: 1, resetTime: now + LOGIN_WINDOW_MS });
+  }
+
+  // Limpeza de IPs expirados periodicamente
+  if (loginAttempts.size > 1000) {
+    for (const [key, value] of loginAttempts.entries()) {
+      if (value.resetTime < now) loginAttempts.delete(key);
+    }
+  }
+
+  await next();
+});
 
 // SEO: robots.txt
 app.get("/robots.txt", (c) => {

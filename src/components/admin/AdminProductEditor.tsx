@@ -637,13 +637,16 @@ export default function AdminProductEditor({
             </button>
           </div>
         </Field>
-        <Field label="URL da imagem">
+        <Field label="URL da Imagem (Foto Principal)">
           <input
             value={form.imageUrl}
-            onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-            placeholder="https://..."
+            onChange={(e) => setForm({ ...form, imageUrl: e.target.value.trim() })}
+            placeholder="https://i.ibb.co/... ou link da foto"
             className={inputCls}
           />
+          <p className="mt-1 text-[11px] text-neutral-500">
+            💡 <strong>Dica ImgBB:</strong> No ImgBB, copie o <em>"Link Direto"</em> (começa com <code>https://i.ibb.co/...</code>). As fotos são otimizadas automaticamente para WebP ultra-rápido no site.
+          </p>
         </Field>
         <Field label="Garantia & Selo de Procedência">
           <input
