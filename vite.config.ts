@@ -2,6 +2,7 @@ import devServer from "@hono/vite-dev-server";
 import path from "path";
 const __dirname = import.meta.dirname;
 import react from "@vitejs/plugin-react";
+import legacy from "@vitejs/plugin-legacy";
 import { defineConfig } from "vite";
 import { inspectAttr } from "kimi-plugin-inspect-react";
 
@@ -13,6 +14,11 @@ export default defineConfig({
     devServer({ entry: "api/boot.ts", exclude: [/^\/(?!api\/).*$/] }),
     ...(isDev ? [inspectAttr()] : []),
     react(),
+    legacy({
+      targets: ["defaults", "not IE 11", "iOS >= 12", "Safari >= 12", "Chrome >= 64", "Edge >= 18"],
+      modernPolyfills: true,
+      renderLegacyChunks: true,
+    }),
   ],
   server: {
     port: 3000,
