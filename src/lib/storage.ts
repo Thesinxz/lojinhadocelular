@@ -52,7 +52,9 @@ export const safeStorage = {
     if (hasLocalStorage) {
       try {
         window.localStorage.removeItem(key);
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     memoryStore.delete(`local:${key}`);
   },
@@ -61,7 +63,9 @@ export const safeStorage = {
     if (hasLocalStorage) {
       try {
         window.localStorage.clear();
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     memoryStore.clear();
   },
@@ -72,7 +76,9 @@ export const safeSessionStorage = {
     if (hasSessionStorage) {
       try {
         return window.sessionStorage.getItem(key);
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     return memoryStore.get(`session:${key}`) ?? null;
   },
@@ -82,7 +88,9 @@ export const safeSessionStorage = {
       try {
         window.sessionStorage.setItem(key, value);
         return;
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     memoryStore.set(`session:${key}`, value);
   },
@@ -91,7 +99,9 @@ export const safeSessionStorage = {
     if (hasSessionStorage) {
       try {
         window.sessionStorage.removeItem(key);
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     memoryStore.delete(`session:${key}`);
   },
@@ -100,7 +110,9 @@ export const safeSessionStorage = {
     if (hasSessionStorage) {
       try {
         window.sessionStorage.clear();
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     memoryStore.clear();
   },

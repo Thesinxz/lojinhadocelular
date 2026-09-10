@@ -6,7 +6,7 @@ type SEOProps = {
   image?: string;
   url?: string;
   type?: string;
-  jsonLd?: Record<string, any>;
+  jsonLd?: Record<string, unknown>;
 };
 
 export default function SEO({

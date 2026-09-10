@@ -232,9 +232,9 @@ export default function AdminProductEditor({
           const hasContent =
             parsed.form.name ||
             parsed.form.description ||
-            parsed.form.variants?.some((v: any) => v.priceReais || v.color);
+            parsed.form.variants?.some((v: Record<string, unknown>) => v.priceReais || v.color);
           if (hasContent) {
-            const sanitizedVariants = (parsed.form.variants || []).map((v: any) => ({
+            const sanitizedVariants = (parsed.form.variants || []).map((v: Record<string, unknown>) => ({
               version: v.version ?? "",
               storage: v.storage ?? "128GB",
               color: v.color ?? "Preto",
@@ -243,7 +243,7 @@ export default function AdminProductEditor({
               batteryHealth: v.batteryHealth ?? "",
               warranty: v.warranty ?? "",
               notes: v.notes ?? "",
-              priceReais: formatCurrencyInput(v.priceReais ?? ""),
+              priceReais: formatCurrencyInput(String(v.priceReais ?? "")),
               quantity: typeof v.quantity === "number" ? v.quantity : 1,
               available: v.available ?? true,
             }));

@@ -331,17 +331,17 @@ git commit -m "feat(theme): unifica Header, Footer e base da aplicacao no tema d
 **Files:**
 - Test: Vitest + TypeScript + Build
 
-- [ ] **Step 1: Rodar os testes da suíte**
+- [x] **Step 1: Rodar os testes da suíte**
 
 Run: `pnpm test`  
 Expected: Todos os testes passando com sucesso.
 
-- [ ] **Step 2: Rodar build de produção**
+- [x] **Step 2: Rodar build de produção**
 
 Run: `pnpm build`  
 Expected: Build concluído sem falhas no diretório `dist/`.
 
-- [ ] **Step 3: Commit final**
+- [x] **Step 3: Commit final**
 
 ```bash
 git commit --allow-empty -m "chore: finaliza integracao da vitrine no padrao blk store"

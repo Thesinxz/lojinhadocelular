@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { ShieldCheck, Play, Pause, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { trpc } from "@/providers/trpc";
@@ -32,19 +32,19 @@ export default function TvMode() {
     | ProductWithVariants
     | undefined;
 
-  function nextSlide() {
+  const nextSlide = useCallback(() => {
     if (current) {
       setColorIndexes((prev) => ({
         ...prev,
         [current.id]: (prev[current.id] ?? 0) + 1,
       }));
     }
-    setIndex((i) => (i + 1) % products.length);
-  }
+    setIndex((i) => (i + 1) % Math.max(products.length, 1));
+  }, [current, products.length]);
 
-  function prevSlide() {
-    setIndex((i) => (i - 1 + products.length) % products.length);
-  }
+  const prevSlide = useCallback(() => {
+    setIndex((i) => (i - 1 + products.length) % Math.max(products.length, 1));
+  }, [products.length]);
 
   // Avanço automático com barra de progresso
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function TvMode() {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, [paused, index, products.length, current]);
+  }, [paused, index, products.length, current, nextSlide]);
 
   // Navegação por teclado (controle/remoto da TV)
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function TvMode() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [products.length, current]);
+  }, [nextSlide, prevSlide]);
 
   // Pré-carregamento proativo com cache único em memória para Smart TVs
   const preloadedUrlsRef = useRef<Set<string>>(new Set());
@@ -103,21 +103,44 @@ export default function TvMode() {
 
   function toggleFullscreen() {
     try {
-      const elem = document.documentElement as any;
+      const elem = document.documentElement as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void> | void;
+        msRequestFullscreen?: () => Promise<void> | void;
+      };
+      const doc = document as Document & {
+        webkitFullscreenElement?: Element;
+        webkitExitFullscreen?: () => Promise<void> | void;
+      };
       if (!elem) return;
-      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+      if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
         if (elem.requestFullscreen) {
-          elem.requestFullscreen().catch(() => {});
+          elem.requestFullscreen().catch(() => {
+            // ignore
+          });
         } else if (elem.webkitRequestFullscreen) {
-          try { elem.webkitRequestFullscreen(); } catch (_) {}
+          try {
+            elem.webkitRequestFullscreen();
+          } catch {
+            // ignore
+          }
         } else if (elem.msRequestFullscreen) {
-          try { elem.msRequestFullscreen(); } catch (_) {}
+          try {
+            elem.msRequestFullscreen();
+          } catch {
+            // ignore
+          }
         }
       } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        } else if ((document as any).webkitExitFullscreen) {
-          try { (document as any).webkitExitFullscreen(); } catch (_) {}
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen().catch(() => {
+            // ignore
+          });
+        } else if (doc.webkitExitFullscreen) {
+          try {
+            doc.webkitExitFullscreen();
+          } catch {
+            // ignore
+          }
         }
       }
     } catch (e) {

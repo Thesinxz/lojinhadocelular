@@ -9,13 +9,15 @@ export function useShopSettings() {
   });
   const s = query.data ?? {};
 
+  const rawHeroImages = s[SETTING_KEYS.heroImages];
   const heroImages = useMemo(() => {
-    return parseHeroImages(s[SETTING_KEYS.heroImages]);
-  }, [s[SETTING_KEYS.heroImages]]);
+    return parseHeroImages(rawHeroImages);
+  }, [rawHeroImages]);
 
+  const rawFees = s[SETTING_KEYS.installmentFees];
   const fees = useMemo(() => {
-    return parseFees(s[SETTING_KEYS.installmentFees]) as FeeTable;
-  }, [s[SETTING_KEYS.installmentFees]]);
+    return parseFees(rawFees) as FeeTable;
+  }, [rawFees]);
 
   return {
     loading: query.isLoading,
@@ -76,7 +78,7 @@ export function optimizeImageUrl(
   quality = 75,
 ): string {
   if (!url) return "";
-  let trimmed = url.trim();
+  const trimmed = url.trim();
   if (!trimmed) return "";
 
   // Imagens locais ou data URIs mantêm original

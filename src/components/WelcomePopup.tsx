@@ -26,26 +26,26 @@ export default function WelcomePopup() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center sm:pb-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md sm:items-center sm:pb-4"
       onClick={close}
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-3xl border-4 border-ink bg-white shadow-[8px_8px_0_0_#141414]"
+        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#121212] shadow-2xl transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative bg-brand px-6 pb-6 pt-8 text-center">
+        <div className="relative border-b border-white/5 bg-gradient-to-b from-white/[0.06] to-transparent px-6 pb-6 pt-8 text-center">
           <button
             onClick={close}
-            className="absolute right-3 top-3 rounded-full border-2 border-ink bg-white p-1.5 text-ink transition hover:bg-ink hover:text-brand"
+            className="absolute right-3.5 top-3.5 rounded-full border border-white/10 bg-white/5 p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
             aria-label="Fechar"
           >
             <X className="h-4 w-4" />
           </button>
-          <img src="/images/logo-icon.png" alt="Lojinha do Celular" className="mx-auto h-24 w-auto object-contain" />
-          <h2 className="mt-2 font-display text-xl font-bold text-ink">
+          <img src="/images/logo-icon.png" alt="Lojinha do Celular" className="mx-auto h-20 w-auto object-contain" />
+          <h2 className="mt-3 font-display text-xl font-bold text-white">
             Bem-vindo à Lojinha do Celular!
           </h2>
-          <p className="mt-1 text-sm font-medium text-ink/70">
+          <p className="mt-1 text-sm font-medium text-neutral-400">
             Como podemos te ajudar hoje?
           </p>
         </div>
@@ -55,51 +55,51 @@ export default function WelcomePopup() {
             href={waLink(s.whatsappJardim, "Olá! Vim pelo site da Lojinha do Celular.")}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-3 rounded-xl border-2 border-ink bg-[#25D366] px-4 py-3 font-semibold text-ink transition hover:brightness-105"
+            className="flex items-center gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 font-semibold text-white transition hover:bg-[#20ba59] active:scale-[0.99] shadow-lg shadow-[#25D366]/20"
           >
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="h-5 w-5 fill-current" />
             <div className="text-left">
               <span className="block text-sm font-bold">Chamar no WhatsApp</span>
-              <span className="block text-xs opacity-70">Unidade Jardim-MS</span>
+              <span className="block text-xs text-white/80">Unidade Jardim-MS</span>
             </div>
           </a>
           <a
             href={waLink(s.whatsappGll, "Olá! Vim pelo site da Lojinha do Celular.")}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-3 rounded-xl border-2 border-ink bg-[#25D366] px-4 py-3 font-semibold text-ink transition hover:brightness-105"
+            className="flex items-center gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 font-semibold text-white transition hover:bg-[#20ba59] active:scale-[0.99] shadow-lg shadow-[#25D366]/20"
           >
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="h-5 w-5 fill-current" />
             <div className="text-left">
               <span className="block text-sm font-bold">Chamar no WhatsApp</span>
-              <span className="block text-xs opacity-70">Unidade Guia Lopes da Laguna</span>
+              <span className="block text-xs text-white/80">Unidade Guia Lopes da Laguna</span>
             </div>
           </a>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 pt-1">
             <a
               href={s.mapsJardim}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-brand"
+              className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-neutral-200 transition hover:bg-white/10 hover:text-white"
             >
-              <MapPin className="h-4 w-4" /> Jardim
+              <MapPin className="h-4 w-4 text-brand" /> Jardim
             </a>
             <a
               href={s.mapsGll}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-brand"
+              className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-neutral-200 transition hover:bg-white/10 hover:text-white"
             >
-              <MapPin className="h-4 w-4" /> Guia Lopes
+              <MapPin className="h-4 w-4 text-brand" /> Guia Lopes
             </a>
           </div>
 
           <button
             onClick={close}
-            className="w-full rounded-xl py-2.5 text-sm font-semibold text-neutral-500 transition hover:text-ink"
+            className="w-full rounded-xl py-2.5 text-sm font-medium text-neutral-400 transition hover:text-white"
           >
-            Quero só olhar o site →
+            Quero só olhar a vitrine →
           </button>
         </div>
       </div>

@@ -22,7 +22,7 @@ export default function WhatsAppFloat() {
       rel="noreferrer"
       aria-label="Falar no WhatsApp"
       style={{ bottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}
-      className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink bg-[#25D366] text-ink shadow-[3px_3px_0_0_#141414] transition active:scale-95 hover:scale-110"
+      className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-[#25D366] text-white shadow-lg shadow-[#25D366]/25 transition duration-200 active:scale-95 hover:scale-110 hover:bg-[#20ba59] hover:shadow-xl hover:shadow-[#25D366]/35"
     >
       <MessageCircle className="h-7 w-7" />
     </a>
