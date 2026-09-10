@@ -404,17 +404,17 @@ export default function AdminProductEditor({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[6px_6px_0_0_#141414]">
+    <form onSubmit={submit} className="rounded-3xl border border-[#e5e5e7] bg-white p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07)]">
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-500 hover:text-ink transition"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#86868b] hover:text-[#1d1d1f] transition"
         >
           <ArrowLeft className="h-4 w-4" /> Voltar
         </button>
         {isDirty && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
             Alterações salvas automaticamente
           </span>
@@ -422,7 +422,7 @@ export default function AdminProductEditor({
       </div>
 
       {autoRestored && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-blue-400 bg-blue-50 p-4 text-blue-950 shadow-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-blue-950 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-200 text-blue-900 font-bold text-lg">
               ✨
@@ -437,14 +437,14 @@ export default function AdminProductEditor({
           <button
             type="button"
             onClick={discardDraft}
-            className="inline-flex items-center gap-1 rounded-xl border border-blue-300 bg-white px-3.5 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100 transition"
+            className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-white px-3.5 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 transition"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Recarregar Original
           </button>
         </div>
       )}
 
-      <h2 className="mt-4 font-display text-2xl font-bold text-ink">
+      <h2 className="mt-4 font-display text-2xl font-bold tracking-tight text-[#1d1d1f]">
         {productId != null ? "Editar produto" : "Novo produto"}
       </h2>
 
@@ -466,8 +466,8 @@ export default function AdminProductEditor({
             />
           </Field>
           {showNameDropdown && matchedModels.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-2xl border-2 border-ink bg-white shadow-xl">
-              <div className="bg-neutral-100 px-3 py-1.5 text-[11px] font-bold uppercase text-neutral-500">
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-2xl border border-[#e5e5e7] bg-white shadow-xl">
+              <div className="bg-[#f5f5f7] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
                 Modelos Apple Sugeridos (clique para preencher):
               </div>
               {matchedModels.map((m) => (
@@ -682,34 +682,34 @@ export default function AdminProductEditor({
       </div>
 
       {/* PRÉVIA DOS SELOS E BADGES NO SITE */}
-      <div className="mt-5 rounded-2xl border-2 border-ink bg-neutral-50 p-4 shadow-[2px_2px_0_0_#141414]">
+      <div className="mt-5 rounded-2xl border border-[#e5e5e7] bg-[#fbfbfd] p-4 shadow-2xs">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-ink">🏷️ Prévia dos Selos no Catálogo:</span>
+          <span className="text-xs font-semibold text-[#1d1d1f]">🏷️ Prévia dos Selos no Catálogo:</span>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
           {form.condition === "seminovo" ? (
             <>
               {form.warranty.toLowerCase().includes("eua") ||
               form.description.toLowerCase().includes("eua") ||
               form.variants.some((v) => v.notes?.toLowerCase().includes("eua")) ? (
-                <span className="rounded-full border-2 border-ink bg-blue-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-700">
                   🇺🇸 Seminovo EUA (1 Ano)
                 </span>
               ) : (
-                <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-sm">
-                  🔄 Seminovo (Pego na Troca)
+                <span className="rounded-full border border-[#e5e5e7] bg-white px-2.5 py-0.5 text-[10px] font-semibold text-[#1d1d1f]">
+                  🔄 Seminovo
                 </span>
               )}
-              <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-emerald-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-sm">
+              <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                 🔋 Bat. 85%+
               </span>
             </>
           ) : (
             <>
-              <span className="rounded-full border-2 border-ink bg-brand px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-sm">
+              <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-[#1d1d1f]">
                 ✨ Lacrado Novo
               </span>
-              <span className="flex items-center gap-1 rounded-full border-2 border-ink bg-amber-300 px-2 py-0.5 text-[9px] font-black text-ink shadow-sm">
+              <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                 🛡️ {form.warranty || "1 Ano Garantia"}
               </span>
             </>
@@ -721,7 +721,7 @@ export default function AdminProductEditor({
         <img
           src={form.imageUrl}
           alt="Prévia"
-          className="mt-4 h-32 w-32 rounded-xl border-2 border-ink object-cover"
+          className="mt-4 h-32 w-32 rounded-2xl border border-[#e5e5e7] object-contain p-2 bg-[#fbfbfd]"
           onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
         />
       )}
@@ -764,30 +764,30 @@ export default function AdminProductEditor({
                 ],
               })
             }
-            className="inline-flex items-center gap-1 rounded-lg border-2 border-ink bg-brand px-3 py-1.5 text-xs font-bold text-ink"
+            className="inline-flex items-center gap-1 rounded-xl bg-[#1d1d1f] hover:bg-black px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition active:scale-95"
           >
             <Plus className="h-3.5 w-3.5" /> Variante
           </button>
         </div>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-[#86868b]">
           Cada linha é uma combinação de versão + armazenamento + cor + preço. Desmarque
           "Disponível" para aparecer no site como opção esgotada (não clicável).
         </p>
 
         {/* CORES OFICIAIS DO MODELO */}
-        <div className="mt-4 rounded-2xl border-2 border-ink bg-neutral-50 p-4">
+        <div className="mt-4 rounded-2xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
           {selectedModel ? (
             <div>
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-ink">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f]">
                   🎨 Cores Oficiais do {selectedModel.name}:
                 </p>
                 <button
                   type="button"
                   onClick={() => addAllModelColors(selectedModel)}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-ink underline hover:text-brand"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071e3] hover:underline"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-brand" /> Preencher todas as cores do {selectedModel.name}
+                  <Sparkles className="h-3.5 w-3.5 text-[#0071e3]" /> Preencher todas as cores do {selectedModel.name}
                 </button>
               </div>
 
@@ -812,10 +812,10 @@ export default function AdminProductEditor({
                         ],
                       }))
                     }
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink shadow-[2px_2px_0_0_#141414] transition hover:bg-brand"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#e5e5e7] bg-white px-3 py-1.5 text-xs font-semibold text-[#1d1d1f] shadow-2xs transition hover:border-neutral-400 hover:bg-[#f5f5f7]"
                   >
                     <span
-                      className="h-3.5 w-3.5 rounded-full border border-ink/30"
+                      className="h-3.5 w-3.5 rounded-full border border-black/15"
                       style={{ backgroundColor: c.hex }}
                     />
                     + {c.name}
@@ -903,14 +903,14 @@ export default function AdminProductEditor({
           {form.variants.map((v, i) => (
             <div
               key={i}
-              className="rounded-2xl border-2 border-ink bg-white p-4 shadow-[4px_4px_0_0_#141414] transition"
+              className="rounded-2xl border border-[#e5e5e7] bg-white p-4.5 shadow-2xs transition hover:border-neutral-300"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3 mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-black text-ink">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1d1d1f] text-xs font-semibold text-white">
                     {i + 1}
                   </span>
-                  <span className="font-display text-sm font-bold text-ink">
+                  <span className="font-display text-sm font-semibold text-[#1d1d1f]">
                     Unidade #{i + 1}: {v.color || "Sem Cor"} — {v.storage || "Sem Armazenamento"} {v.batteryHealth ? `(Bat. ${v.batteryHealth})` : ""}
                   </span>
                 </div>
@@ -923,17 +923,17 @@ export default function AdminProductEditor({
                       newVars.splice(i + 1, 0, dup);
                       setForm({ ...form, variants: newVars });
                     }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 transition"
+                    className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
                     title="Duplicar para criar outra unidade deste mesmo modelo com bateria diferente"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Duplicar (Outra Unidade)
+                    <Plus className="h-3.5 w-3.5" /> Duplicar
                   </button>
                   <button
                     type="button"
                     onClick={() =>
                       setForm({ ...form, variants: form.variants.filter((_, idx) => idx !== i) })
                     }
-                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-100 transition"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Excluir
                   </button>
@@ -959,7 +959,7 @@ export default function AdminProductEditor({
                       type="color"
                       value={v.colorHex ?? "#1d1d1f"}
                       onChange={(e) => setVariant(i, { colorHex: e.target.value })}
-                      className="h-10 w-12 cursor-pointer shrink-0 rounded-xl border-2 border-ink/30 bg-white"
+                      className="h-10 w-12 cursor-pointer shrink-0 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] p-0.5"
                       title="Escolher tom da cor no site"
                     />
                     <input
@@ -1006,7 +1006,7 @@ export default function AdminProductEditor({
                           const newQ = Math.max(0, (v.quantity ?? 1) - 1);
                           setVariant(i, { quantity: newQ, available: newQ > 0 });
                         }}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-neutral-100 font-bold text-ink hover:bg-neutral-200"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] font-semibold text-[#1d1d1f] hover:bg-neutral-200 transition"
                       >
                         -
                       </button>
@@ -1018,7 +1018,7 @@ export default function AdminProductEditor({
                           const val = Math.max(0, parseInt(e.target.value) || 0);
                           setVariant(i, { quantity: val, available: val > 0 });
                         }}
-                        className="h-10 w-16 rounded-xl border-2 border-ink text-center text-sm font-bold outline-none"
+                        className="h-10 w-16 rounded-xl border border-[#e5e5e7] bg-white text-center text-sm font-semibold outline-none focus:border-[#0071e3]"
                       />
                       <button
                         type="button"
@@ -1026,7 +1026,7 @@ export default function AdminProductEditor({
                           const newQ = (v.quantity ?? 1) + 1;
                           setVariant(i, { quantity: newQ, available: true });
                         }}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-neutral-100 font-bold text-ink hover:bg-neutral-200"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] font-semibold text-[#1d1d1f] hover:bg-neutral-200 transition"
                       >
                         +
                       </button>
@@ -1037,10 +1037,10 @@ export default function AdminProductEditor({
                           key={qty}
                           type="button"
                           onClick={() => setVariant(i, { quantity: qty, available: qty > 0 })}
-                          className={`rounded-lg border-2 px-2.5 py-1 text-xs font-bold ${
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
                             (v.quantity ?? 1) === qty
-                              ? "border-ink bg-ink text-brand shadow-[1px_1px_0_0_#141414]"
-                              : "border-neutral-300 bg-neutral-100 text-ink hover:bg-neutral-200"
+                              ? "border-[#1d1d1f] bg-[#1d1d1f] text-white shadow-2xs"
+                              : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-white"
                           }`}
                         >
                           {qty === 0 ? "0 (Esgotado)" : `${qty} un`}
@@ -1253,7 +1253,7 @@ export default function AdminProductEditor({
       <button
         type="submit"
         disabled={upsert.isPending}
-        className="mt-6 w-full rounded-xl border-2 border-ink bg-ink py-4 font-display text-lg font-bold text-brand shadow-[4px_4px_0_0_rgba(20,20,20,0.3)] transition hover:-translate-y-0.5 disabled:opacity-50"
+        className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-[#1d1d1f] hover:bg-black font-display text-base font-semibold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-50"
       >
         {upsert.isPending ? "Salvando..." : productId != null ? "Salvar alterações" : "Cadastrar produto"}
       </button>
@@ -1262,7 +1262,7 @@ export default function AdminProductEditor({
 }
 
 const inputCls =
-  "w-full rounded-xl border-2 border-ink/30 px-4 py-2.5 text-sm font-medium outline-none focus:border-ink bg-white";
+  "w-full rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 py-2.5 text-sm font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15 transition-all";
 
 function Field({
   label,
@@ -1275,7 +1275,7 @@ function Field({
 }) {
   return (
     <label className={`block ${className ?? ""}`}>
-      <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-neutral-500">
+      <span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">
         {label}
       </span>
       {children}
@@ -1296,16 +1296,16 @@ function Toggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-2"
+      className="flex items-center gap-2.5 cursor-pointer"
     >
       <span
-        className={`flex h-6 w-11 items-center rounded-full border-2 border-ink px-0.5 transition ${
-          checked ? "justify-end bg-brand" : "justify-start bg-neutral-200"
+        className={`flex h-6 w-11 items-center rounded-full transition-colors duration-200 p-0.5 ${
+          checked ? "justify-end bg-[#0071e3]" : "justify-start bg-neutral-300"
         }`}
       >
-        <span className="h-4 w-4 rounded-full bg-ink" />
+        <span className="h-5 w-5 rounded-full bg-white shadow-xs transition-transform" />
       </span>
-      <span className="text-sm font-semibold text-ink">{label}</span>
+      <span className="text-sm font-medium text-[#1d1d1f]">{label}</span>
     </button>
   );
 }

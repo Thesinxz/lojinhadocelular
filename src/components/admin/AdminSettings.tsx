@@ -56,8 +56,8 @@ export default function AdminSettings() {
   return (
     <div className="mt-6 space-y-6">
       {/* Lojas */}
-      <section className="rounded-2xl border-2 border-ink bg-white p-6 shadow-[4px_4px_0_0_#141414]">
-        <h3 className="font-display text-lg font-bold text-ink">Unidades</h3>
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Unidades</h3>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Field label="WhatsApp Jardim (com DDD, só números)">
             <input value={values[SETTING_KEYS.whatsappJardim] ?? ""} onChange={set(SETTING_KEYS.whatsappJardim)} className={inputCls} placeholder="5567999999999" />
@@ -82,11 +82,11 @@ export default function AdminSettings() {
       </section>
 
       {/* Preços */}
-      <section className="rounded-2xl border-2 border-ink bg-white p-6 shadow-[4px_4px_0_0_#141414]">
-        <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
-          <CreditCard className="h-5 w-5" /> Taxas da maquininha
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[#1d1d1f]">
+          <CreditCard className="h-5 w-5 text-[#0071e3]" /> Taxas da maquininha
         </h3>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-[#86868b]">
           O site calcula as parcelas repassando a taxa: <strong>total = à vista ÷ (1 − taxa%)</strong>,{" "}
           parcela = total ÷ nº de parcelas. Edite conforme a tabela da sua maquininha.
         </p>
@@ -112,20 +112,20 @@ export default function AdminSettings() {
           </Field>
         </div>
 
-        <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-neutral-500">
+        <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-[#86868b]">
           Taxa por quantidade de parcelas (%)
         </p>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
           {Array.from({ length: 21 }, (_, i) => String(i + 1)).map((n) => (
             <label key={n} className="block">
-              <span className="mb-0.5 block text-[11px] font-bold text-ink">
+              <span className="mb-1 block text-[11px] font-bold text-[#1d1d1f]">
                 {n === "1" ? "À vista" : `${n}x`}
               </span>
               <input
                 value={fees[n] ?? ""}
                 onChange={(e) => setFees((f) => ({ ...f, [n]: e.target.value }))}
                 inputMode="decimal"
-                className="w-full rounded-lg border-2 border-ink/20 px-2 py-1.5 text-sm font-medium outline-none focus:border-ink"
+                className="w-full rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-2.5 py-1.5 text-xs font-semibold text-[#1d1d1f] outline-none focus:border-[#0071e3] focus:bg-white focus:ring-2 focus:ring-[#0071e3]/20 transition-all"
                 placeholder="0,00"
               />
             </label>
@@ -134,29 +134,28 @@ export default function AdminSettings() {
       </section>
 
       {/* Popup */}
-      <section className="rounded-2xl border-2 border-ink bg-white p-6 shadow-[4px_4px_0_0_#141414]">
-        <h3 className="font-display text-lg font-bold text-ink">Popup de boas-vindas</h3>
-        <label className="mt-3 flex items-center gap-3">
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Popup de boas-vindas</h3>
+        <label className="mt-3 flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
             checked={(values[SETTING_KEYS.popupEnabled] ?? "1") === "1"}
             onChange={(e) =>
               setValues((v) => ({ ...v, [SETTING_KEYS.popupEnabled]: e.target.checked ? "1" : "0" }))
             }
-            className="h-5 w-5 accent-[#141414]"
+            className="h-5 w-5 accent-[#0071e3] rounded"
           />
-          <span className="text-sm font-semibold text-ink">
+          <span className="text-sm font-medium text-[#1d1d1f]">
             Mostrar popup de WhatsApp/localização ao abrir o site
           </span>
         </label>
       </section>
 
       {/* Fotos do hero */}
-      <section className="rounded-2xl border-2 border-ink bg-white p-6 shadow-[4px_4px_0_0_#141414]">
-        <h3 className="font-display text-lg font-bold text-ink">Fotos da página inicial</h3>
-        <p className="mt-1 text-xs text-neutral-500">
-          As fotos que ficam alternando ao lado de "Seu próximo iPhone está aqui".
-          Cole <strong>uma URL por linha</strong> (as imagens ficam hospedadas fora do site).
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Fotos da página inicial</h3>
+        <p className="mt-1 text-xs text-[#86868b]">
+          As fotos que ficam alternando no topo da loja. Cole <strong>uma URL por linha</strong>.
         </p>
         <textarea
           value={heroText}
@@ -172,7 +171,7 @@ export default function AdminSettings() {
                 key={u}
                 src={u.trim()}
                 alt=""
-                className="h-16 w-16 rounded-lg border-2 border-ink/20 object-cover"
+                className="h-16 w-16 rounded-xl border border-[#e5e5e7] object-cover"
                 onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.2")}
               />
             ))}
@@ -201,17 +200,20 @@ export default function AdminSettings() {
           });
         }}
         disabled={update.isPending}
-        className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-brand px-6 py-3 font-display font-bold text-ink shadow-[3px_3px_0_0_#141414] transition hover:-translate-y-0.5 disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50"
       >
         <Save className="h-4 w-4" />
-        {update.isPending ? "Salvando..." : saved ? "Salvo!" : "Salvar configurações"}
+        {update.isPending ? "Salvando..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
       </button>
 
       {/* Senha */}
-      <section className="rounded-2xl border-2 border-red-300 bg-red-50 p-6">
-        <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
-          <KeyRound className="h-5 w-5" /> Trocar senha do painel
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[#1d1d1f]">
+          <KeyRound className="h-5 w-5 text-[#0071e3]" /> Trocar senha do painel
         </h3>
+        <p className="mt-1 text-xs text-[#86868b]">
+          Altere a senha de acesso a este painel administrativo.
+        </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <input
             type="password"
@@ -223,7 +225,7 @@ export default function AdminSettings() {
           <button
             onClick={() => newPassword.length >= 4 && changePassword.mutate({ password: newPassword })}
             disabled={newPassword.length < 4 || changePassword.isPending}
-            className="rounded-xl border-2 border-ink bg-ink px-5 py-2.5 text-sm font-bold text-brand disabled:opacity-50"
+            className="rounded-xl bg-[#1d1d1f] hover:bg-black px-5 py-2.5 text-sm font-semibold text-white transition shadow-sm disabled:opacity-50"
           >
             Trocar senha
           </button>
@@ -234,12 +236,12 @@ export default function AdminSettings() {
 }
 
 const inputCls =
-  "w-full rounded-xl border-2 border-ink/30 px-4 py-2.5 text-sm font-medium outline-none focus:border-ink bg-white";
+  "w-full rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 py-2.5 text-sm font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15 transition-all";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-neutral-500">
+      <span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">
         {label}
       </span>
       {children}
