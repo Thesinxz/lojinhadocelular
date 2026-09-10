@@ -32,6 +32,7 @@ export const SETTING_KEYS = {
   debitPixFee: "debit_pix_fee", // taxa débito/PIX em %
   popupEnabled: "popup_enabled", // "1" | "0"
   heroImages: "hero_images", // JSON array de URLs para o carrossel da página inicial
+  warrantyBadgeText: "warranty_badge_text", // Mensagem de garantia e procedência na página do produto
   adminPassword: "admin_password", // nunca exposta publicamente
 } as const;
 
@@ -77,6 +78,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=900&q=80",
     "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=900&q=80",
   ]),
+  warranty_badge_text: "Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região.",
   admin_password: "lojinha123",
 };
 

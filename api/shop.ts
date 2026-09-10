@@ -17,6 +17,7 @@ const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.debitPixFee,
   SETTING_KEYS.popupEnabled,
   SETTING_KEYS.heroImages,
+  SETTING_KEYS.warrantyBadgeText,
 ] as const;
 
 function getProductModelRank(name: string): number {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, KeyRound, CreditCard } from "lucide-react";
+import { Save, KeyRound, CreditCard, ShieldCheck } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { SETTING_KEYS, parseFees } from "@contracts/types";
 
@@ -130,6 +130,26 @@ export default function AdminSettings() {
               />
             </label>
           ))}
+        </div>
+      </section>
+
+      {/* Mensagem de Garantia & Confiança */}
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[#1d1d1f]">
+          <ShieldCheck className="h-5 w-5 text-emerald-600" /> Mensagem de Garantia & Confiança
+        </h3>
+        <p className="mt-1 text-xs text-[#86868b]">
+          Texto exibido no box informativo abaixo dos detalhes de cada aparelho na página do produto.
+        </p>
+        <div className="mt-4">
+          <Field label="Texto de Garantia, Nota Fiscal e Entrega">
+            <input
+              value={values[SETTING_KEYS.warrantyBadgeText] ?? ""}
+              onChange={set(SETTING_KEYS.warrantyBadgeText)}
+              className={inputCls}
+              placeholder="Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região."
+            />
+          </Field>
         </div>
       </section>
 

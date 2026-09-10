@@ -32,6 +32,9 @@ export function useShopSettings() {
     debitPixFee: Number(s[SETTING_KEYS.debitPixFee] ?? "2.39") || 0,
     popupEnabled: (s[SETTING_KEYS.popupEnabled] ?? "1") === "1",
     heroImages,
+    warrantyBadgeText:
+      s[SETTING_KEYS.warrantyBadgeText] ||
+      "Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região.",
   };
 }
 
