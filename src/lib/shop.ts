@@ -90,8 +90,18 @@ export function optimizeImageUrl(
     return trimmed;
   }
 
+  // Recorte cirúrgico para imagens oficiais da Apple que possuem caixas 16:9 ou margens vazias
+  let cropParams = "";
+  if (trimmed.includes("finish-select")) {
+    // iPhone frente e verso: enquadra perfeitamente o aparelho preenchendo o quadro sem barras cinzas
+    cropParams = "&precrop&cx=340&cy=300&cw=320&ch=380";
+  } else if (trimmed.includes("MHXH3")) {
+    // Carregador MagSafe Apple: foca no disco de carregamento com proporção ideal
+    cropParams = "&precrop&cx=200&cy=80&cw=600&ch=650";
+  }
+
   // Aceleração via CDN Edge com WebP/AVIF progressivo
-  return `https://wsrv.nl/?url=${encodeURIComponent(trimmed)}&w=${width}&output=webp&q=${quality}&il&af&n=-1`;
+  return `https://wsrv.nl/?url=${encodeURIComponent(trimmed)}${cropParams}&w=${width}&output=webp&q=${quality}&il&af&n=-1`;
 }
 
 /**

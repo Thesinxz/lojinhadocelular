@@ -344,7 +344,7 @@ export default function Produto() {
         {/* Grid em 2 colunas no desktop */}
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start max-w-5xl mx-auto">
           {/* Coluna da Esquerda (Foto do Produto Limpa em Fundo Branco) */}
-          <div className="aspect-square w-full rounded-3xl bg-[#fbfbfd] border border-neutral-100 p-6 sm:p-10 flex items-center justify-center shadow-xs overflow-hidden relative">
+          <div className="aspect-square w-full rounded-3xl bg-[#fbfbfd] border border-neutral-100 p-4 sm:p-8 flex items-center justify-center shadow-xs overflow-hidden relative">
             {prodImage ? (
               <img
                 src={optimizeImageUrl(prodImage, 800, 85)}
@@ -359,7 +359,7 @@ export default function Produto() {
                     e.currentTarget.src = prodImage;
                   }
                 }}
-                className="max-h-[92%] w-auto max-w-full object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition-all duration-300"
+                className="h-full w-full max-h-full max-w-full object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition-all duration-300"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm font-medium text-neutral-400">

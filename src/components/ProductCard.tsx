@@ -49,7 +49,7 @@ export default function ProductCard({
       className="group flex flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white p-3 sm:p-4 shadow-[0_2px_14px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(0,0,0,0.09)] active:scale-[0.99]"
     >
       {/* Container da foto com fundo neutro claro e enquadramento destacado */}
-      <div className="relative aspect-[4/5] sm:aspect-square w-full overflow-hidden rounded-2xl bg-[#fbfbfd] border border-neutral-100/60 p-2.5 pt-8 pb-2 flex items-center justify-center">
+      <div className="relative aspect-[4/5] sm:aspect-square w-full overflow-hidden rounded-2xl bg-[#fbfbfd] border border-neutral-100/60 p-3 pt-9 pb-3 flex items-center justify-center">
         {!isLoaded && rawUrl && (
           <div className="absolute inset-0 animate-pulse bg-neutral-100" />
         )}
@@ -69,7 +69,7 @@ export default function ProductCard({
                 e.currentTarget.src = rawUrl;
               }
             }}
-            className={`h-full w-full object-contain scale-110 sm:scale-105 group-hover:scale-115 drop-shadow-[0_8px_18px_rgba(0,0,0,0.09)] group-hover:drop-shadow-[0_14px_24px_rgba(0,0,0,0.14)] transition-all duration-300 ${
+            className={`h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.09)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_14px_24px_rgba(0,0,0,0.14)] ${
               isLoaded ? "opacity-100" : "opacity-0"
             }`}
           />
