@@ -14,6 +14,7 @@ import {
   Smartphone,
   Search,
   ExternalLink,
+  Flame,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { formatBRL, CATEGORIES } from "@contracts/types";
@@ -123,7 +124,15 @@ export default function Admin() {
     onSuccess: () => utils.admin.products.invalidate(),
   });
 
-  const toggleErpActiveMutation = trpc.admin.saveErpOverride.useMutation({
+  const toggleActiveMutation = trpc.admin.toggleActive.useMutation({
+    onSuccess: () => {
+      utils.admin.products.invalidate();
+      utils.shop.products.invalidate();
+      utils.shop.featured.invalidate();
+    },
+  });
+
+  const toggleFeaturedMutation = trpc.admin.toggleFeatured.useMutation({
     onSuccess: () => {
       utils.admin.products.invalidate();
       utils.shop.products.invalidate();
@@ -409,11 +418,11 @@ export default function Admin() {
                       onClick={() => setStatusFilter("destaques")}
                       className={`rounded-xl px-3 py-1.5 font-semibold transition ${
                         statusFilter === "destaques"
-                          ? "bg-amber-600 text-white shadow-xs"
+                          ? "bg-red-600 text-white shadow-xs"
                           : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                       }`}
                     >
-                      Destaques ({featuredCount})
+                      🔥 Promoções ({featuredCount})
                     </button>
                   </div>
                 </div>
@@ -436,9 +445,24 @@ export default function Admin() {
                     </div>
                   )}
 
+                  {filtered.length === 0 && !products.isLoading && (
+                    <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center text-xs text-[#86868b]">
+                      Nenhum produto encontrado com os filtros selecionados.
+                      <button
+                        onClick={() => products.refetch()}
+                        className="mt-3 inline-flex items-center gap-2 rounded-xl border border-[#e5e5e7] bg-white px-4 py-2 text-xs font-semibold text-[#1d1d1f] shadow-xs hover:bg-[#f5f5f7]"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> Tentar novamente
+                      </button>
+                    </div>
+                  )}
+
                   {filtered.map((p) => {
                     const price = minPrice(p);
                     const isErpProduct = (p as unknown as { source?: string }).source === "erp";
+                    const productIdOrExternal = isErpProduct
+                      ? (p as unknown as ShopProduct).externalId || String(p.id)
+                      : p.id;
 
                     return (
                       <div
@@ -478,12 +502,10 @@ export default function Admin() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isErpProduct) {
-                                  toggleErpActiveMutation.mutate({
-                                    externalId: (p as unknown as ShopProduct).externalId || String(p.id),
-                                    active: p.active === false,
-                                  });
-                                }
+                                toggleActiveMutation.mutate({
+                                  id: productIdOrExternal,
+                                  active: p.active === false,
+                                });
                               }}
                               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition active:scale-95 ${
                                 p.active !== false
@@ -503,11 +525,34 @@ export default function Admin() {
                               )}
                             </button>
 
-                            {p.featured && (
-                              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                                ⭐ Destaque
-                              </span>
-                            )}
+                            {/* Botão de Toggle Rápido de Promoção / Destaque */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFeaturedMutation.mutate({
+                                  id: productIdOrExternal,
+                                  featured: !p.featured,
+                                });
+                              }}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition active:scale-95 ${
+                                p.featured
+                                  ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100 shadow-2xs"
+                                  : "border-neutral-200 bg-neutral-50 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                              }`}
+                              title={
+                                p.featured
+                                  ? "Aparelho em PROMOÇÃO! Clique para remover da promoção"
+                                  : "Clique para colocar este aparelho em PROMOÇÃO (exibe selo vermelho e sobe na vitrine)"
+                              }
+                            >
+                              <Flame
+                                className={`h-3 w-3 ${
+                                  p.featured ? "fill-red-600 text-red-600" : "text-neutral-400"
+                                }`}
+                              />
+                              {p.featured ? "🔥 Em Promoção" : "☆ Ativar Promoção"}
+                            </button>
                             {p.variants?.[0]?.batteryHealth && (
                               <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                                 🔋 {p.variants[0].batteryHealth}

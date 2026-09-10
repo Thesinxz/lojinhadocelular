@@ -282,5 +282,50 @@ export const adminRouter = createRouter({
       clearErpCache();
       return { ok: true };
     }),
+
+  toggleActive: publicQuery
+    .input(
+      z.object({
+        id: z.union([z.number(), z.string()]),
+        active: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const db = getDb();
+      await ensureTables();
+      const strId = String(input.id);
+      const isErp = strId.startsWith("erp-") || isNaN(Number(input.id));
+      if (isErp) {
+        await saveErpOverride(strId, { active: input.active });
+        clearErpCache();
+      } else {
+        await db.update(products).set({ active: input.active }).where(eq(products.id, Number(input.id)));
+      }
+      return { ok: true };
+    }),
+
+  toggleFeatured: publicQuery
+    .input(
+      z.object({
+        id: z.union([z.number(), z.string()]),
+        featured: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const db = getDb();
+      await ensureTables();
+      const strId = String(input.id);
+      const isErp = strId.startsWith("erp-") || isNaN(Number(input.id));
+      if (isErp) {
+        await saveErpOverride(strId, { featured: input.featured });
+        clearErpCache();
+      } else {
+        await db.update(products).set({ featured: input.featured }).where(eq(products.id, Number(input.id)));
+      }
+      return { ok: true };
+    }),
 });
+
 

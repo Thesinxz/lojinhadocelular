@@ -777,7 +777,7 @@ export default function AdminProductEditor({
           <Toggle
             checked={form.featured}
             onChange={(v) => setForm({ ...form, featured: v })}
-            label="Destaque na vitrine inicial"
+            label="🔥 Produto em Promoção / Destaque"
           />
         </div>
       </div>

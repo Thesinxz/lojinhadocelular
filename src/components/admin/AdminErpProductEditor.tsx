@@ -7,9 +7,9 @@ import {
   Image as ImageIcon,
   Battery,
   ShieldCheck,
-  Star,
   Eye,
   EyeOff,
+  Flame,
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
@@ -363,17 +363,17 @@ export function AdminErpProductEditor({
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-3">
             <label className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-2">
-                <Star className={`h-4 w-4 ${featured ? "text-amber-500 fill-amber-500" : "text-neutral-400"}`} />
+                <Flame className={`h-4 w-4 ${featured ? "text-red-600 fill-red-600" : "text-neutral-400"}`} />
                 <div>
-                  <span className="text-xs font-bold text-neutral-900 block">Destaque na Vitrine</span>
-                  <span className="text-[11px] text-neutral-500">Exibir em posição de destaque na página inicial e na TV</span>
+                  <span className="text-xs font-bold text-neutral-900 block">🔥 Produto em Promoção / Destaque</span>
+                  <span className="text-[11px] text-neutral-500">Exibe a etiqueta vermelha "PROMOÇÃO" no card, prioriza no topo da vitrine e exibe na TV</span>
                 </div>
               </div>
               <input
                 type="checkbox"
                 checked={featured}
                 onChange={(e) => setFeatured(e.target.checked)}
-                className="h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                className="h-4 w-4 rounded border-neutral-300 text-red-600 focus:ring-red-600"
               />
             </label>
 

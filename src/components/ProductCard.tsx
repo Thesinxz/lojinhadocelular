@@ -79,11 +79,13 @@ export default function ProductCard({
 
         {/* Badges superiores exatamente como na BLK Store */}
         <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-col items-start gap-1 pointer-events-none">
-          {/* Badge de Promoção Vermelha */}
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white shadow-xs">
-            <Flame className="h-3 w-3 fill-white" />
-            PROMOÇÃO
-          </span>
+          {/* Badge de Promoção Vermelha quando produto está marcado como destaque/promoção */}
+          {Boolean(product.featured) && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white shadow-xs animate-in fade-in">
+              <Flame className="h-3 w-3 fill-white" />
+              PROMOÇÃO
+            </span>
+          )}
 
           {/* Badge de Condição */}
           {isSeminovo ? (

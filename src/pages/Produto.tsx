@@ -10,6 +10,7 @@ import {
   RefreshCcw,
   Gift,
   Video,
+  Flame,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -456,6 +457,12 @@ export default function Produto() {
           <div className="flex flex-col">
             {/* Badges superiores exatamente como na BLK Store */}
             <div className="flex flex-wrap items-center gap-2">
+              {Boolean(product.featured) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-xs animate-in fade-in">
+                  <Flame className="h-3.5 w-3.5 fill-white" />
+                  Promoção
+                </span>
+              )}
               {isLacrado ? (
                 <span className="rounded-full px-3 py-1 text-xs font-semibold bg-[#1d1d1f] text-white">
                   Lacrado
