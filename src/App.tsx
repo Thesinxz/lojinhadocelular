@@ -62,6 +62,7 @@ export default function App() {
   if (isTradeIn) {
     return (
       <Routes>
+        <Route path="/" element={<TradeIn />} />
         <Route path="/avaliacao" element={<TradeIn />} />
         <Route path="/troca" element={<TradeIn />} />
         {isTrocaFacilDomain && <Route path="*" element={<TradeIn />} />}
