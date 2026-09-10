@@ -60,7 +60,7 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
   const timer = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -68,6 +68,27 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
       },
       signal: controller.signal,
     });
+
+    // Resiliência: caso a rota dedicada de storefront retorne 404 ou 500, consulta o catálogo público do tenant
+    if (!res.ok && (res.status === 404 || res.status === 500)) {
+      const fallbackUrl = `${baseUrl}/api/trade-in/public/${encodeURIComponent(storeSlug)}/config`;
+      try {
+        const fallbackRes = await fetch(fallbackUrl, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "LojinhaDoCelular-Storefront/1.0",
+          },
+          signal: controller.signal,
+        });
+        if (fallbackRes.ok) {
+          res = fallbackRes;
+        }
+      } catch {
+        // Prossegue com res original
+      }
+    }
+
     clearTimeout(timer);
 
     if (!res.ok) {

@@ -316,4 +316,42 @@ describe("Gestão Celular ERP Adapter", () => {
       }
     });
   });
+
+  describe("Conexão Real com Gestão Celular ERP", () => {
+    it("deve carregar os produtos reais da Lojinha do Celular quando configurado", async () => {
+      const { clearErpCache, getErpCatalog } = await import("./erp/service");
+      const { env } = await import("./lib/env");
+
+      const prevEnabled = env.erpCatalogEnabled;
+      const prevSlug = env.erpStoreSlug;
+      const prevUrl = env.erpApiUrl;
+      const prevCat = env.erpCategorySlug;
+
+      try {
+        clearErpCache();
+        env.erpCatalogEnabled = true;
+        env.erpApiUrl = "https://api.gestaocelular.com.br";
+        env.erpStoreSlug = "lojinha-do-celular-mplnk5d6";
+        env.erpCategorySlug = "aparelhos-celulares";
+
+        const result = await getErpCatalog();
+        expect(result.status).toBe("ok");
+        expect(result.products.length).toBeGreaterThanOrEqual(10);
+
+        // Verifica se todos os produtos retornados possuem estoque > 0
+        result.products.forEach((p) => {
+          expect(p.source).toBe("erp");
+          expect(p.id).toBeTruthy();
+          expect(p.name).toBeTruthy();
+          const totalStock = p.variants.reduce((acc, v) => acc + v.quantity, 0);
+          expect(totalStock).toBeGreaterThan(0);
+        });
+      } finally {
+        env.erpCatalogEnabled = prevEnabled;
+        env.erpStoreSlug = prevSlug;
+        env.erpApiUrl = prevUrl;
+        env.erpCategorySlug = prevCat;
+      }
+    });
+  });
 });

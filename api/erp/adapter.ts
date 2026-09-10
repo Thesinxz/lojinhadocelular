@@ -182,6 +182,16 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
     raw.stock ?? raw.quantity ?? raw.estoque ?? raw.quantidade ?? raw.qtd ?? raw.saldo ?? 0,
   );
 
+  // Se houver array de estoques por unidade (ex: Matriz e Guia Lopes da Laguna)
+  if (Array.isArray(raw.stocks) && raw.stocks.length > 0) {
+    const sumStocks = raw.stocks.reduce((acc, s) => {
+      return acc + parseStockQuantity(s.available ?? s.quantity ?? s.stock ?? 0);
+    }, 0);
+    if (sumStocks > 0) {
+      stock = sumStocks;
+    }
+  }
+
   // Se o estoque direto for 0 ou indefinido, calcula a soma das variantes
   if (stock <= 0 && rawVariants.length > 0) {
     stock = rawVariants.reduce((acc, v) => {
@@ -195,6 +205,21 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
   }
 
   const name = (raw.name || raw.nome || raw.model || raw.modelo || raw.title || "Celular").trim();
+
+  // Filtra peças de reposição da assistência técnica (como frontais, telas avulsas, conectores)
+  const lowerName = name.toLowerCase();
+  const isSparePart =
+    lowerName.includes("frontal ") ||
+    lowerName.startsWith("frontal") ||
+    lowerName.includes("modulo frontal") ||
+    lowerName.includes("touch screen") ||
+    lowerName.includes("conector de carga") ||
+    lowerName.includes("flex de carga");
+
+  if (isSparePart) {
+    return null;
+  }
+
   const rawCondition = String(raw.condition || raw.condicao || raw.state || "").trim();
 
   const { brand, category, condition } = inferBrandAndCategory(name, raw.brand || raw.marca, rawCondition);
@@ -226,6 +251,7 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
 
   const storage = (
     raw.storage ||
+    raw.storage_capacity ||
     raw.capacity ||
     raw.capacidade ||
     raw.armazenamento ||
@@ -366,9 +392,19 @@ export function adaptErpCatalog(items: unknown): ShopProduct[] {
     rawList = items;
   } else if (typeof items === "object" && items !== null) {
     const obj = items as Record<string, unknown>;
-    if (Array.isArray(obj.data)) rawList = obj.data as ErpRawProduct[];
-    else if (Array.isArray(obj.products)) rawList = obj.products as ErpRawProduct[];
-    else if (Array.isArray(obj.items)) rawList = obj.items as ErpRawProduct[];
+    if (Array.isArray(obj.data)) {
+      rawList = obj.data as ErpRawProduct[];
+    } else if (
+      obj.data &&
+      typeof obj.data === "object" &&
+      Array.isArray((obj.data as Record<string, unknown>).products)
+    ) {
+      rawList = (obj.data as Record<string, unknown>).products as ErpRawProduct[];
+    } else if (Array.isArray(obj.products)) {
+      rawList = obj.products as ErpRawProduct[];
+    } else if (Array.isArray(obj.items)) {
+      rawList = obj.items as ErpRawProduct[];
+    }
   }
 
   const result: ShopProduct[] = [];

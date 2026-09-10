@@ -55,6 +55,7 @@ export interface ErpRawProduct {
   state?: string;
 
   storage?: string;
+  storage_capacity?: string;
   capacity?: string;
   capacidade?: string;
   armazenamento?: string;
@@ -77,6 +78,7 @@ export interface ErpRawProduct {
   quantidade?: number | string;
   qtd?: number | string;
   saldo?: number | string;
+  stocks?: { unit_id?: string; available?: number | string; quantity?: number | string; stock?: number | string }[];
 
   category?: string | { slug?: string; name?: string };
   category_slug?: string;
