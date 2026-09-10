@@ -3,6 +3,7 @@ import { getDb, ensureTables } from "./queries/connection";
 import { products, settings, evaluations } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
 import { env } from "./lib/env";
 import { getErpCatalog } from "./erp/service";
@@ -142,7 +143,7 @@ export const shopRouter = createRouter({
       if (env.erpCatalogEnabled) {
         const erp = await getErpCatalog();
         if (erp.status === "ok") {
-          let list = erp.products;
+          let list = erp.products.filter((p) => p.active !== false);
           if (input?.category) {
             list = list.filter((p) => p.category === input.category);
           }
@@ -182,7 +183,9 @@ export const shopRouter = createRouter({
     if (env.erpCatalogEnabled) {
       const erp = await getErpCatalog();
       if (erp.status === "ok") {
-        const list = erp.products.slice(0, 12);
+        const activeList = erp.products.filter((p) => p.active !== false);
+        const explicitlyFeatured = activeList.filter((p) => p.featured);
+        const list = explicitlyFeatured.length > 0 ? explicitlyFeatured : activeList.slice(0, 12);
         return sortProductsBackend(list);
       }
       return [];
@@ -216,10 +219,16 @@ export const shopRouter = createRouter({
           const found = erp.products.find(
             (p) => String(p.id) === idStr || p.externalId === idStr,
           );
-          if (found) return found;
+          if (found && found.active !== false) {
+            return found;
+          }
         }
-        return null;
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Produto esgotado ou não encontrado no estoque.",
+        });
       }
+      return null;
 
       const numId = Number(idStr);
       if (!Number.isNaN(numId) && numId > 0) {

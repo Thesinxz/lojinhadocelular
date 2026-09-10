@@ -1,5 +1,6 @@
 import { env } from "../lib/env";
 import { adaptErpCatalog } from "./adapter";
+import { getErpOverrides, applyOverridesToProducts } from "./overrides";
 import type { ErpFetchResult, ShopProduct } from "./types";
 
 const CACHE_TTL_MS = 45_000; // 45 segundos (intervalo exigido: 30–60s)
@@ -102,7 +103,13 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
     }
 
     const json = await res.json();
-    const products = adaptErpCatalog(json);
+    let products = adaptErpCatalog(json);
+    try {
+      const overrides = await getErpOverrides();
+      products = applyOverridesToProducts(products, overrides);
+    } catch (err) {
+      console.error("Aviso: Falha ao carregar overrides de produtos:", err);
+    }
 
     // Salva no cache em memória
     cache = {

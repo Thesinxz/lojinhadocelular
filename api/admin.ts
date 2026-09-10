@@ -13,7 +13,8 @@ import {
 } from "./auth";
 import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
 import { env } from "./lib/env";
-import { getErpCatalog } from "./erp/service";
+import { getErpCatalog, clearErpCache } from "./erp/service";
+import { getErpOverride, saveErpOverride } from "./erp/overrides";
 
 function requireAdmin(req: Request) {
   const token = tokenFromRequest(req);
@@ -249,6 +250,36 @@ export const adminRouter = createRouter({
       const db = getDb();
       await ensureTables();
       await db.delete(evaluations).where(eq(evaluations.id, input.id));
+      return { ok: true };
+    }),
+
+  erpOverride: publicQuery
+    .input(z.object({ externalId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      return await getErpOverride(input.externalId);
+    }),
+
+  saveErpOverride: publicQuery
+    .input(
+      z.object({
+        externalId: z.string().min(1),
+        imageUrl: z.string().max(2000).optional(),
+        videoUrl: z.string().max(2000).optional(),
+        batteryHealth: z.string().max(50).optional(),
+        warranty: z.string().max(120).optional(),
+        description: z.string().max(5000).optional(),
+        featured: z.boolean().optional(),
+        active: z.boolean().optional(),
+        category: z.enum(["iphone_lacrado", "iphone_seminovo", "android", "acessorio"]).optional(),
+        customName: z.string().max(255).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const { externalId, ...data } = input;
+      await saveErpOverride(externalId, data);
+      clearErpCache();
       return { ok: true };
     }),
 });

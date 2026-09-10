@@ -88,16 +88,26 @@ export function inferBrandAndCategory(
   const b = (bInput || "").toLowerCase().trim();
 
   let brand = "Apple";
-  if (b.includes("apple") || n.includes("iphone") || n.includes("ipad") || n.includes("apple watch")) {
-    brand = "Apple";
-  } else if (b.includes("xiaomi") || n.includes("xiaomi") || n.includes("redmi") || n.includes("poco")) {
+  if (b.includes("xiaomi") || n.includes("xiaomi") || n.includes("redmi") || n.includes("poco")) {
     brand = "Xiaomi";
-  } else if (b.includes("realme") || n.includes("realme")) {
-    brand = "Realme";
   } else if (b.includes("samsung") || n.includes("samsung") || n.includes("galaxy")) {
     brand = "Samsung";
   } else if (b.includes("motorola") || n.includes("motorola") || n.includes("moto")) {
     brand = "Motorola";
+  } else if (b.includes("realme") || n.includes("realme")) {
+    brand = "Realme";
+  } else if (
+    b.includes("apple") ||
+    n.includes("iphone") ||
+    n.includes("ipad") ||
+    n.includes("apple watch") ||
+    /\b(11|12|13|14|15|16|17)\s*(pro\s*max|pro|plus|mini|e)?\b/i.test(n) ||
+    /\b(xr|xs\s*max|xs)\b/i.test(n) ||
+    n.includes("pro max") ||
+    n.includes("titanio") ||
+    n.includes("titanium")
+  ) {
+    brand = "Apple";
   } else if (bInput) {
     brand = bInput.trim();
   } else {

@@ -112,6 +112,95 @@ describe("Gestão Celular ERP Adapter", () => {
       });
       expect(res.category).toBe("acessorio");
     });
+
+    it("deve inferir Apple e iphone_seminovo para nomes do ERP como 'Aparelho 14 PRO MAX 128 - ROXO (A) - Seminovo'", () => {
+      const res = inferBrandAndCategory({
+        name: "Aparelho 14 PRO MAX 128 - ROXO (A) - Seminovo",
+        condition: "seminovo",
+      });
+      expect(res.brand).toBe("Apple");
+      expect(res.category).toBe("iphone_seminovo");
+    });
+
+    it("deve inferir Apple para nomes como 'Aparelho 15 128 - PRETO (B)'", () => {
+      const res = inferBrandAndCategory({
+        name: "Aparelho 15 128 - PRETO (B)",
+        condition: "seminovo",
+      });
+      expect(res.brand).toBe("Apple");
+      expect(res.category).toBe("iphone_seminovo");
+    });
+  });
+
+  describe("applyOverridesToProducts", () => {
+    it("deve aplicar personalizações de foto, vídeo, bateria, garantia e destaque sobre o produto do ERP", async () => {
+      const { applyOverridesToProducts } = await import("./erp/overrides");
+
+      const baseProduct = {
+        id: "erp-uuid-1",
+        source: "erp" as const,
+        externalId: "erp-uuid-1",
+        name: "Aparelho 14 PRO MAX 128",
+        brand: "Apple",
+        category: "iphone_seminovo" as const,
+        condition: "seminovo",
+        description: null,
+        imageUrl: "/fallback.png",
+        videoUrl: null,
+        warranty: "6 meses",
+        featured: false,
+        active: true,
+        createdAt: new Date(),
+        variants: [
+          {
+            id: "erp-uuid-1-1",
+            productId: "erp-uuid-1",
+            version: "",
+            storage: "128GB",
+            color: "Roxo",
+            colorHex: "#594f63",
+            imageUrl: "/fallback.png",
+            videoUrl: null,
+            sku: "ERP-123",
+            batteryHealth: null,
+            warranty: "6 meses",
+            condition: "seminovo",
+            notes: null,
+            priceCash: 450000,
+            quantity: 1,
+            available: true,
+          },
+        ],
+      };
+
+      const overrides = {
+        "erp-uuid-1": {
+          imageUrl: "https://meusite.com/foto-real-14promax.jpg",
+          videoUrl: "https://youtube.com/shorts/demo123",
+          batteryHealth: "89%",
+          warranty: "1 ano de garantia Apple",
+          featured: true,
+          active: true,
+          customName: "iPhone 14 Pro Max 128GB Roxo Impecável",
+        },
+      };
+
+      const merged = applyOverridesToProducts([baseProduct], overrides);
+      expect(merged.length).toBe(1);
+
+      const p = merged[0];
+      expect(p.name).toBe("iPhone 14 Pro Max 128GB Roxo Impecável");
+      expect(p.imageUrl).toBe("https://meusite.com/foto-real-14promax.jpg");
+      expect(p.videoUrl).toBe("https://youtube.com/shorts/demo123");
+      expect(p.warranty).toBe("1 ano de garantia Apple");
+      expect(p.featured).toBe(true);
+
+      const v = p.variants[0];
+      expect(v.imageUrl).toBe("https://meusite.com/foto-real-14promax.jpg");
+      expect(v.videoUrl).toBe("https://youtube.com/shorts/demo123");
+      expect(v.batteryHealth).toBe("89%");
+      expect(v.warranty).toBe("1 ano de garantia Apple");
+    });
   });
 
   describe("adaptErpProduct & Estoque Zero", () => {

@@ -6,14 +6,17 @@ import { formatBRL, CATEGORIES } from "@contracts/types";
 import { minPrice } from "@/lib/shop";
 import { safeStorage } from "@/lib/storage";
 import AdminProductEditor from "@/components/admin/AdminProductEditor";
+import { AdminErpProductEditor } from "@/components/admin/AdminErpProductEditor";
 import AdminSettings from "@/components/admin/AdminSettings";
 import AdminEvaluations from "@/components/admin/AdminEvaluations";
+import type { ShopProduct } from "../../api/erp/types";
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState(() => safeStorage.getItem("admin_token") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [editingErpProduct, setEditingErpProduct] = useState<ShopProduct | null>(null);
 
   const tab =
     (searchParams.get("tab") as "produtos" | "avaliacoes" | "config") ||
@@ -349,7 +352,7 @@ export default function Admin() {
                       {price != null ? ` • a partir de ${formatBRL(price)}` : ""}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {p.active ? (
+                      {p.active !== false ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                           <Eye className="h-3 w-3" /> Visível
                         </span>
@@ -360,7 +363,17 @@ export default function Admin() {
                       )}
                       {p.featured && (
                         <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                          Destaque
+                          ⭐ Destaque
+                        </span>
+                      )}
+                      {p.variants?.[0]?.batteryHealth && (
+                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          🔋 {p.variants[0].batteryHealth}
+                        </span>
+                      )}
+                      {(p.videoUrl || p.variants?.[0]?.videoUrl) && (
+                        <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+                          🎥 Vídeo
                         </span>
                       )}
                     </div>
@@ -368,9 +381,15 @@ export default function Admin() {
                   <div className="flex items-center gap-2">
                     {isErpProduct ? (
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 text-[11px] font-semibold">
-                          Gerenciado no ERP
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setEditingErpProduct(p as unknown as ShopProduct)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 hover:bg-black text-white px-3.5 py-1.5 text-xs font-semibold shadow-xs transition active:scale-95"
+                          title="Editar foto, vídeo, bateria e detalhes da vitrine"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-amber-400" />
+                          Editar Vitrine
+                        </button>
                         <a
                           href={`/produto/${p.id}`}
                           target="_blank"
@@ -418,6 +437,17 @@ export default function Admin() {
             )}
           </div>
         </div>
+      )}
+
+      {editingErpProduct && (
+        <AdminErpProductEditor
+          product={editingErpProduct}
+          onClose={() => setEditingErpProduct(null)}
+          onSaved={() => {
+            setEditingErpProduct(null);
+            products.refetch();
+          }}
+        />
       )}
     </div>
   );
