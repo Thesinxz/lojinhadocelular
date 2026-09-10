@@ -366,3 +366,87 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     ],
   },
 ];
+
+/**
+ * Resolve imagens oficiais transparentes da Apple para evitar fotos genéricas de mesas ou fundos pretos
+ */
+export function resolveProductImage(
+  name: string,
+  currentImageUrl?: string | null,
+  colorName?: string,
+): string {
+  const cleanUrl = (currentImageUrl ?? "").trim();
+  // Se já for uma imagem oficial Apple CDN ou PNG transparente válida, mantém
+  if (
+    cleanUrl &&
+    !cleanUrl.includes("unsplash.com") &&
+    !cleanUrl.includes("placeholder") &&
+    (cleanUrl.includes("apple.com") || cleanUrl.includes(".png") || cleanUrl.includes("png-alpha"))
+  ) {
+    return cleanUrl;
+  }
+
+  const cleanName = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  // Acessórios
+  if (cleanName.includes("magsafe")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MHXH3?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("airpods")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MTJV3?wid=1000&hei=1000&fmt=png-alpha";
+  }
+
+  // Modelos de iPhone
+  const match = IPHONE_CATALOG.find((m) => {
+    const mName = m.name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+    return cleanName.includes(mName);
+  });
+
+  if (match) {
+    if (colorName) {
+      const cLower = colorName.toLowerCase();
+      const col = match.colors.find(
+        (c) =>
+          c.name.toLowerCase().includes(cLower) ||
+          cLower.includes(c.name.toLowerCase()),
+      );
+      if (col?.imageUrl) return col.imageUrl;
+    }
+    const withImg = match.colors.find((c) => c.imageUrl);
+    if (withImg?.imageUrl) return withImg.imageUrl;
+  }
+
+  // Fallbacks elegantes por geração
+  if (cleanName.includes("16 pro")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("16")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-white?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("15 pro")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("15")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-blue?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("14 pro")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-deeppurple?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("14")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-finish-select-202209-6-1inch-starlight?wid=1000&hei=1000&fmt=png-alpha";
+  }
+  if (cleanName.includes("13")) {
+    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-13-finish-select-202207-6-1inch-midnight?wid=1000&hei=1000&fmt=png-alpha";
+  }
+
+  return cleanUrl || "/images/logo.png";
+}
+

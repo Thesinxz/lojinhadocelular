@@ -15,6 +15,7 @@ import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
 import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
+import { resolveProductImage } from "@/lib/iphoneCatalog";
 import SEO from "@/components/SEO";
 
 type Variant = ProductWithVariants["variants"][number];
@@ -218,7 +219,11 @@ export default function Produto() {
     ? product.description ||
       `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`
     : "";
-  const prodImage = selected?.imageUrl || product?.imageUrl || "/images/logo.png";
+  const prodImage = resolveProductImage(
+    product?.name ?? "",
+    selected?.imageUrl || product?.imageUrl,
+    color,
+  );
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const productCode = `B${(product?.id ?? 1000) + 1600}`;
@@ -339,23 +344,22 @@ export default function Produto() {
         {/* Grid em 2 colunas no desktop */}
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start max-w-5xl mx-auto">
           {/* Coluna da Esquerda (Foto do Produto Limpa em Fundo Branco) */}
-          <div className="aspect-square w-full rounded-3xl bg-white border border-neutral-100 p-6 sm:p-10 flex items-center justify-center shadow-xs overflow-hidden relative">
-            {selected?.imageUrl || product.imageUrl ? (
+          <div className="aspect-square w-full rounded-3xl bg-[#fbfbfd] border border-neutral-100 p-6 sm:p-10 flex items-center justify-center shadow-xs overflow-hidden relative">
+            {prodImage ? (
               <img
-                src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 800, 85)}
-                srcSet={getImageSrcSet(selected?.imageUrl || product.imageUrl!)}
+                src={optimizeImageUrl(prodImage, 800, 85)}
+                srcSet={getImageSrcSet(prodImage)}
                 sizes="(max-width: 768px) 100vw, 500px"
                 alt={product.name}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
                 onError={(e) => {
-                  const raw = selected?.imageUrl || product.imageUrl;
-                  if (raw && e.currentTarget.src !== raw) {
-                    e.currentTarget.src = raw;
+                  if (prodImage && e.currentTarget.src !== prodImage) {
+                    e.currentTarget.src = prodImage;
                   }
                 }}
-                className="h-full w-full object-contain transition-all duration-300"
+                className="max-h-[92%] w-auto max-w-full object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition-all duration-300"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm font-medium text-neutral-400">

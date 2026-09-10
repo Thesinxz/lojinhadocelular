@@ -4,6 +4,7 @@ import { Plus, Flame, BatteryCharging } from "lucide-react";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
 import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
+import { resolveProductImage } from "@/lib/iphoneCatalog";
 
 export default function ProductCard({
   product,
@@ -34,8 +35,9 @@ export default function ProductCard({
     }
   }, []);
 
-  const rawUrl = product.imageUrl;
-  const optimizedUrl = optimizeImageUrl(rawUrl, 420, 80);
+  // Resolve imagem oficial limpa (Apple transparent PNG) caso a imagem do banco seja genérica
+  const rawUrl = resolveProductImage(product.name, product.imageUrl, colors[0]?.color);
+  const optimizedUrl = optimizeImageUrl(rawUrl, 440, 85);
   const srcSet = getImageSrcSet(rawUrl);
 
   const isSeminovo =
@@ -44,10 +46,10 @@ export default function ProductCard({
   return (
     <Link
       to={`/produto/${product.id}`}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white p-3.5 sm:p-4 shadow-[0_2px_14px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(0,0,0,0.09)] active:scale-[0.99]"
+      className="group flex flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white p-3 sm:p-4 shadow-[0_2px_14px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(0,0,0,0.09)] active:scale-[0.99]"
     >
-      {/* Container da foto com fundo neutro suave */}
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-50/70 p-3 sm:p-4 flex items-center justify-center">
+      {/* Container da foto com fundo neutro claro e espaçamento vertical ideal */}
+      <div className="relative aspect-[4/5] sm:aspect-square w-full overflow-hidden rounded-2xl bg-[#fbfbfd] border border-neutral-100/60 p-4 pt-10 pb-3 flex items-center justify-center">
         {!isLoaded && rawUrl && (
           <div className="absolute inset-0 animate-pulse bg-neutral-100" />
         )}
@@ -67,7 +69,7 @@ export default function ProductCard({
                 e.currentTarget.src = rawUrl;
               }
             }}
-            className={`h-full w-full object-contain transition-transform duration-300 group-hover:scale-105 ${
+            className={`max-h-[92%] w-auto max-w-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.08)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_14px_24px_rgba(0,0,0,0.14)] ${
               isLoaded ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -78,20 +80,20 @@ export default function ProductCard({
         )}
 
         {/* Badges superiores exatamente como na BLK Store */}
-        <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-col items-start gap-1.5 pointer-events-none">
+        <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-col items-start gap-1 pointer-events-none">
           {/* Badge de Promoção Vermelha */}
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white shadow-xs">
             <Flame className="h-3 w-3 fill-white" />
             PROMOÇÃO
           </span>
 
           {/* Badge de Condição */}
           {isSeminovo ? (
-            <span className="rounded-full border border-neutral-200 bg-white/95 px-2.5 py-0.5 text-[10px] font-semibold text-neutral-800 shadow-sm backdrop-blur-sm">
+            <span className="rounded-full border border-neutral-200 bg-white/95 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-neutral-800 shadow-xs backdrop-blur-sm">
               Seminovo
             </span>
           ) : (
-            <span className="rounded-full bg-[#1d1d1f] px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+            <span className="rounded-full bg-[#1d1d1f] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-white shadow-xs">
               Lacrado
             </span>
           )}
@@ -100,7 +102,7 @@ export default function ProductCard({
 
       {/* Conteúdo do Card */}
       <div className="flex flex-1 flex-col pt-3">
-        {/* Marca */}
+        {/* Marca & Paleta de Cores */}
         <div className="flex items-center justify-between gap-1">
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
             {product.brand}
