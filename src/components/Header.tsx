@@ -5,6 +5,7 @@ import { Menu, X, Smartphone } from "lucide-react";
 const NAV = [
   { to: "/", label: "Início" },
   { to: "/catalogo", label: "Catálogo" },
+  { to: "/avaliacao", label: "Troque seu aparelho" },
   { to: "/#sobre", label: "Sobre" },
   { to: "/#unidades", label: "Unidades" },
 ];
@@ -17,17 +18,29 @@ export default function Header() {
     <header className="sticky top-0 z-40 bg-brand border-b-4 border-ink">
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-            <img src="/images/logo-icon.png" alt="Lojinha do Celular" className="h-12 w-auto object-contain" />
+          <Link
+            to="/"
+            className="flex items-center gap-2.5"
+            onClick={() => setOpen(false)}
+          >
+            <img
+              src="/images/logo-icon.png"
+              alt="Lojinha do Celular"
+              className="h-12 w-auto object-contain"
+            />
             <div className="leading-tight">
-              <span className="block font-display text-lg font-bold text-ink">Lojinha</span>
-              <span className="block -mt-1 font-display text-sm font-semibold text-ink/70">do Celular</span>
+              <span className="block font-display text-lg font-bold text-ink">
+                Lojinha
+              </span>
+              <span className="block -mt-1 font-display text-sm font-semibold text-ink/70">
+                do Celular
+              </span>
             </div>
           </Link>
 
           {/* Desktop */}
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV.map((item) => {
+            {NAV.map(item => {
               const active = location.pathname === item.to;
               return (
                 <Link
@@ -59,7 +72,7 @@ export default function Header() {
       {/* Mobile menu */}
       {open && (
         <nav className="border-t-2 border-ink bg-brand px-4 pb-4 md:hidden">
-          {NAV.map((item) => (
+          {NAV.map(item => (
             <Link
               key={item.label}
               to={item.to}

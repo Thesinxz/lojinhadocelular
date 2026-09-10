@@ -7,6 +7,7 @@ import WhatsAppFloat from "./components/WhatsAppFloat";
 import Home from "./pages/Home";
 import Catalogo from "./pages/Catalogo";
 import Produto from "./pages/Produto";
+import TradeIn from "./pages/TradeIn";
 
 // Carregados sob demanda (não pesam no primeiro carregamento)
 const Admin = lazy(() => import("./pages/Admin"));
@@ -32,10 +33,18 @@ function ScrollToHash() {
 export default function App() {
   const location = useLocation();
   const isTv = location.pathname.startsWith("/tv");
+  const isTradeIn =
+    location.pathname === "/avaliacao" || location.pathname === "/troca";
 
   if (isTv) {
     return (
-      <Suspense fallback={<div className="flex min-h-[100dvh] items-center justify-center bg-brand font-display text-2xl font-bold text-ink">Carregando...</div>}>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[100dvh] items-center justify-center bg-brand font-display text-2xl font-bold text-ink">
+            Carregando...
+          </div>
+        }
+      >
         <Routes>
           <Route path="/tv" element={<TvMode />} />
           <Route path="/tv/*" element={<TvMode />} />
@@ -44,12 +53,27 @@ export default function App() {
     );
   }
 
+  if (isTradeIn) {
+    return (
+      <Routes>
+        <Route path="/avaliacao" element={<TradeIn />} />
+        <Route path="/troca" element={<TradeIn />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="flex min-h-[100dvh] flex-col bg-white font-sans text-ink">
       <ScrollToHash />
       <Header />
       <main className="flex-1">
-        <Suspense fallback={<div className="mx-auto max-w-6xl px-4 py-16"><div className="h-64 animate-pulse rounded-2xl bg-neutral-200" /></div>}>
+        <Suspense
+          fallback={
+            <div className="mx-auto max-w-6xl px-4 py-16">
+              <div className="h-64 animate-pulse rounded-2xl bg-neutral-200" />
+            </div>
+          }
+        >
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/catalogo" element={<Catalogo />} />

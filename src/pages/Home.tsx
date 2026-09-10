@@ -63,8 +63,9 @@ export default function Home() {
               Seu próximo iPhone está aqui.
             </h1>
             <p className="mt-4 max-w-md text-base font-medium text-ink/70 md:text-lg">
-              iPhones lacrados e seminovos com <strong>1 ano de garantia</strong>,
-              além de Xiaomi, Realme, Tecno e assistência técnica completa.
+              iPhones lacrados e seminovos com{" "}
+              <strong>1 ano de garantia</strong>, além de Xiaomi, Realme, Tecno
+              e assistência técnica completa.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
@@ -97,22 +98,54 @@ export default function Home() {
         </div>
       </section>
 
+      {/* TROCA FÁCIL */}
+      <section className="border-b-4 border-ink bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 px-4 py-8 md:flex-row md:items-center">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-brand">
+              <Smartphone className="h-6 w-6 text-ink" />
+            </div>
+            <div>
+              <p className="font-display text-lg font-bold text-ink">
+                Seu aparelho pode valer uma nova história.
+              </p>
+              <p className="mt-1 text-sm text-neutral-600">
+                Faça uma pré-avaliação online e use o valor na troca por outro
+                celular.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/avaliacao"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border-2 border-ink bg-brand px-5 py-3 font-display text-sm font-bold text-ink shadow-[3px_3px_0_0_#141414] transition hover:-translate-y-0.5"
+          >
+            Avaliar meu aparelho <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
       {/* CATEGORIAS */}
       <section className="mx-auto max-w-6xl px-4 py-14">
         <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
           O que você procura?
         </h2>
-        <p className="mt-1 text-neutral-600">Escolha uma categoria e confira os modelos disponíveis.</p>
+        <p className="mt-1 text-neutral-600">
+          Escolha uma categoria e confira os modelos disponíveis.
+        </p>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {CATEGORY_CARDS.map((c) => (
+          {CATEGORY_CARDS.map(c => (
             <Link
               key={c.title}
               to={c.to}
               className="group rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-1 hover:bg-brand"
             >
               <c.icon className="h-8 w-8 text-ink" />
-              <h3 className="mt-3 font-display text-lg font-bold text-ink">{c.title}</h3>
-              <p className="mt-1 text-sm text-neutral-600 group-hover:text-ink/70">{c.desc}</p>
+              <h3 className="mt-3 font-display text-lg font-bold text-ink">
+                {c.title}
+              </h3>
+              <p className="mt-1 text-sm text-neutral-600 group-hover:text-ink/70">
+                {c.desc}
+              </p>
             </Link>
           ))}
         </div>
@@ -126,7 +159,9 @@ export default function Home() {
               <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
                 Destaques da loja
               </h2>
-              <p className="mt-1 text-neutral-600">Os modelos mais procurados, com estoque atualizado.</p>
+              <p className="mt-1 text-neutral-600">
+                Os modelos mais procurados, com estoque atualizado.
+              </p>
             </div>
             <Link
               to="/catalogo"
@@ -139,7 +174,10 @@ export default function Home() {
           {featured.isLoading ? (
             <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-neutral-200" />
+                <div
+                  key={i}
+                  className="aspect-[3/4] animate-pulse rounded-2xl bg-neutral-200"
+                />
               ))}
             </div>
           ) : (
@@ -196,13 +234,15 @@ export default function Home() {
                   title: "Manutenção especializada",
                   desc: "Troca de tela, bateria, conector de carga, vidro traseiro e diagnóstico gratuito em todas as marcas.",
                 },
-              ].map((item) => (
+              ].map(item => (
                 <div key={item.title} className="flex gap-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-brand">
                     <item.icon className="h-5 w-5 text-ink" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-ink">{item.title}</h3>
+                    <h3 className="font-display font-bold text-ink">
+                      {item.title}
+                    </h3>
                     <p className="text-sm text-neutral-600">{item.desc}</p>
                   </div>
                 </div>
@@ -228,7 +268,10 @@ export default function Home() {
       </section>
 
       {/* SERVIÇOS */}
-      <section id="servicos" className="border-y-4 border-ink bg-ink text-white">
+      <section
+        id="servicos"
+        className="border-y-4 border-ink bg-ink text-white"
+      >
         <div className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14">
           <h2 className="font-display text-2xl font-bold text-brand md:text-3xl">
             Assistência técnica
@@ -246,7 +289,7 @@ export default function Home() {
               "Placa e reparo avançado",
               "Películas e capinhas",
               "Diagnóstico gratuito",
-            ].map((service) => (
+            ].map(service => (
               <div
                 key={service}
                 className="rounded-xl border border-white/15 bg-white/5 px-4 py-4 text-center text-sm font-semibold text-white transition hover:border-brand hover:text-brand"
@@ -259,19 +302,38 @@ export default function Home() {
       </section>
 
       {/* UNIDADES */}
-      <section id="unidades" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14">
-        <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">Nossas unidades</h2>
-        <p className="mt-1 text-neutral-600">Duas lojas pra te atender de pertinho.</p>
+      <section
+        id="unidades"
+        className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14"
+      >
+        <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
+          Nossas unidades
+        </h2>
+        <p className="mt-1 text-neutral-600">
+          Duas lojas pra te atender de pertinho.
+        </p>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           {[
-            { city: "Jardim-MS", address: s.addressJardim, maps: s.mapsJardim, whatsapp: s.whatsappJardim },
-            { city: "Guia Lopes da Laguna-MS", address: s.addressGll, maps: s.mapsGll, whatsapp: s.whatsappGll },
-          ].map((u) => (
+            {
+              city: "Jardim-MS",
+              address: s.addressJardim,
+              maps: s.mapsJardim,
+              whatsapp: s.whatsappJardim,
+            },
+            {
+              city: "Guia Lopes da Laguna-MS",
+              address: s.addressGll,
+              maps: s.mapsGll,
+              whatsapp: s.whatsappGll,
+            },
+          ].map(u => (
             <div
               key={u.city}
               className="rounded-2xl border-2 border-ink bg-white p-6 shadow-[4px_4px_0_0_#141414]"
             >
-              <h3 className="font-display text-lg font-bold text-ink">{u.city}</h3>
+              <h3 className="font-display text-lg font-bold text-ink">
+                {u.city}
+              </h3>
               <p className="mt-1 flex items-start gap-2 text-sm text-neutral-600">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {u.address}
               </p>

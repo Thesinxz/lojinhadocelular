@@ -18,18 +18,18 @@ app.use(
     xContentTypeOptions: "nosniff",
     referrerPolicy: "strict-origin-when-cross-origin",
     strictTransportSecurity: "max-age=31536000; includeSubDomains",
-  }),
+  })
 );
 
 // Habilitar CORS seguro
 app.use(
   "/api/*",
   cors({
-    origin: (origin) => origin || "*",
+    origin: origin => origin || "*",
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-  }),
+  })
 );
 
 // Compressão gzip/deflate em todas as respostas (texto, JS, CSS, JSON)
@@ -68,12 +68,13 @@ app.use("/api/trpc/admin.login*", async (c, next) => {
       return c.json(
         {
           error: {
-            message: "Muitas tentativas de login. Aguarde 15 minutos antes de tentar novamente.",
+            message:
+              "Muitas tentativas de login. Aguarde 15 minutos antes de tentar novamente.",
             code: -32000,
             data: { httpStatus: 429 },
           },
         },
-        429,
+        429
       );
     }
     record.count += 1;
@@ -92,7 +93,7 @@ app.use("/api/trpc/admin.login*", async (c, next) => {
 });
 
 // SEO: robots.txt
-app.get("/robots.txt", (c) => {
+app.get("/robots.txt", c => {
   const origin = new URL(c.req.url).origin;
   return c.text(`User-agent: *
 Allow: /
@@ -101,7 +102,7 @@ Sitemap: ${origin}/sitemap.xml
 });
 
 // SEO: sitemap.xml dinâmico
-app.get("/sitemap.xml", async (c) => {
+app.get("/sitemap.xml", async c => {
   const origin = new URL(c.req.url).origin;
   try {
     const { getDb } = await import("./queries/connection");
@@ -110,39 +111,49 @@ app.get("/sitemap.xml", async (c) => {
       where: (p, { eq }) => eq(p.active, true),
     });
 
-    const staticPaths = ["", "/catalogo", "/lacrados", "/seminovos", "/reparos", "/lojas"];
+    const staticPaths = [
+      "",
+      "/catalogo",
+      "/avaliacao",
+      "/lacrados",
+      "/seminovos",
+      "/reparos",
+      "/lojas",
+    ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${staticPaths
   .map(
-    (p) => `  <url>
+    p => `  <url>
     <loc>${origin}${p}</loc>
     <changefreq>daily</changefreq>
     <priority>${p === "" ? "1.0" : "0.8"}</priority>
-  </url>`,
+  </url>`
   )
   .join("\n")}
 ${allProducts
   .map(
-    (p) => `  <url>
+    p => `  <url>
     <loc>${origin}/produto/${p.id}</loc>
     <lastmod>${new Date(p.createdAt).toISOString().split("T")[0]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
-  </url>`,
+  </url>`
   )
   .join("\n")}
 </urlset>`;
 
-    return c.text(xml, 200, { "Content-Type": "application/xml; charset=utf-8" });
+    return c.text(xml, 200, {
+      "Content-Type": "application/xml; charset=utf-8",
+    });
   } catch (err) {
     console.error("Erro ao gerar sitemap:", err);
     return c.text("Error generating sitemap", 500);
   }
 });
 
-app.use("/api/trpc/*", async (c) => {
+app.use("/api/trpc/*", async c => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",
     req: c.req.raw,
@@ -150,7 +161,7 @@ app.use("/api/trpc/*", async (c) => {
     createContext,
   });
 });
-app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
+app.all("/api/*", c => c.json({ error: "Not Found" }, 404));
 
 export default app;
 
