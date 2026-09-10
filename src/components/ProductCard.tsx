@@ -5,6 +5,7 @@ import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
 import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
+import { useCart } from "@/lib/cart";
 
 export default function ProductCard({
   product,
@@ -43,6 +44,43 @@ export default function ProductCard({
 
   const isSeminovo =
     product.condition === "seminovo" || product.category === "iphone_seminovo";
+
+  const { addItem } = useCart();
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (price == null) return;
+    const defaultVariant =
+      product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ??
+      product.variants[0];
+
+    const conditionLabel =
+      product.condition === "lacrado" || defaultVariant?.condition === "lacrado"
+        ? "Lacrado"
+        : "Seminovo";
+
+    const productCode =
+      typeof product.id === "number"
+        ? `B${product.id + 1600}`
+        : `B${String(product.id || "1000").slice(0, 8).toUpperCase()}`;
+
+    const sku = defaultVariant?.sku || productCode;
+    const cartItemId = `${product.id}-${defaultVariant?.id ?? "default"}-${defaultVariant?.storage ?? "default"}`;
+
+    addItem({
+      id: cartItemId,
+      productId: product.id,
+      variantId: defaultVariant?.id,
+      name: product.name,
+      color: defaultVariant?.color || colors[0]?.color || "",
+      storage: defaultVariant?.storage || "",
+      condition: conditionLabel,
+      sku,
+      price: price,
+      imageUrl: rawUrl || product.imageUrl || "",
+    });
+  };
 
   return (
     <Link
@@ -160,10 +198,14 @@ export default function ProductCard({
 
           {/* Botão Azul Adicionar */}
           <div className="mt-3">
-            <span className="w-full rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className="w-full rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs cursor-pointer"
+            >
               <Plus className="h-4 w-4" />
               <span>Adicionar</span>
-            </span>
+            </button>
           </div>
         </div>
       </div>

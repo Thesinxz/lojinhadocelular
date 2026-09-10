@@ -19,6 +19,8 @@ import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet } from "@/lib
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
 import { getVideoEmbed } from "@/components/admin/AdminProductEditor";
+import { useCart } from "@/lib/cart";
+import { WhatsAppIcon } from "@/components/WhatsAppModal";
 import SEO from "@/components/SEO";
 
 type Variant = ProductWithVariants["variants"][number];
@@ -211,13 +213,25 @@ export default function Produto() {
   const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
   const conditionLabel = isLacrado ? "Lacrado" : "Seminovo";
   const formattedPrice = price != null ? formatBRL(price) : "";
-  const buyMessage = product
-    ? `Olá! Vi na vitrine da Lojinha do Celular o ${product.name}${
-        storage && storage !== "Padrão" ? ` ${storage}` : ""
-      }${color ? ` ${color}` : ""} (${conditionLabel}${
-        formattedPrice ? ` - ${formattedPrice}` : ""
-      }) e gostaria de fechar o pedido!`
-    : "";
+
+  const { addItem } = useCart();
+
+  const productCode =
+    typeof product?.id === "number"
+      ? `B${product.id + 1600}`
+      : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
+  const displaySku = selected?.sku || productCode;
+
+  const buyMessage =
+    product && price != null
+      ? `*Olá, Lojinha do Celular!* 📱\nQuero fechar este pedido pelo site:\n\n1. *${product.name}${
+          color ? ` - ${color}` : ""
+        }${storage && storage !== "Padrão" ? ` ${storage}` : ""}* (${conditionLabel}) — cód. ${displaySku}\nPix: ${formattedPrice}\n\n*Total no Pix: ${formattedPrice}*\n${
+          installment12
+            ? `ou em até 12x de ${formatBRL(installment12)} no cartão\n\n`
+            : "\n"
+        }Pode confirmar disponibilidade e a entrega? 📦`
+      : "";
 
   const prodTitle = product
     ? `${product.name}${version && !product.name.includes(version) ? ` ${version}` : ""}${
@@ -235,11 +249,23 @@ export default function Produto() {
   );
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
-  const productCode =
-    typeof product?.id === "number"
-      ? `B${product.id + 1600}`
-      : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
-  const displaySku = selected?.sku || productCode;
+  const handleAddToCart = () => {
+    if (!product || price == null) return;
+    const cartItemId = `${product.id}-${selectedVariantId || color || "default"}-${storage || "default"}`;
+    addItem({
+      id: cartItemId,
+      productId: product.id,
+      variantId: selectedVariantId ?? undefined,
+      name: product.name,
+      color: color || "",
+      storage: storage || "",
+      condition: conditionLabel,
+      sku: displaySku,
+      price: price,
+      imageUrl: prodImage || product.imageUrl || "",
+    });
+  };
+
   const warrantyDisplay =
     selected?.warranty ||
     product?.warranty ||
@@ -639,23 +665,23 @@ export default function Produto() {
                 </a>
               ) : (
                 <>
-                  <a
-                    href={waLink(whatsapp, buyMessage)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
+                  <button
+                    type="button"
+                    onClick={handleAddToCart}
+                    className="flex-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Adicionar</span>
-                  </a>
+                    <span>Adicionar à Sacola</span>
+                  </button>
 
                   <a
                     href={waLink(whatsapp, buyMessage)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
+                    onClick={handleAddToCart}
+                    className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <WhatsAppIcon className="h-4 w-4 fill-white" />
                     <span>Pedir agora</span>
                   </a>
                 </>

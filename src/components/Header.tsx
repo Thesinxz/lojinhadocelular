@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ShoppingBag } from "lucide-react";
 import { openWhatsAppModal } from "@/lib/whatsappModal";
 import { WhatsAppIcon } from "./WhatsAppModal";
+import { useCart } from "@/lib/cart";
 
 const NAV = [
   { to: "/#vitrine", label: "Vitrine" },
@@ -14,6 +15,7 @@ const NAV = [
 export default function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { totalItems, openCart } = useCart();
 
   const handleNavClick = (to: string) => {
     setOpen(false);
@@ -76,6 +78,22 @@ export default function Header() {
               )}
             </nav>
 
+            {/* Botão da Sacola */}
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-100 hover:text-black active:scale-95 cursor-pointer shadow-2xs"
+              aria-label="Abrir sacola de compras"
+            >
+              <ShoppingBag className="h-4 w-4 text-neutral-700" />
+              <span>Sacola</span>
+              {totalItems > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0071e3] px-1 text-[10px] font-bold text-white">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => openWhatsAppModal("Olá! Vim pelo site da Lojinha do Celular.")}
@@ -86,8 +104,22 @@ export default function Header() {
             </button>
           </div>
 
-          {/* Mobile Actions: WhatsApp Pill & Menu Toggle */}
+          {/* Mobile Actions: Sacola, WhatsApp Pill & Menu Toggle */}
           <div className="flex items-center gap-2 md:hidden">
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+              aria-label="Abrir sacola de compras"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0071e3] px-1 text-[9px] font-bold text-white">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => openWhatsAppModal("Olá! Vim pelo site da Lojinha do Celular.")}
@@ -135,7 +167,19 @@ export default function Header() {
               )
             )}
           </div>
-          <div className="mt-3 border-t border-neutral-100 pt-3">
+          <div className="mt-3 border-t border-neutral-100 pt-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                openCart();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-100 active:scale-95 cursor-pointer"
+            >
+              <ShoppingBag className="h-4 w-4 text-neutral-700" />
+              <span>Ver Minha Sacola ({totalItems})</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {

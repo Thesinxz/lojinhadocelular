@@ -4,6 +4,8 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import WelcomePopup from "./components/WelcomePopup";
 import WhatsAppFloat from "./components/WhatsAppFloat";
+import CartDrawer from "./components/CartDrawer";
+import { CartProvider } from "./lib/cart";
 import Home from "./pages/Home";
 import Produto from "./pages/Produto";
 import TradeIn from "./pages/TradeIn";
@@ -71,29 +73,32 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[#fbfbfd] font-sans text-[#1d1d1f] antialiased">
-      <ScrollToHash />
-      <Header />
-      <main className="flex-1">
-        <Suspense
-          fallback={
-            <div className="mx-auto max-w-6xl px-4 py-16">
-              <div className="h-64 animate-pulse rounded-2xl bg-neutral-100" />
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/catalogo" element={<Navigate to="/#vitrine" replace />} />
-            <Route path="/produto/:id" element={<Produto />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <Footer />
-      <WelcomePopup />
-      <WhatsAppFloat />
-    </div>
+    <CartProvider>
+      <div className="flex min-h-[100dvh] flex-col bg-[#fbfbfd] font-sans text-[#1d1d1f] antialiased">
+        <ScrollToHash />
+        <Header />
+        <main className="flex-1">
+          <Suspense
+            fallback={
+              <div className="mx-auto max-w-6xl px-4 py-16">
+                <div className="h-64 animate-pulse rounded-2xl bg-neutral-100" />
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/catalogo" element={<Navigate to="/#vitrine" replace />} />
+              <Route path="/produto/:id" element={<Produto />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<Home />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <Footer />
+        <WelcomePopup />
+        <WhatsAppFloat />
+        <CartDrawer />
+      </div>
+    </CartProvider>
   );
 }
