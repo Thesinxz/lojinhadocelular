@@ -321,32 +321,89 @@ export default function Admin() {
       ) : (
         <div className="mt-6">
           {catalogStatusQuery.data?.erpEnabled && (
-            <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50/80 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+            <div
+              className={`mb-5 rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs transition-all ${
+                catalogStatusQuery.data.status === "ok"
+                  ? "border-blue-200 bg-blue-50/80"
+                  : catalogStatusQuery.data.status === "offline"
+                    ? "border-amber-300 bg-amber-50/90"
+                    : "border-red-200 bg-red-50/90"
+              }`}
+            >
               <div className="flex items-start gap-3.5">
-                <div className="p-2.5 bg-blue-100 rounded-xl text-blue-700 shrink-0">
-                  <RefreshCw className="h-5 w-5" />
+                <div
+                  className={`p-2.5 rounded-xl shrink-0 ${
+                    catalogStatusQuery.data.status === "ok"
+                      ? "bg-blue-100 text-blue-700"
+                      : catalogStatusQuery.data.status === "offline"
+                        ? "bg-amber-200 text-amber-900"
+                        : "bg-red-200 text-red-900"
+                  }`}
+                >
+                  <RefreshCw
+                    className={`h-5 w-5 ${
+                      refreshErpMutation.isPending ? "animate-spin" : ""
+                    }`}
+                  />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-blue-950">Catálogo Sincronizado com Gestão Celular ERP</h3>
-                    <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                      🟢 {products.data?.length ?? 0} no ar
-                    </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-bold text-neutral-900">
+                      Gestão Celular ERP
+                    </h3>
+                    {catalogStatusQuery.data.status === "ok" ? (
+                      <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                        🟢 Conectado ({catalogStatusQuery.data.count} aparelhos)
+                      </span>
+                    ) : catalogStatusQuery.data.status === "offline" ? (
+                      <span className="rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        🟡 Offline / Sincronizando
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-bold text-red-800">
+                        🔴 Configuração Pendente
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-blue-900/80 mt-1 max-w-2xl leading-relaxed">
-                    O estoque físico, preços e modelos são lidos oficialmente pelo seu sistema <strong>Gestão Celular ERP</strong>.
-                    Aqui você pode personalizar a <strong>foto real</strong>, <strong>vídeo demonstrativo</strong>, <strong>saúde da bateria</strong> ou <strong>desativar/ocultar</strong> aparelhos para a vitrine.
+                  <p className="text-xs text-neutral-700 mt-1 max-w-2xl leading-relaxed">
+                    {catalogStatusQuery.data.status === "ok" ? (
+                      <>
+                        Estoque e preços lidos oficialmente do ERP. Personalize <strong>fotos reais</strong>, <strong>vídeos</strong>, <strong>saúde da bateria</strong> ou <strong>destaque</strong> abaixo.
+                      </>
+                    ) : (
+                      <>
+                        {catalogStatusQuery.data.message || "Tentando comunicação com a API do ERP."}
+                        <br />
+                        <span className="text-[11px] text-neutral-500 font-mono">
+                          Certifique-se de configurar: ERP_API_URL=https://api.gestaocelular.com.br e ERP_STORE_SLUG no servidor.
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
-              <a
-                href="https://gestaocelular.com.br"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-semibold shadow-xs transition active:scale-95"
-              >
-                Acessar Gestão Celular ↗
-              </a>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={refreshErpMutation.isPending}
+                  onClick={() => refreshErpMutation.mutate()}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-800 px-3.5 py-2 text-xs font-semibold shadow-2xs transition active:scale-95 disabled:opacity-50"
+                  title="Limpa o cache e consulta o ERP novamente"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshErpMutation.isPending ? "animate-spin text-blue-600" : ""}`} />
+                  <span>{refreshErpMutation.isPending ? "Sincronizando..." : "Sincronizar"}</span>
+                </button>
+
+                <a
+                  href="https://gestaocelular.com.br"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] hover:bg-black text-white px-3.5 py-2 text-xs font-semibold shadow-2xs transition active:scale-95"
+                >
+                  Painel ERP ↗
+                </a>
+              </div>
             </div>
           )}
 
