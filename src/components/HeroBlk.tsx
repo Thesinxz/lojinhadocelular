@@ -1,11 +1,10 @@
 import { useEffect, useRef } from "react";
-import { MessageCircle, ArrowRight } from "lucide-react";
-import { useShopSettings, waLink } from "@/lib/shop";
+import { ArrowRight } from "lucide-react";
+import { openWhatsAppModal } from "@/lib/whatsappModal";
+import { WhatsAppIcon } from "./WhatsAppModal";
 
 export default function HeroBlk() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const s = useShopSettings();
-  const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
 
   useEffect(() => {
     const video = videoRef.current;
@@ -78,18 +77,18 @@ export default function HeroBlk() {
             <span>Ver ofertas</span>
             <ArrowRight className="h-4 w-4" />
           </a>
-          <a
-            href={waLink(
-              whatsapp,
-              "Olá! Gostaria de tirar uma dúvida sobre os iPhones da Lojinha do Celular",
-            )}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-[#25D366] hover:bg-[#20ba59] px-6 py-3 text-sm font-bold text-white transition active:scale-[0.98] shadow-md"
+          <button
+            type="button"
+            onClick={() =>
+              openWhatsAppModal(
+                "Olá! Gostaria de tirar uma dúvida sobre os iPhones da Lojinha do Celular",
+              )
+            }
+            className="inline-flex items-center gap-2 rounded-full bg-[#25D366] hover:bg-[#20ba59] px-6 py-3 text-sm font-bold text-white transition active:scale-[0.98] shadow-md cursor-pointer"
           >
-            <MessageCircle className="h-4 w-4 fill-white/20" />
+            <WhatsAppIcon className="h-4 w-4 fill-white" />
             <span>Falar no WhatsApp</span>
-          </a>
+          </button>
           <a
             href="https://trocafacil.lojinhadocelular.com"
             className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-[0.98]"
