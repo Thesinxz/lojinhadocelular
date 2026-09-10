@@ -81,6 +81,17 @@ export async function ensureTables() {
         model VARCHAR(120) NOT NULL,
         storage VARCHAR(30) DEFAULT '',
         color VARCHAR(60) DEFAULT '',
+        purchase_location VARCHAR(100) DEFAULT '',
+        target_model VARCHAR(120) DEFAULT '',
+        face_id VARCHAR(30) DEFAULT '',
+        screen_original VARCHAR(30) DEFAULT '',
+        battery_original VARCHAR(30) DEFAULT '',
+        cameras_ok VARCHAR(30) DEFAULT '',
+        audio_ok VARCHAR(30) DEFAULT '',
+        charging_port_ok VARCHAR(30) DEFAULT '',
+        opened_before VARCHAR(30) DEFAULT '',
+        has_box VARCHAR(30) DEFAULT '',
+        visual_condition VARCHAR(100) DEFAULT '',
         \`condition\` VARCHAR(60) NOT NULL,
         battery VARCHAR(60) NOT NULL,
         notes TEXT,
@@ -91,6 +102,18 @@ export async function ensureTables() {
         INDEX idx_evaluations_created_at (created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS purchase_location VARCHAR(100) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS target_model VARCHAR(120) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS face_id VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS screen_original VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS battery_original VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS cameras_ok VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS audio_ok VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS charging_port_ok VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS opened_before VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS has_box VARCHAR(30) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS visual_condition VARCHAR(100) DEFAULT ''`).catch(() => {});
 
     tablesEnsured = true;
   } catch (err) {
