@@ -4,6 +4,8 @@ import { products, settings, evaluations } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
+import { env } from "./lib/env";
+import { getErpCatalog } from "./erp/service";
 
 const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.whatsappJardim,
@@ -102,7 +104,25 @@ function sortProductsBackend<
 }
 
 export const shopRouter = createRouter({
-  // Catálogo público: só produtos ativos, com variantes
+  // Status de conexão e integridade do catálogo da loja
+  catalogStatus: publicQuery.query(async () => {
+    if (!env.erpCatalogEnabled) {
+      return {
+        erpEnabled: false,
+        status: "disabled" as const,
+        count: 0,
+      };
+    }
+    const erp = await getErpCatalog();
+    return {
+      erpEnabled: true,
+      status: erp.status,
+      message: erp.message,
+      count: erp.products.length,
+    };
+  }),
+
+  // Catálogo público: ERP oficial (quando ativado) ou banco local
   products: publicQuery
     .input(
       z
@@ -115,8 +135,26 @@ export const shopRouter = createRouter({
     .query(async ({ input, ctx }) => {
       ctx.resHeaders.set(
         "Cache-Control",
-        "public, max-age=30, stale-while-revalidate=300",
+        "public, max-age=30, stale-while-revalidate=60",
       );
+
+      // Requisito 3 & 8: Quando ERP_CATALOG_ENABLED=true, o ERP é a fonte oficial
+      if (env.erpCatalogEnabled) {
+        const erp = await getErpCatalog();
+        if (erp.status === "ok") {
+          let list = erp.products;
+          if (input?.category) {
+            list = list.filter((p) => p.category === input.category);
+          }
+          if (input?.brand) {
+            list = list.filter((p) => p.brand.toLowerCase() === input.brand!.toLowerCase());
+          }
+          return sortProductsBackend(list);
+        }
+        // Se a API estiver fora do ar ou sem produtos, nunca exibe produtos antigos ou locais
+        return [];
+      }
+
       try {
         const db = getDb();
         await ensureTables();
@@ -141,6 +179,15 @@ export const shopRouter = createRouter({
     }),
 
   featured: publicQuery.query(async () => {
+    if (env.erpCatalogEnabled) {
+      const erp = await getErpCatalog();
+      if (erp.status === "ok") {
+        const list = erp.products.slice(0, 12);
+        return sortProductsBackend(list);
+      }
+      return [];
+    }
+
     try {
       const db = getDb();
       await ensureTables();
@@ -157,21 +204,39 @@ export const shopRouter = createRouter({
   }),
 
   product: publicQuery
-    .input(z.object({ id: z.number().int().positive() }))
+    .input(z.object({ id: z.union([z.string(), z.number()]) }))
     .query(async ({ input, ctx }) => {
-      ctx.resHeaders.set("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
-      try {
-        const db = getDb();
-        await ensureTables();
-        const product = await db.query.products.findFirst({
-          where: and(eq(products.id, input.id), eq(products.active, true)),
-          with: { variants: true },
-        });
-        return product ?? null;
-      } catch (err) {
-        console.error("Erro ao consultar produto por ID:", err);
+      ctx.resHeaders.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+      const idStr = String(input.id).trim();
+
+      // Se ERP estiver ativo, busca no catálogo do ERP por externalId ou id
+      if (env.erpCatalogEnabled) {
+        const erp = await getErpCatalog();
+        if (erp.status === "ok") {
+          const found = erp.products.find(
+            (p) => String(p.id) === idStr || p.externalId === idStr,
+          );
+          if (found) return found;
+        }
         return null;
       }
+
+      const numId = Number(idStr);
+      if (!Number.isNaN(numId) && numId > 0) {
+        try {
+          const db = getDb();
+          await ensureTables();
+          const product = await db.query.products.findFirst({
+            where: and(eq(products.id, numId), eq(products.active, true)),
+            with: { variants: true },
+          });
+          return product ?? null;
+        } catch (err) {
+          console.error("Erro ao consultar produto por ID:", err);
+          return null;
+        }
+      }
+      return null;
     }),
 
   // Configurações públicas da loja consultadas em batch único

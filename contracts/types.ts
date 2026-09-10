@@ -82,7 +82,21 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   admin_password: "lojinha123",
 };
 
-// ===== Tipos =====
+export type ProductSource = "local" | "erp" | "demo";
+
+export type CatalogStatus =
+  | "ok"
+  | "empty"
+  | "offline"
+  | "config_error"
+  | "disabled";
+
+export type CatalogStatusResponse = {
+  erpEnabled: boolean;
+  status: CatalogStatus;
+  message?: string;
+  count: number;
+};
 
 export type VariantInput = {
   id?: number;

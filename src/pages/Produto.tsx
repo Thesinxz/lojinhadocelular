@@ -24,25 +24,28 @@ type Variant = ProductWithVariants["variants"][number];
 
 export default function Produto() {
   const { id } = useParams<{ id: string }>();
+  const idStr = id ? String(id).trim() : "";
+  const isUuidOrString = typeof id === "string" && (id.includes("-") || Number.isNaN(Number(id)));
   const numericId = Number(id);
 
   const demoFallback = useMemo(() => {
+    if (isUuidOrString) return undefined;
     if (Number.isNaN(numericId)) return undefined;
     return (
       DEMO_PRODUCTS.find((p) => p.id === numericId) ||
       DEMO_PRODUCTS.find((p) => p.id === Math.abs(numericId)) ||
       (numericId < 0 ? DEMO_PRODUCTS[0] : undefined)
     );
-  }, [numericId]);
+  }, [isUuidOrString, numericId]);
 
   const isDemo = !!demoFallback;
-  const isValidId = (!Number.isNaN(numericId) && numericId > 0) || isDemo;
+  const isValidId = isUuidOrString ? !!idStr : (!Number.isNaN(numericId) && numericId > 0) || isDemo;
 
   const s = useShopSettings();
   const query = trpc.shop.product.useQuery(
-    { id: numericId > 0 ? numericId : 1 },
+    { id: isUuidOrString ? idStr : numericId > 0 ? numericId : 1 },
     {
-      enabled: !Number.isNaN(numericId) && numericId > 0 && !isDemo,
+      enabled: (isUuidOrString ? !!idStr : (!Number.isNaN(numericId) && numericId > 0)) && !isDemo,
       staleTime: 1000 * 30,
     },
   );
@@ -54,16 +57,17 @@ export default function Produto() {
   }, [query.data, demoFallback]);
 
   // Gerenciamento de seleção compatível com React 19
-  const [selectedProductId, setSelectedProductId] = useState<number>(numericId);
+  const [selectedProductId, setSelectedProductId] = useState<string | number>(idStr || numericId);
   const [userVersion, setUserVersion] = useState<string | null>(null);
   const [userStorage, setUserStorage] = useState<string | null>(null);
   const [userColor, setUserColor] = useState<string | null>(null);
-  const [userVariantId, setUserVariantId] = useState<number | null>(null);
+  const [userVariantId, setUserVariantId] = useState<string | number | null>(null);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
   const [mediaTab, setMediaTab] = useState<"photo" | "video">("photo");
 
-  if (selectedProductId !== numericId) {
-    setSelectedProductId(numericId);
+  const currentIdKey = isUuidOrString ? idStr : numericId;
+  if (selectedProductId !== currentIdKey) {
+    setSelectedProductId(currentIdKey);
     setUserVersion(null);
     setUserStorage(null);
     setUserColor(null);
@@ -230,7 +234,10 @@ export default function Produto() {
   );
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
-  const productCode = `B${(product?.id ?? 1000) + 1600}`;
+  const productCode =
+    typeof product?.id === "number"
+      ? `B${product.id + 1600}`
+      : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
   const displaySku = selected?.sku || productCode;
   const warrantyDisplay =
     selected?.warranty ||
@@ -458,6 +465,12 @@ export default function Produto() {
                 </span>
               )}
 
+              {!isAvailable && (
+                <span className="rounded-full px-3 py-1 text-xs font-semibold bg-neutral-200 text-neutral-600">
+                  Esgotado
+                </span>
+              )}
+
               {/* Código do produto */}
               <span className="rounded-full border border-neutral-200 px-2.5 py-0.5 text-xs font-mono text-neutral-500">
                 {displaySku}
@@ -601,27 +614,44 @@ export default function Produto() {
               </div>
             )}
 
-            {/* Botões de Ação Duplos (Screenshot 3: + Adicionar e Pedir agora) */}
+            {/* Botões de Ação Duplos */}
             <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              <a
-                href={waLink(whatsapp, buyMessage)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Adicionar</span>
-              </a>
+              {!isAvailable ? (
+                <a
+                  href={waLink(
+                    whatsapp,
+                    `Olá! Vi o ${product.name}${storage ? ` ${storage}` : ""}${color ? ` ${color}` : ""} na Lojinha do Celular, mas está esgotado no momento. Gostaria de saber a previsão de chegada ou encomendar.`,
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full rounded-full bg-neutral-900 hover:bg-black text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Consultar previsão no WhatsApp</span>
+                </a>
+              ) : (
+                <>
+                  <a
+                    href={waLink(whatsapp, buyMessage)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Adicionar</span>
+                  </a>
 
-              <a
-                href={waLink(whatsapp, buyMessage)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
-              >
-                <MessageCircle className="h-4 w-4" />
-                <span>Pedir agora</span>
-              </a>
+                  <a
+                    href={waLink(whatsapp, buyMessage)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Pedir agora</span>
+                  </a>
+                </>
+              )}
             </div>
 
             {/* Promo Cards (Screenshot 4: Trade-in e Brinde) */}

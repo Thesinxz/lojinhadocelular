@@ -8,6 +8,9 @@ import {
   Wrench,
   Smartphone,
   ArrowRight,
+  WifiOff,
+  AlertCircle,
+  PackageOpen,
 } from "lucide-react";
 import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
@@ -53,9 +56,20 @@ export default function Home() {
     staleTime: 1000 * 30,
   });
 
-  // Combina produtos do banco com DEMO_PRODUCTS sem duplicar ID ou Nome
+  const catalogStatusQuery = trpc.shop.catalogStatus.useQuery(undefined, {
+    staleTime: 1000 * 30,
+  });
+
+  const isErpEnabled = !!catalogStatusQuery.data?.erpEnabled;
+  const catalogStatus = catalogStatusQuery.data?.status;
+
+  // Requisito 8: Quando ERP_CATALOG_ENABLED=true, não misturar DEMO_PRODUCTS na vitrine pública
   const allProducts = useMemo(() => {
     const dbList = (productsQuery.data ?? []) as ProductWithVariants[];
+    if (isErpEnabled) {
+      return dbList;
+    }
+
     const dbIds = new Set(dbList.map((p) => p.id));
     const dbNames = new Set(dbList.map((p) => p.name.trim().toLowerCase()));
 
@@ -64,7 +78,7 @@ export default function Home() {
     );
 
     return [...dbList, ...demoList];
-  }, [productsQuery.data]);
+  }, [productsQuery.data, isErpEnabled]);
 
   // Filtra por categoria e termo de busca, e ordena
   const filteredProducts = useMemo(() => {
@@ -173,45 +187,112 @@ export default function Home() {
 
           {/* Grid de Produtos ou Estado Vazio */}
           {filteredProducts.length === 0 ? (
-            <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center sm:p-12 shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500">
-                <Search className="h-6 w-6" />
-              </div>
-              <h3 className="mt-4 font-display text-lg font-bold text-neutral-900 sm:text-xl">
-                Nenhum produto encontrado
-              </h3>
-              <p className="mx-auto mt-2 max-w-md text-xs sm:text-sm text-neutral-500">
-                Não encontramos aparelhos com esses critérios. Fale conosco no WhatsApp para consultar novas entradas ou encomendar o seu!
-              </p>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                {(search || selectedCategory) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setSelectedCategory(undefined);
-                    }}
-                    className="cursor-pointer rounded-full border border-neutral-200 bg-neutral-100 px-5 py-2.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-200"
+            isErpEnabled && catalogStatus === "offline" ? (
+              <div className="mt-8 rounded-3xl border border-amber-200/80 bg-amber-50/70 p-8 text-center sm:p-12 shadow-sm">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                  <WifiOff className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 font-display text-lg font-bold text-neutral-900 sm:text-xl">
+                  Sincronização em atualização
+                </h3>
+                <p className="mx-auto mt-2 max-w-lg text-xs sm:text-sm text-neutral-600">
+                  A comunicação em tempo real com nosso estoque físico está passando por manutenção preventiva.
+                  Por segurança e para evitar informações desatualizadas, consulte nossos atendentes diretamente no WhatsApp.
+                </p>
+                <div className="mt-6 flex items-center justify-center gap-3">
+                  <a
+                    href={waLink(
+                      whatsapp,
+                      "Olá! Gostaria de consultar a lista de iPhones e celulares disponíveis na Lojinha do Celular hoje.",
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-xs sm:text-sm font-semibold text-white transition hover:bg-[#20ba59] shadow-sm"
                   >
-                    Limpar filtros
-                  </button>
-                )}
-                <a
-                  href={waLink(
-                    whatsapp,
-                    search
-                      ? `Olá! Estou procurando por "${search}" na Lojinha do Celular. Vocês têm em estoque ou previsão?`
-                      : "Olá! Gostaria de consultar a disponibilidade de aparelhos na Lojinha do Celular.",
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#20ba59] shadow-sm"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Consultar no WhatsApp</span>
-                </a>
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Consultar estoque no WhatsApp</span>
+                  </a>
+                </div>
               </div>
-            </div>
+            ) : isErpEnabled && catalogStatus === "config_error" ? (
+              <div className="mt-8 rounded-3xl border border-blue-200/80 bg-blue-50/70 p-8 text-center sm:p-12 shadow-sm">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 font-display text-lg font-bold text-neutral-900 sm:text-xl">
+                  Configuração do ERP pendente
+                </h3>
+                <p className="mx-auto mt-2 max-w-lg text-xs sm:text-sm text-neutral-600">
+                  O catálogo está configurado para ler dados do ERP Gestão Celular, mas o identificador da loja (ERP_STORE_SLUG) ainda não foi preenchido no servidor.
+                </p>
+              </div>
+            ) : isErpEnabled && (catalogStatus === "empty" || (allProducts.length === 0 && !search && !selectedCategory)) ? (
+              <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center sm:p-12 shadow-sm">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600">
+                  <PackageOpen className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 font-display text-lg font-bold text-neutral-900 sm:text-xl">
+                  Estoque em renovação
+                </h3>
+                <p className="mx-auto mt-2 max-w-lg text-xs sm:text-sm text-neutral-500">
+                  Todos os aparelhos deste lote já foram vendidos ou reservados. Novos modelos chegam semanalmente em nossas lojas de Jardim e Guia Lopes!
+                </p>
+                <div className="mt-6 flex items-center justify-center gap-3">
+                  <a
+                    href={waLink(
+                      whatsapp,
+                      "Olá! Gostaria de consultar os próximos iPhones que vão chegar na Lojinha do Celular.",
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-xs sm:text-sm font-semibold text-white transition hover:bg-[#20ba59] shadow-sm"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Encomendar no WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center sm:p-12 shadow-sm">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500">
+                  <Search className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 font-display text-lg font-bold text-neutral-900 sm:text-xl">
+                  Nenhum produto encontrado
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-xs sm:text-sm text-neutral-500">
+                  Não encontramos aparelhos com esses critérios. Fale conosco no WhatsApp para consultar novas entradas ou encomendar o seu!
+                </p>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                  {(search || selectedCategory) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setSelectedCategory(undefined);
+                      }}
+                      className="cursor-pointer rounded-full border border-neutral-200 bg-neutral-100 px-5 py-2.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-200"
+                    >
+                      Limpar filtros
+                    </button>
+                  )}
+                  <a
+                    href={waLink(
+                      whatsapp,
+                      search
+                        ? `Olá! Estou procurando por "${search}" na Lojinha do Celular. Vocês têm em estoque ou previsão?`
+                        : "Olá! Gostaria de consultar a disponibilidade de aparelhos na Lojinha do Celular.",
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#20ba59] shadow-sm"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Consultar no WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+            )
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
               {filteredProducts.map((p, i) => (

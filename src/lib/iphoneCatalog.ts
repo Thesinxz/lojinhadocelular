@@ -826,3 +826,52 @@ export const FALLBACK_COLOR_OPTIONS: IphoneColorSpec[] = [
   { name: "Rosa / Roxo", hex: "#b5a7cb" },
   { name: "Outra cor", hex: "#888888" },
 ];
+
+export function detectColorHex(name?: string | null): string | null {
+  if (!name) return null;
+  const n = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  if (!n) return null;
+
+  // Busca no catálogo oficial Apple
+  for (const model of IPHONE_CATALOG) {
+    for (const c of model.colors) {
+      const cNorm = c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (cNorm === n || n.includes(cNorm) || cNorm.includes(n)) {
+        return c.hex;
+      }
+    }
+  }
+
+  // Titânios do iPhone
+  if (n.includes("natural titanium") || n.includes("titanio natural")) return "#bebaa7";
+  if (n.includes("desert titanium") || n.includes("titanio deserto") || n.includes("deserto")) return "#c6aa91";
+  if (n.includes("white titanium") || n.includes("titanio branco")) return "#f2f1ed";
+  if (n.includes("black titanium") || n.includes("titanio preto")) return "#3c3b37";
+  if (n.includes("blue titanium") || n.includes("titanio azul")) return "#3b4453";
+
+  // Cores comuns e da Apple
+  if (n.includes("dourado") || n.includes("gold")) return "#fae7cf";
+  if (n.includes("prateado") || n.includes("silver") || n.includes("prata")) return "#e2e4e1";
+  if (n.includes("grafite") || n.includes("graphite")) return "#545351";
+  if (n.includes("espaco") || n.includes("space gray") || n.includes("cinza espacial")) return "#4b4a4e";
+  if (n.includes("space black") || n.includes("preto espacial")) return "#2e2c2e";
+  if (n.includes("midnight") || n.includes("meia-noite") || n.includes("meia noite")) return "#1b242d";
+  if (n.includes("starlight") || n.includes("estelar")) return "#f0e9d7";
+  if (n.includes("red") || n.includes("vermelho")) return "#e30016";
+  if (n.includes("rosa") || n.includes("pink") || n.includes("rose")) return "#faddd7";
+  if (n.includes("azul") || n.includes("blue") || n.includes("sierra")) return "#a7c1d9";
+  if (n.includes("verde") || n.includes("green") || n.includes("alpine")) return "#475c4d";
+  if (n.includes("roxo") || n.includes("purple") || n.includes("violeta")) return "#63587b";
+  if (n.includes("amarelo") || n.includes("yellow")) return "#f3e08c";
+  if (n.includes("laranja") || n.includes("orange")) return "#ff8c00";
+  if (n.includes("preto") || n.includes("black") || n.includes("dark")) return "#1d1d1f";
+  if (n.includes("branco") || n.includes("white")) return "#f7f7f7";
+  if (n.includes("cinza") || n.includes("gray") || n.includes("grey")) return "#8e8e93";
+
+  return null;
+}

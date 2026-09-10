@@ -57,7 +57,7 @@ describe("Catalog Demo Data", () => {
   });
 
   it("deve processar links de vídeo para players responsivos (YouTube e MP4 direto)", async () => {
-    const { getVideoEmbed } = await import("../src/components/admin/AdminProductEditor");
+    const { getVideoEmbed } = await import("../src/lib/videoEmbed");
     
     // Link completo do YouTube
     const yt1 = getVideoEmbed("https://www.youtube.com/watch?v=dQw4w9WgXcQ");

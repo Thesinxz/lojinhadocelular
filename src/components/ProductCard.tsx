@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
-import { Plus, Flame, BatteryCharging } from "lucide-react";
+import { Plus, Flame, BatteryCharging, Smartphone } from "lucide-react";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
 import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
@@ -27,6 +27,7 @@ export default function ProductCard({
 
   const batteryHealth = product.variants.find((v) => v.batteryHealth)?.batteryHealth;
   const [isLoaded, setIsLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -50,10 +51,10 @@ export default function ProductCard({
     >
       {/* Container da foto com fundo neutro claro e enquadramento destacado */}
       <div className="relative aspect-[4/5] sm:aspect-square w-full overflow-hidden rounded-2xl bg-[#fbfbfd] border border-neutral-100/60 p-3 pt-9 pb-3 flex items-center justify-center">
-        {!isLoaded && rawUrl && (
+        {!isLoaded && rawUrl && !imgError && (
           <div className="absolute inset-0 animate-pulse bg-neutral-100" />
         )}
-        {rawUrl ? (
+        {rawUrl && !imgError ? (
           <img
             ref={imgRef}
             src={optimizedUrl}
@@ -64,18 +65,15 @@ export default function ProductCard({
             fetchPriority={priority ? "high" : "auto"}
             decoding="async"
             onLoad={() => setIsLoaded(true)}
-            onError={(e) => {
-              if (rawUrl && e.currentTarget.src !== rawUrl) {
-                e.currentTarget.src = rawUrl;
-              }
-            }}
+            onError={() => setImgError(true)}
             className={`h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.09)] transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_14px_24px_rgba(0,0,0,0.14)] ${
               isLoaded ? "opacity-100" : "opacity-0"
             }`}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-neutral-400">
-            Sem foto
+          <div className="flex h-full flex-col items-center justify-center text-neutral-300 gap-1 py-4">
+            <Smartphone className="h-10 w-10 text-neutral-300" strokeWidth={1.5} />
+            <span className="text-[11px] text-neutral-400 font-medium">Foto indisponível</span>
           </div>
         )}
 

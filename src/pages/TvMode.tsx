@@ -25,7 +25,7 @@ export default function TvMode() {
   }, [query.data]);
 
   const [index, setIndex] = useState(0);
-  const [colorIndexes, setColorIndexes] = useState<Record<number, number>>({});
+  const [colorIndexes, setColorIndexes] = useState<Record<string | number, number>>({});
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<number | null>(null);
