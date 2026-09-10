@@ -22,6 +22,17 @@ interface LocalEvaluation {
   model: string;
   storage?: string;
   color?: string;
+  purchaseLocation?: string;
+  targetModel?: string;
+  faceId?: string;
+  screenOriginal?: string;
+  batteryOriginal?: string;
+  camerasOk?: string;
+  audioOk?: string;
+  chargingPortOk?: string;
+  openedBefore?: string;
+  hasBox?: string;
+  visualCondition?: string;
   condition: string;
   battery: string;
   notes?: string;
@@ -346,6 +357,16 @@ export default function AdminEvaluations() {
                             Cor: {item.color}
                           </span>
                         )}
+                        {item.targetModel && (
+                          <span className="rounded-md bg-purple-50 border border-purple-200/60 px-2 py-0.5 font-semibold text-purple-800">
+                            🎯 Quer trocar por: {item.targetModel}
+                          </span>
+                        )}
+                        {item.purchaseLocation && (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 font-medium text-neutral-700">
+                            🏬 Comprou em: {item.purchaseLocation}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e6e73]">
@@ -355,7 +376,7 @@ export default function AdminEvaluations() {
                         </span>
                         <span className="inline-flex items-center gap-1 rounded-md bg-[#f5f5f7] px-2 py-0.5">
                           <ShieldCheck className="h-3.5 w-3.5 text-[#0071e3]" />
-                          Estado: <b>{item.condition}</b>
+                          Estado: <b>{item.visualCondition || item.condition}</b>
                         </span>
                         {item.photosCount !== undefined && item.photosCount > 0 && (
                           <span className="rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">
@@ -366,6 +387,52 @@ export default function AdminEvaluations() {
                           {formatDate(item.createdAt)}
                         </span>
                       </div>
+
+                      {/* Mini diagnóstico técnico */}
+                      {(item.faceId || item.screenOriginal || item.batteryOriginal || item.camerasOk) && (
+                        <div className="mt-2 flex flex-wrap gap-1 text-[11px]">
+                          {item.faceId && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Face ID: {item.faceId}
+                            </span>
+                          )}
+                          {item.screenOriginal && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Tela: {item.screenOriginal}
+                            </span>
+                          )}
+                          {item.batteryOriginal && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Bateria orig.: {item.batteryOriginal}
+                            </span>
+                          )}
+                          {item.camerasOk && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Câmeras: {item.camerasOk}
+                            </span>
+                          )}
+                          {item.audioOk && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Áudio: {item.audioOk}
+                            </span>
+                          )}
+                          {item.chargingPortOk && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Conector: {item.chargingPortOk}
+                            </span>
+                          )}
+                          {item.openedBefore && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Já aberto: {item.openedBefore}
+                            </span>
+                          )}
+                          {item.hasBox && (
+                            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
+                              Caixa: {item.hasBox}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {item.notes && (
                         <p className="mt-2 rounded-lg bg-[#f9f9fa] border border-[#f0f0f2] p-2 text-xs text-neutral-600 italic">
