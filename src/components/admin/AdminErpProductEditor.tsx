@@ -24,6 +24,30 @@ interface AdminErpProductEditorProps {
   onSaved: () => void;
 }
 
+function cleanCommercialName(rawName: string): string {
+  let s = rawName
+    .replace(/^Aparelho\s+/i, "")
+    .replace(/^CEL\s+/i, "")
+    .replace(/^APPLE\s+CEL\s+/i, "")
+    .replace(/\s*-\s*Seminovo/i, "")
+    .replace(/\s*-\s*Novo/i, "")
+    .replace(/\s*-\s*Lacrado/i, "")
+    .replace(/\s*\([A-D]\)/gi, "") // remove marcas de grade como (A), (B), (C)
+    .trim();
+
+  // Se começar com número tipo 14 PRO MAX ou 15, adiciona iPhone
+  if (/^(11|12|13|14|15|16|17)\b/i.test(s)) {
+    s = "iPhone " + s;
+  } else if (/^IPHONE\s+/i.test(s)) {
+    s = "iPhone " + s.replace(/^IPHONE\s+/i, "");
+  }
+
+  // Garante GB no armazenamento
+  s = s.replace(/\b(\d{2,3})\b(?!\s*GB|\s*TB)/i, "$1GB");
+
+  return s;
+}
+
 export function AdminErpProductEditor({
   product,
   onClose,
@@ -99,6 +123,14 @@ export function AdminErpProductEditor({
                 <Sparkles className="h-3 w-3" /> Gestão Celular ERP
               </span>
               <span className="text-xs text-neutral-500">ID: {externalId}</span>
+              <a
+                href="https://gestaocelular.com.br"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline ml-1"
+              >
+                Abrir no Gestão Celular ↗
+              </a>
             </div>
             <h2 className="mt-1 text-lg font-bold text-neutral-900 line-clamp-1">
               Editar Vitrine: {product.name}
@@ -237,15 +269,25 @@ export function AdminErpProductEditor({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">
-                Título Exibido na Vitrine
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600">
+                  Título Exibido na Vitrine
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCustomName(cleanCommercialName(product.name))}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition"
+                  title="Formata o nome sem códigos internos ou termos de controle"
+                >
+                  <Sparkles className="h-3 w-3" /> Limpar Nome
+                </button>
+              </div>
               <input
                 type="text"
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                placeholder={product.name}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition"
+                placeholder={cleanCommercialName(product.name)}
+                className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition font-medium"
               />
             </div>
           </div>
