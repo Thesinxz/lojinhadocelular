@@ -12,6 +12,8 @@ import {
   hashPassword,
 } from "./auth";
 import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
+import { env } from "./lib/env";
+import { getErpCatalog } from "./erp/service";
 
 function requireAdmin(req: Request) {
   const token = tokenFromRequest(req);
@@ -80,6 +82,15 @@ export const adminRouter = createRouter({
 
   products: publicQuery.query(async ({ ctx }) => {
     requireAdmin(ctx.req);
+    // Se o ERP estiver ativado, o catálogo oficial vem do ERP
+    if (env.erpCatalogEnabled) {
+      const erp = await getErpCatalog();
+      if (erp.status === "ok") {
+        return erp.products;
+      }
+      return [];
+    }
+
     try {
       const db = getDb();
       await ensureTables();
@@ -89,10 +100,7 @@ export const adminRouter = createRouter({
       });
     } catch (err) {
       console.error("Erro ao consultar produtos admin:", err);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Falha ao carregar produtos do banco de dados.",
-      });
+      return [];
     }
   }),
 

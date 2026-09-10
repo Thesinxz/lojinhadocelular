@@ -19,10 +19,16 @@ export default function Admin() {
     (searchParams.get("tab") as "produtos" | "avaliacoes" | "config") ||
     "produtos";
   const editingRaw = searchParams.get("editing");
-  const editing: number | "novo" | null =
-    editingRaw === "novo" ? "novo" : editingRaw ? Number(editingRaw) : null;
+  const editing: number | string | "novo" | null =
+    editingRaw === "novo"
+      ? "novo"
+      : editingRaw
+        ? Number.isNaN(Number(editingRaw))
+          ? editingRaw
+          : Number(editingRaw)
+        : null;
 
-  function setEditing(val: number | "novo" | null) {
+  function setEditing(val: number | string | "novo" | null) {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -62,6 +68,10 @@ export default function Admin() {
   const products = trpc.admin.products.useQuery(undefined, {
     enabled: !!token,
     retry: 1,
+  });
+
+  const catalogStatusQuery = trpc.shop.catalogStatus.useQuery(undefined, {
+    staleTime: 1000 * 30,
   });
 
   const evaluationsQuery = trpc.admin.evaluations.useQuery(undefined, {
@@ -170,7 +180,7 @@ export default function Admin() {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
         <AdminProductEditor
-          productId={editing === "novo" ? null : editing}
+          productId={typeof editing === "number" ? editing : null}
           onClose={() => {
             setEditing(null);
             utils.admin.products.invalidate();
@@ -266,6 +276,36 @@ export default function Admin() {
         <AdminEvaluations />
       ) : (
         <div className="mt-6">
+          {catalogStatusQuery.data?.erpEnabled && (
+            <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50/80 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 bg-blue-100 rounded-xl text-blue-700 shrink-0">
+                  <RefreshCw className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-blue-950">Catálogo Sincronizado com Gestão Celular ERP</h3>
+                    <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                      🟢 {products.data?.length ?? 0} no ar
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-900/80 mt-1 max-w-2xl leading-relaxed">
+                    O estoque físico, preços e modelos são geridos oficialmente pelo seu sistema <strong>Gestão Celular ERP</strong>.
+                    Assim que um aparelho for vendido no balcão ou zerado no ERP, ele é retirado automaticamente da vitrine.
+                    Para cadastrar novos aparelhos ou alterar preços, utilize o painel do seu ERP.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="https://gestaocelular.com.br"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-semibold shadow-xs transition active:scale-95"
+              >
+                Acessar Gestão Celular ↗
+              </a>
+            </div>
+          )}
 
           <div className="space-y-3">
             {products.isLoading &&
@@ -287,6 +327,8 @@ export default function Admin() {
 
             {(products.data ?? []).map((p) => {
               const price = minPrice(p);
+              const isErpProduct = (p as unknown as { source?: string }).source === "erp";
+
               return (
                 <div
                   key={p.id}
@@ -324,26 +366,44 @@ export default function Admin() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setEditing(p.id)}
-                      className="rounded-xl border border-[#e5e5e7] bg-white p-2.5 text-[#1d1d1f] hover:border-[#0071e3] hover:text-[#0071e3] hover:bg-blue-50/50 transition shadow-2xs"
-                      aria-label="Editar"
-                      title="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Excluir "${p.name}"? Essa ação não pode ser desfeita.`)) {
-                          deleteProduct.mutate({ id: p.id });
-                        }
-                      }}
-                      className="rounded-xl border border-[#e5e5e7] bg-white p-2.5 text-neutral-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition shadow-2xs"
-                      aria-label="Excluir"
-                      title="Excluir"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {isErpProduct ? (
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 text-[11px] font-semibold">
+                          Gerenciado no ERP
+                        </span>
+                        <a
+                          href={`/produto/${p.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-xl border border-[#e5e5e7] bg-white px-3 py-1.5 text-xs font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] transition"
+                        >
+                          Ver na vitrine ↗
+                        </a>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setEditing(p.id)}
+                          className="rounded-xl border border-[#e5e5e7] bg-white p-2.5 text-[#1d1d1f] hover:border-[#0071e3] hover:text-[#0071e3] hover:bg-blue-50/50 transition shadow-2xs"
+                          aria-label="Editar"
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Excluir "${p.name}"? Essa ação não pode ser desfeita.`)) {
+                              deleteProduct.mutate({ id: p.id as number });
+                            }
+                          }}
+                          className="rounded-xl border border-[#e5e5e7] bg-white p-2.5 text-neutral-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition shadow-2xs"
+                          aria-label="Excluir"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
