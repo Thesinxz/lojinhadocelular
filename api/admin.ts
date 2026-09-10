@@ -1,7 +1,7 @@
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables } from "./queries/connection";
-import { products, variants, settings, evaluations } from "../db/schema";
-import { eq, inArray, desc } from "drizzle-orm";
+import { products, variants, evaluations } from "../db/schema";
+import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -11,10 +11,11 @@ import {
   tokenFromRequest,
   hashPassword,
 } from "./auth";
-import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
+import { SETTING_KEYS } from "../contracts/types";
 import { env } from "./lib/env";
 import { getErpCatalog, clearErpCache } from "./erp/service";
 import { getErpOverride, saveErpOverride } from "./erp/overrides";
+import { getAdminSettings, saveSettings } from "./services/settingsStore";
 
 function requireAdmin(req: Request) {
   const token = tokenFromRequest(req);
@@ -71,13 +72,8 @@ export const adminRouter = createRouter({
     .input(z.object({ password: z.string().min(4).max(128) }))
     .mutation(async ({ ctx, input }) => {
       requireAdmin(ctx.req);
-      const db = getDb();
-      await ensureTables();
       const hashedPassword = hashPassword(input.password);
-      await db
-        .insert(settings)
-        .values({ key: SETTING_KEYS.adminPassword, value: hashedPassword })
-        .onDuplicateKeyUpdate({ set: { value: hashedPassword } });
+      await saveSettings({ [SETTING_KEYS.adminPassword]: hashedPassword });
       return { ok: true };
     }),
 
@@ -172,42 +168,14 @@ export const adminRouter = createRouter({
 
   getSettings: publicQuery.query(async ({ ctx }) => {
     requireAdmin(ctx.req);
-    const db = getDb();
-    await ensureTables();
-    // Retorna todas as configurações exceto a senha do admin para proteção
-    const publicAndAdminKeys = Object.values(SETTING_KEYS).filter(
-      (k) => k !== SETTING_KEYS.adminPassword,
-    );
-    const rows = await db
-      .select()
-      .from(settings)
-      .where(inArray(settings.key, publicAndAdminKeys));
-
-    const result: Record<string, string> = {};
-    for (const key of publicAndAdminKeys) {
-      const found = rows.find((r) => r.key === key);
-      result[key] = found?.value ?? DEFAULT_SETTINGS[key] ?? "";
-    }
-    return result;
+    return await getAdminSettings();
   }),
 
   updateSettings: publicQuery
     .input(z.object({ values: z.record(z.string(), z.string()) }))
     .mutation(async ({ ctx, input }) => {
       requireAdmin(ctx.req);
-      const db = getDb();
-      await ensureTables();
-      const allowed = new Set<string>(
-        Object.values(SETTING_KEYS).filter((k) => k !== SETTING_KEYS.adminPassword),
-      );
-      for (const [key, value] of Object.entries(input.values)) {
-        if (!allowed.has(key)) continue;
-        await db
-          .insert(settings)
-          .values({ key, value })
-          .onDuplicateKeyUpdate({ set: { value } });
-      }
-      return { ok: true };
+      return await saveSettings(input.values);
     }),
 
   evaluations: publicQuery.query(async ({ ctx }) => {

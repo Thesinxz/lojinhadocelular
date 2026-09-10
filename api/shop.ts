@@ -1,12 +1,13 @@
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables } from "./queries/connection";
-import { products, settings, evaluations } from "../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { products, evaluations } from "../db/schema";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
+import { SETTING_KEYS } from "../contracts/types";
 import { env } from "./lib/env";
 import { getErpCatalog } from "./erp/service";
+import { getShopPublicSettings } from "./services/settingsStore";
 
 const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.whatsappJardim,
@@ -250,28 +251,7 @@ export const shopRouter = createRouter({
 
   // Configurações públicas da loja consultadas em batch único
   settings: publicQuery.query(async () => {
-    try {
-      const db = getDb();
-      await ensureTables();
-      const rows = await db
-        .select()
-        .from(settings)
-        .where(inArray(settings.key, [...PUBLIC_SETTING_KEYS]));
-
-      const result: Record<string, string> = {};
-      for (const key of PUBLIC_SETTING_KEYS) {
-        const found = rows.find((r) => r.key === key);
-        result[key] = found?.value ?? DEFAULT_SETTINGS[key] ?? "";
-      }
-      return result;
-    } catch (err) {
-      console.error("Erro ao consultar settings públicas:", err);
-      const fallback: Record<string, string> = {};
-      for (const key of PUBLIC_SETTING_KEYS) {
-        fallback[key] = DEFAULT_SETTINGS[key] ?? "";
-      }
-      return fallback;
-    }
+    return await getShopPublicSettings(PUBLIC_SETTING_KEYS);
   }),
 
   // Envio de proposta de avaliação de aparelho

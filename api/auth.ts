@@ -1,8 +1,6 @@
 import { createHmac, timingSafeEqual, randomBytes, scryptSync } from "node:crypto";
-import { getDb } from "./queries/connection";
-import { settings } from "../db/schema";
-import { eq } from "drizzle-orm";
 import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
+import { getSingleSetting } from "./services/settingsStore";
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 dias
 
@@ -41,14 +39,7 @@ export function verifyPasswordHash(plain: string, stored: string): boolean {
 }
 
 export async function getSetting(key: string): Promise<string> {
-  try {
-    const db = getDb();
-    const rows = await db.select().from(settings).where(eq(settings.key, key));
-    if (rows.length > 0 && rows[0].value != null) return rows[0].value;
-  } catch {
-    // Se o banco não estiver disponível, usa as configurações padrão
-  }
-  return DEFAULT_SETTINGS[key] ?? "";
+  return await getSingleSetting(key);
 }
 
 export async function checkPassword(password: string): Promise<boolean> {

@@ -34,6 +34,7 @@ npm-cache
 *.sqlite
 *.sqlite3
 db/migrations/*.sql
+db/*.json
 # TypeScript cache
 *.tsbuildinfo
 # Build outputs

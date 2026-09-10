@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, KeyRound, CreditCard, ShieldCheck } from "lucide-react";
+import { Save, KeyRound, CreditCard, ShieldCheck, Check, AlertCircle, Loader2 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { SETTING_KEYS, parseFees } from "@contracts/types";
 
@@ -10,14 +10,19 @@ export default function AdminSettings() {
   const [fees, setFees] = useState<Record<string, string>>({});
   const [heroText, setHeroText] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
   const update = trpc.admin.updateSettings.useMutation({
     onSuccess: () => {
       utils.admin.getSettings.invalidate();
       utils.shop.settings.invalidate();
+      setSaveError(null);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: (err) => {
+      setSaveError(err.message || "Erro ao salvar configurações");
     },
   });
 
@@ -26,10 +31,13 @@ export default function AdminSettings() {
       setNewPassword("");
       alert("Senha alterada com sucesso!");
     },
+    onError: (err) => {
+      alert(`Erro ao alterar senha: ${err.message || "Erro desconhecido"}`);
+    },
   });
 
   useEffect(() => {
-    if (query.data) {
+    if (query.data && Object.keys(values).length === 0) {
       setValues(query.data);
       const parsed = parseFees(query.data[SETTING_KEYS.installmentFees]);
       setFees(
@@ -44,7 +52,7 @@ export default function AdminSettings() {
         setHeroText("");
       }
     }
-  }, [query.data]);
+  }, [query.data, values]);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [key]: e.target.value }));
@@ -241,11 +249,24 @@ export default function AdminSettings() {
           });
         }}
         disabled={update.isPending}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
       >
-        <Save className="h-4 w-4" />
-        {update.isPending ? "Salvando..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
+        {update.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : saved ? (
+          <Check className="h-4 w-4 text-emerald-400" />
+        ) : (
+          <Save className="h-4 w-4" />
+        )}
+        {update.isPending ? "Salvando configurações..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
       </button>
+
+      {saveError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          <span>{saveError}</span>
+        </div>
+      )}
 
       {/* Senha */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
