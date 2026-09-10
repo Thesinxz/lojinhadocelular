@@ -57,6 +57,13 @@ export function serveStaticFiles(app: App) {
         "Confira iPhones lacrados e seminovos dos EUA com até 1 ano de garantia, bateria revisada e pronta entrega em Jardim e Guia Lopes da Laguna. Compre direto pelo WhatsApp!";
       img = `${origin}/images/og-banner.png`;
     }
+    // ROTA DE AVALIAÇÃO / TROCA FÁCIL
+    else if (pathname.startsWith("/avaliacao") || pathname.startsWith("/troca") || host.includes("trocafacil")) {
+      title = "Troca Fácil de iPhone — Lojinha do Celular";
+      desc =
+        "Venda ou troque seu iPhone com segurança. Receba uma pré-avaliação rápida da equipe Lojinha do Celular em Jardim-MS.";
+      img = `${origin}/images/og-banner.png`;
+    }
     // ROTA DE PRODUTO ESPECÍFICO (/produto/:id)
     else if (pathname.match(/^\/produto\/(\d+)/)) {
       const match = pathname.match(/^\/produto\/(\d+)/);

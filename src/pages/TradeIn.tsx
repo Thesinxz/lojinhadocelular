@@ -54,7 +54,7 @@ const TARGET_IPHONE_MODELS = [
 ];
 
 const PURCHASE_ORIGIN_OPTIONS = [
-  { id: "BLK STORE", label: "BLK STORE", desc: "Comprado com a nossa equipe" },
+  { id: "Lojinha do Celular", label: "Lojinha do Celular", desc: "Comprado com a nossa equipe" },
   { id: "Outra loja física da cidade", label: "Outra loja física da cidade", desc: "" },
   {
     id: "Loja de departamento / Marketplace",
@@ -294,7 +294,7 @@ export default function TradeIn() {
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
 
     const summaryText = [
-      "📱 *Nova Solicitação de Avaliação - Troca Fácil BLK*",
+      "📱 *Nova Solicitação de Avaliação - Troca Fácil Lojinha do Celular*",
       "",
       `👤 *Cliente:* ${data.name.trim()}`,
       `📞 *WhatsApp:* ${data.whatsapp.trim()}`,
@@ -318,7 +318,7 @@ export default function TradeIn() {
       `📸 *Fotos anexadas:* ${filledPhotosCount} de 5 selecionadas`,
       data.notes ? `📝 *Obs:* ${data.notes}` : "",
       "",
-      "Enviado pelo sistema Troca Fácil BLK.",
+      "Enviado pelo site https://lojinhadocelular.com",
     ]
       .filter(Boolean)
       .join("\n");
@@ -369,15 +369,15 @@ export default function TradeIn() {
     return (
       <main className="min-h-[100dvh] bg-[#fbfbfd] px-4 py-8 text-[#1d1d1f] sm:py-16">
         <SEO
-          title="Avaliação enviada | Troca Fácil BLK"
-          description="Sua solicitação de pré-avaliação foi enviada com sucesso para a equipe BLK STORE."
+          title="Avaliação enviada | Troca Fácil Lojinha do Celular"
+          description="Sua solicitação de pré-avaliação foi enviada com sucesso para a equipe da Lojinha do Celular."
         />
         <div className="mx-auto flex min-h-[75dvh] w-full max-w-[500px] flex-col items-center justify-center text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 animate-scaleIn">
             <Check className="h-10 w-10 stroke-[2.5]" />
           </div>
           <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-[#86868b]">
-            TROCA FÁCIL BLK
+            TROCA FÁCIL LOJINHA DO CELULAR
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#1d1d1f] sm:text-4xl">
             Proposta enviada com sucesso!
@@ -399,7 +399,7 @@ export default function TradeIn() {
               <RotateCcw className="h-4 w-4" /> Nova avaliação
             </button>
             <a
-              href={isTrocaFacilDomain ? "https://blkstore.com.br" : "/"}
+              href={isTrocaFacilDomain ? "https://lojinhadocelular.com" : "/"}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-black shadow-sm"
             >
               Ver produtos disponíveis <ArrowRight className="h-4 w-4" />
@@ -417,8 +417,8 @@ export default function TradeIn() {
   return (
     <main className="min-h-[100dvh] overflow-x-hidden bg-[#fbfbfd] text-[#1d1d1f]">
       <SEO
-        title="Troca Fácil BLK | Avaliação de iPhone com Segurança"
-        description="Receba uma pré-avaliação rápida e transparente para vender ou trocar seu iPhone na BLK STORE."
+        title="Troca Fácil | Avaliação de iPhone com Segurança — Lojinha do Celular"
+        description="Receba uma pré-avaliação rápida e transparente para vender ou trocar seu iPhone na Lojinha do Celular."
       />
 
       {/* Barra de Progresso Fina no Topo */}
@@ -433,12 +433,17 @@ export default function TradeIn() {
         {/* Header Compacto */}
         <header className="flex items-center justify-between pb-4">
           <div className="flex items-center gap-2">
-            <span className="font-display text-xs font-bold tracking-[0.25em] text-[#86868b] uppercase">
-              TROCA FÁCIL BLK
+            <img
+              src="/images/logo-icon.png"
+              alt="Lojinha do Celular"
+              className="h-7 w-auto object-contain"
+            />
+            <span className="font-display text-xs font-bold tracking-[0.2em] text-[#1d1d1f] uppercase">
+              TROCA FÁCIL
             </span>
           </div>
           <a
-            href={isTrocaFacilDomain ? "https://blkstore.com.br" : "/"}
+            href={isTrocaFacilDomain ? "https://lojinhadocelular.com" : "/"}
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#86868b] transition hover:text-[#1d1d1f]"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar para loja
@@ -457,7 +462,7 @@ export default function TradeIn() {
                   Venda ou troque seu iPhone <span className="text-[#0071e3]">com segurança</span>
                 </h1>
                 <p className="mt-2 text-sm leading-relaxed text-[#6e6e73]">
-                  Receba uma pré-avaliação rápida da equipe BLK STORE e descubra quanto o seu aparelho
+                  Receba uma pré-avaliação rápida da equipe Lojinha do Celular e descubra quanto o seu aparelho
                   pode valer hoje.
                 </p>
               </div>
@@ -1195,7 +1200,7 @@ export default function TradeIn() {
                   onClick={submitEvaluation}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
                 >
-                  <CheckCircle2 className="h-4 w-4" /> Enviar para avaliação BLK
+                  <CheckCircle2 className="h-4 w-4" /> Enviar para avaliação
                 </button>
               </div>
             </div>
