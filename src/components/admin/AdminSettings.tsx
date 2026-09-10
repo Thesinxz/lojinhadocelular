@@ -139,17 +139,38 @@ export default function AdminSettings() {
           <ShieldCheck className="h-5 w-5 text-emerald-600" /> Mensagem de Garantia & Confiança
         </h3>
         <p className="mt-1 text-xs text-[#86868b]">
-          Texto exibido no box informativo abaixo dos detalhes de cada aparelho na página do produto.
+          Texto exibido no selo de garantia do carrinho de compras e no box de detalhes de cada aparelho.
         </p>
-        <div className="mt-4">
-          <Field label="Texto de Garantia, Nota Fiscal e Entrega">
+        <div className="mt-4 space-y-3">
+          <Field label="Texto de Garantia, Nota Fiscal e Procedência">
             <input
               value={values[SETTING_KEYS.warrantyBadgeText] ?? ""}
               onChange={set(SETTING_KEYS.warrantyBadgeText)}
               className={inputCls}
-              placeholder="Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região."
+              placeholder="Garantia de 1 ano com nota fiscal e procedência."
             />
           </Field>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[11px] font-semibold text-[#86868b]">Sugestões rápidas:</span>
+            {[
+              "Garantia de 1 ano com nota fiscal e procedência.",
+              "Garantia com nota fiscal e procedência verificada.",
+              "1 ano para lacrados e 6 meses para seminovos.",
+              "Garantia de 6 meses com nota fiscal e procedência.",
+              "Garantia de 3 meses com nota fiscal e procedência.",
+            ].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() =>
+                  setValues((v) => ({ ...v, [SETTING_KEYS.warrantyBadgeText]: preset }))
+                }
+                className="rounded-lg border border-[#e5e5e7] bg-[#f5f5f7] hover:bg-[#e5e5e7] px-2.5 py-1 text-[11px] font-medium text-[#1d1d1f] transition cursor-pointer"
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -29,11 +29,11 @@ export default function Footer() {
               </div>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-neutral-500">
-              iPhones, Apple Watch, iPad e acessórios — Lacrados e Seminovos, com 1 ano de garantia e procedência verificada.
+              iPhones, Apple Watch, iPad e acessórios — Lacrados e Seminovos, com garantia e procedência verificada.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium text-neutral-700">
               <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1">
-                🛡️ 1 Ano de Garantia
+                🛡️ Garantia & Procedência
               </span>
               <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1">
                 🇺🇸 Importados EUA

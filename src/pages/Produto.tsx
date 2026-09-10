@@ -777,7 +777,7 @@ export default function Produto() {
               {/* Nota de Procedência & Confiança */}
               <div className="mt-5 flex items-center gap-2.5 rounded-2xl bg-neutral-50 border border-neutral-100 p-3.5 text-xs text-neutral-600">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>{s.warrantyBadgeText || "Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região."}</span>
+                <span>{s.warrantyBadgeText || "Garantia com nota fiscal e procedência verificada."}</span>
               </div>
             </div>
           </div>

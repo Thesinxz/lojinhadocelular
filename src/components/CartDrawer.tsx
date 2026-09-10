@@ -99,7 +99,7 @@ export default function CartDrawer() {
               Sua sacola está vazia
             </h3>
             <p className="mt-1 text-xs text-neutral-500 max-w-xs leading-relaxed">
-              Explore nossos iPhones seminovos e lacrados com 1 ano de garantia e adicione seu próximo aparelho!
+              Explore nossos iPhones seminovos e lacrados com procedência garantida e adicione seu próximo aparelho!
             </p>
             <a
               href="/#vitrine"
@@ -214,7 +214,7 @@ export default function CartDrawer() {
               <div className="space-y-2 pt-2">
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-xs text-emerald-800 font-medium">
                   <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Garantia de 1 ano com nota fiscal e procedência.</span>
+                  <span>{s.warrantyBadgeText || "Garantia com nota fiscal e procedência."}</span>
                 </div>
                 <div className="flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-100 p-2.5 text-xs text-blue-800 font-medium">
                   <Gift className="h-4 w-4 text-blue-600 shrink-0" />

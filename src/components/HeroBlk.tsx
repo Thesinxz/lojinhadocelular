@@ -64,7 +64,7 @@ export default function HeroBlk() {
           Seu próximo iPhone é aqui na Lojinha.
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-base text-white/90 sm:text-lg md:text-xl drop-shadow-sm font-medium">
-          iPhones lacrados e seminovos com 1 ano de garantia, pronta entrega e
+          iPhones lacrados e seminovos com garantia e procedência, pronta entrega e
           assistência técnica em Jardim e Guia Lopes.
         </p>
 

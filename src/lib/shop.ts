@@ -34,7 +34,7 @@ export function useShopSettings() {
     heroImages,
     warrantyBadgeText:
       s[SETTING_KEYS.warrantyBadgeText] ||
-      "Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região.",
+      "Garantia com nota fiscal e procedência verificada.",
   };
 }
 

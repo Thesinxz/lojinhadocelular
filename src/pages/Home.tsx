@@ -126,7 +126,7 @@ export default function Home() {
                 Vitrine de Produtos
               </h2>
               <p className="text-xs text-neutral-500 sm:text-sm">
-                Aparelhos selecionados à pronta entrega com 1 ano de garantia e procedência verificada.
+                Aparelhos selecionados à pronta entrega com garantia e procedência verificada.
               </p>
             </div>
             <span className="text-xs text-neutral-400 font-medium">
