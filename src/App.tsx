@@ -32,8 +32,15 @@ function ScrollToHash() {
 export default function App() {
   const location = useLocation();
   const isTv = location.pathname.startsWith("/tv");
+  const isAdmin = location.pathname.startsWith("/admin");
+  const isTrocaFacilDomain =
+    typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
   const isTradeIn =
-    location.pathname === "/avaliacao" || location.pathname === "/troca";
+    !isAdmin &&
+    !isTv &&
+    (isTrocaFacilDomain ||
+      location.pathname === "/avaliacao" ||
+      location.pathname === "/troca");
 
   if (isTv) {
     return (
@@ -57,6 +64,7 @@ export default function App() {
       <Routes>
         <Route path="/avaliacao" element={<TradeIn />} />
         <Route path="/troca" element={<TradeIn />} />
+        {isTrocaFacilDomain && <Route path="*" element={<TradeIn />} />}
       </Routes>
     );
   }
