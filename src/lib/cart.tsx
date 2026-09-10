@@ -1,19 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
+import {
+  formatCommercialProductName,
+  formatCommercialSku,
+  formatUnitName,
+  type CartItem,
+} from "./commercialFormatting";
 
-export interface CartItem {
-  id: string; // chave única: `${productId}-${variantId || color}-${storage}`
-  productId: number | string;
-  variantId?: number | string;
-  name: string;
-  color: string;
-  storage: string;
-  condition: string; // "Seminovo" | "Lacrado"
-  sku: string; // Ex: "B2700"
-  price: number; // em centavos (ex: 339000 para R$ 3.390,00)
-  imageUrl: string;
-  quantity: number;
-}
+export type { CartItem };
 
 interface CartContextType {
   items: CartItem[];
@@ -68,8 +62,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback(
     (newItem: Omit<CartItem, "quantity">, qty = 1) => {
+      const sanitizedItem: Omit<CartItem, "quantity"> = {
+        ...newItem,
+        name: newItem.name.trim(),
+        sku: formatCommercialSku(newItem.sku),
+      };
       setItems((prev) => {
-        const existingIndex = prev.findIndex((i) => i.id === newItem.id);
+        const existingIndex = prev.findIndex((i) => i.id === sanitizedItem.id);
         if (existingIndex >= 0) {
           const updated = [...prev];
           updated[existingIndex] = {
@@ -78,7 +77,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           };
           return updated;
         }
-        return [...prev, { ...newItem, quantity: Math.max(1, qty) }];
+        return [...prev, { ...sanitizedItem, quantity: Math.max(1, qty) }];
       });
       setIsOpen(true);
     },
@@ -123,7 +122,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       storeName?: string;
     }) => {
       const storeName = options?.storeName || "Lojinha do Celular";
-      const unitName = options?.unitName || "Unidade Jardim - MS";
+      const unitName = options?.unitName || "Jardim - MS";
       const maxInstallments = options?.installmentsMax || 12;
       const fees = options?.fees || {};
 
@@ -139,23 +138,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       items.forEach((item, index) => {
         const num = index + 1;
-        const colorPart = item.color ? ` - ${item.color}` : "";
-        const storagePart = item.storage && item.storage !== "Padrão" ? ` ${item.storage}` : "";
+        const formattedTitle = formatCommercialProductName(
+          item.name,
+          item.color,
+          item.storage,
+        );
+        const formattedSku = formatCommercialSku(item.sku);
         const condPart = item.condition ? ` (${item.condition})` : "";
-        const skuPart = item.sku ? ` — cód. ${item.sku}` : "";
+        const skuPart = formattedSku ? ` — cód. ${formattedSku}` : "";
         const qtyPart = item.quantity > 1 ? ` [x${item.quantity}]` : "";
 
-        lines.push(`${num}. *${item.name}${colorPart}${storagePart}*${condPart}${skuPart}${qtyPart}`);
+        lines.push(`${num}. *${formattedTitle}*${condPart}${skuPart}${qtyPart}`);
         lines.push(`Pix: ${formatBRL(item.price * item.quantity)}`);
         lines.push(``);
       });
 
       lines.push(`*Total no Pix: ${formatBRL(totalPix)}*`);
       if (installment12 > 0) {
-        lines.push(`ou em até ${maxInstallments}x de ${formatBRL(installment12)} no cartão`);
+        lines.push(`ou até ${maxInstallments}x de ${formatBRL(installment12)} no cartão`);
       }
       lines.push(``);
-      lines.push(`📍 Unidade: ${unitName}`);
+      lines.push(`📍 Unidade: ${formatUnitName(unitName)}`);
       lines.push(`Pode confirmar disponibilidade e a entrega? 📦`);
 
       return lines.join("\n");

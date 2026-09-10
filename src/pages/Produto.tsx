@@ -21,6 +21,10 @@ import { resolveProductImage } from "@/lib/iphoneCatalog";
 import { getVideoEmbed } from "@/components/admin/AdminProductEditor";
 import { useCart } from "@/lib/cart";
 import { WhatsAppIcon } from "@/components/WhatsAppModal";
+import {
+  formatCommercialProductName,
+  formatCommercialSku,
+} from "@/lib/commercialFormatting";
 import SEO from "@/components/SEO";
 
 type Variant = ProductWithVariants["variants"][number];
@@ -220,17 +224,16 @@ export default function Produto() {
     typeof product?.id === "number"
       ? `B${product.id + 1600}`
       : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
-  const displaySku = selected?.sku || productCode;
+  const displaySku = formatCommercialSku(selected?.sku || productCode);
+  const cleanTitle = formatCommercialProductName(product?.name || "", color, storage);
 
   const buyMessage =
     product && price != null
-      ? `*Olá, Lojinha do Celular!* 📱\nQuero fechar este pedido pelo site:\n\n1. *${product.name}${
-          color ? ` - ${color}` : ""
-        }${storage && storage !== "Padrão" ? ` ${storage}` : ""}* (${conditionLabel}) — cód. ${displaySku}\nPix: ${formattedPrice}\n\n*Total no Pix: ${formattedPrice}*\n${
+      ? `*Olá, Lojinha do Celular!* 📱\nQuero fechar este pedido pelo site:\n\n1. *${cleanTitle}* (${conditionLabel}) — cód. ${displaySku}\nPix: ${formattedPrice}\n\n*Total no Pix: ${formattedPrice}*\n${
           installment12
-            ? `ou em até 12x de ${formatBRL(installment12)} no cartão\n\n`
+            ? `ou até 12x de ${formatBRL(installment12)} no cartão\n\n`
             : "\n"
-        }Pode confirmar disponibilidade e a entrega? 📦`
+        }📍 Unidade: Jardim - MS\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
 
   const prodTitle = product

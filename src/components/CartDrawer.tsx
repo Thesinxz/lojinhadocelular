@@ -4,6 +4,10 @@ import { useCart } from "@/lib/cart";
 import { useShopSettings, waLink, optimizeImageUrl } from "@/lib/shop";
 import { formatBRL, installmentFromFees } from "@contracts/types";
 import { WhatsAppIcon } from "./WhatsAppModal";
+import {
+  formatCommercialProductName,
+  formatCommercialSku,
+} from "@/lib/commercialFormatting";
 
 export default function CartDrawer() {
   const {
@@ -27,8 +31,8 @@ export default function CartDrawer() {
 
   const unitName =
     selectedUnit === "jardim"
-      ? "Unidade Jardim - MS"
-      : "Unidade Guia Lopes da Laguna";
+      ? "Jardim - MS"
+      : "Guia Lopes da Laguna";
 
   const installmentsMax = Math.min(s.installmentsMax || 12, 12);
   const fee12 = s.fees[String(installmentsMax)] ?? s.fees["12"] ?? 0;
@@ -134,7 +138,7 @@ export default function CartDrawer() {
                       <div>
                         <div className="flex items-start justify-between gap-1">
                           <h4 className="font-display text-sm font-bold text-neutral-900 line-clamp-1 leading-snug">
-                            {item.name}
+                            {formatCommercialProductName(item.name, item.color, item.storage)}
                           </h4>
                           <button
                             type="button"
@@ -162,7 +166,7 @@ export default function CartDrawer() {
                           )}
                           {item.sku && (
                             <span className="font-mono text-[10px] text-neutral-400">
-                              (cód. {item.sku})
+                              (cód. {formatCommercialSku(item.sku)})
                             </span>
                           )}
                         </div>

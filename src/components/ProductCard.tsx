@@ -6,6 +6,7 @@ import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types"
 import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
 import { useCart } from "@/lib/cart";
+import { formatCommercialSku } from "@/lib/commercialFormatting";
 
 export default function ProductCard({
   product,
@@ -65,7 +66,7 @@ export default function ProductCard({
         ? `B${product.id + 1600}`
         : `B${String(product.id || "1000").slice(0, 8).toUpperCase()}`;
 
-    const sku = defaultVariant?.sku || productCode;
+    const sku = formatCommercialSku(defaultVariant?.sku || productCode);
     const cartItemId = `${product.id}-${defaultVariant?.id ?? "default"}-${defaultVariant?.storage ?? "default"}`;
 
     addItem({
