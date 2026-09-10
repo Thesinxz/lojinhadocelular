@@ -1,17 +1,18 @@
-import { useState, useMemo, type ChangeEvent, type ReactNode } from "react";
+import { useState, useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   Camera,
   Check,
-  FileImage,
   Phone,
   ShieldCheck,
   Smartphone,
   Sparkles,
   UserRound,
+  X,
+  RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
-import { Link } from "react-router";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink } from "@/lib/shop";
 import { trpc } from "@/providers/trpc";
@@ -24,40 +25,114 @@ import {
   FALLBACK_COLOR_OPTIONS,
 } from "@/lib/iphoneCatalog";
 
-
-const STEPS = ["Você", "Aparelho", "Estado", "Fotos"];
-const CONDITION_OPTIONS = [
-  "Novo ou sem marcas",
-  "Bem conservado",
-  "Com marcas de uso",
-  "Precisa de reparos",
+// Modelos alvo para troca
+const TARGET_IPHONE_MODELS = [
+  "iPhone 17 Pro Max",
+  "iPhone 17 Pro",
+  "iPhone 17",
+  "iPhone Air",
+  "iPhone 17e",
+  "iPhone 16 Pro Max",
+  "iPhone 16 Pro",
+  "iPhone 16 Plus",
+  "iPhone 16",
+  "iPhone 16e",
+  "iPhone 15 Pro Max",
+  "iPhone 15 Pro",
+  "iPhone 15 Plus",
+  "iPhone 15",
+  "iPhone 14 Pro Max",
+  "iPhone 14 Pro",
+  "iPhone 14 Plus",
+  "iPhone 14",
+  "iPhone 13 Pro Max",
+  "iPhone 13 Pro",
+  "iPhone 13",
+  "iPhone 12 Pro Max",
+  "iPhone 12",
+  "iPhone 11",
 ];
-const BATTERY_OPTIONS = [
-  "90% a 100%",
-  "80% a 89%",
-  "Abaixo de 80%",
-  "Não sei informar",
+
+const PURCHASE_ORIGIN_OPTIONS = [
+  { id: "BLK STORE", label: "BLK STORE", desc: "Comprado com a nossa equipe" },
+  { id: "Outra loja física da cidade", label: "Outra loja física da cidade", desc: "" },
+  {
+    id: "Loja de departamento / Marketplace",
+    label: "Loja de departamento / Marketplace",
+    desc: "Ex.: Mercado Livre, Amazon, Shopee, Magazine Luiza, etc.",
+  },
+  { id: "Outro", label: "Outro", desc: "" },
 ];
 
-type Evaluation = {
+const SIMPLE_TRI_OPTIONS = ["Sim", "Não", "Não sei"];
+
+const VISUAL_CONDITION_OPTIONS = [
+  "Parece novo, sem marcas",
+  "Pouquíssimas marcas de uso",
+  "Marcas normais do dia a dia",
+  "Riscos ou amassados visíveis",
+  "Tela ou tampa com trinco",
+];
+
+type PhotoSlotKey = "front" | "back" | "sides" | "battery" | "screen";
+
+interface PhotoSlot {
+  key: PhotoSlotKey;
+  label: string;
+  required: boolean;
+  file?: File;
+  previewUrl?: string;
+}
+
+const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
+  { key: "front", label: "Foto da frente", required: true },
+  { key: "back", label: "Foto da traseira", required: true },
+  { key: "sides", label: "Foto das laterais (opcional)", required: false },
+  { key: "battery", label: "Foto da saúde da bateria (opcional)", required: false },
+  { key: "screen", label: "Foto da tela ligada (opcional)", required: false },
+];
+
+type EvaluationData = {
   name: string;
   whatsapp: string;
   model: string;
   storage: string;
   color: string;
-  condition: string;
-  battery: string;
+  purchaseLocation: string;
+  batteryPercent: number;
+  batteryUnknown: boolean;
+  targetModel: string;
+  faceId: string;
+  screenOriginal: string;
+  batteryOriginal: string;
+  camerasOk: string;
+  audioOk: string;
+  chargingPortOk: string;
+  openedBefore: string;
+  hasBox: string;
+  visualCondition: string;
   notes: string;
 };
 
-const INITIAL_EVALUATION: Evaluation = {
+const INITIAL_EVALUATION: EvaluationData = {
   name: "",
   whatsapp: "",
   model: "",
   storage: "",
   color: "",
-  condition: "",
-  battery: "",
+  purchaseLocation: "",
+  batteryPercent: 90,
+  batteryUnknown: false,
+  targetModel: "",
+  faceId: "",
+  screenOriginal: "",
+  batteryOriginal: "",
+  camerasOk: "",
+  audioOk: "",
+  chargingPortOk: "",
+  openedBefore: "",
+  hasBox: "",
+  visualCondition: "",
   notes: "",
 };
 
@@ -70,48 +145,26 @@ function formatPhoneInput(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
-function ChoiceButton({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-4 text-left text-sm font-semibold transition-all duration-200 ${
-        selected
-          ? "border-[#0071e3] bg-[#0071e3]/8 text-[#0071e3] ring-2 ring-[#0071e3]/20 shadow-xs"
-          : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
-      }`}
-    >
-      <span>{label}</span>
-      {selected && <Check className="h-4 w-4 shrink-0 text-[#0071e3]" />}
-    </button>
-  );
-}
-
 export default function TradeIn() {
   const settings = useShopSettings();
   const submitMutation = trpc.shop.submitEvaluation.useMutation();
   const [step, setStep] = useState(0);
-  const [evaluation, setEvaluation] = useState(INITIAL_EVALUATION);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [data, setData] = useState<EvaluationData>(INITIAL_EVALUATION);
+  const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
 
-  const detectedModel = useMemo(
-    () => detectIphoneModel(evaluation.model),
-    [evaluation.model]
-  );
+  const fileInputRefs = useRef<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>({});
+
+  const isTrocaFacilDomain =
+    typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
+
+  const detectedModel = useMemo(() => detectIphoneModel(data.model), [data.model]);
 
   const previewImage = useMemo(
-    () => getIphoneModelColorImage(detectedModel, evaluation.color),
-    [detectedModel, evaluation.color]
+    () => getIphoneModelColorImage(detectedModel, data.color),
+    [detectedModel, data.color]
   );
 
   const storageOptions = useMemo(() => {
@@ -131,9 +184,12 @@ export default function TradeIn() {
     return FALLBACK_COLOR_OPTIONS;
   }, [detectedModel]);
 
-  function updateField(field: keyof Evaluation, value: string) {
-    const finalValue = field === "whatsapp" ? formatPhoneInput(value) : value;
-    setEvaluation(current => ({ ...current, [field]: finalValue }));
+  function updateField<K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) {
+    const finalValue =
+      field === "whatsapp" && typeof value === "string"
+        ? (formatPhoneInput(value) as EvaluationData[K])
+        : value;
+    setData(curr => ({ ...curr, [field]: finalValue }));
     setError("");
   }
 
@@ -142,7 +198,7 @@ export default function TradeIn() {
     const found = detectIphoneModel(popName);
     if (found && found.colors.length > 0) {
       const hasCurrent = found.colors.some(
-        c => c.name.toLowerCase() === evaluation.color.toLowerCase()
+        c => c.name.toLowerCase() === data.color.toLowerCase()
       );
       if (!hasCurrent) {
         updateField("color", found.colors[0].name);
@@ -150,278 +206,363 @@ export default function TradeIn() {
     }
   }
 
-  function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    setPhotos(files.map(file => file.name));
+  // Avanço automático com micro feedback tátil
+  function autoAdvance<K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) {
+    updateField(field, value);
+    setAnimatingSelection(String(value));
+    setTimeout(() => {
+      setAnimatingSelection(null);
+      setStep(curr => curr + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 180);
   }
 
-  function nextStep() {
-    if (step === 0) {
-      if (!evaluation.name.trim())
-        return setError("Digite seu primeiro nome para continuar.");
-      if (evaluation.whatsapp.replace(/\D/g, "").length < 10) {
-        return setError("Digite um WhatsApp válido para receber a proposta.");
-      }
-    }
-    if (step === 1 && !evaluation.model.trim())
-      return setError("Informe o modelo do seu aparelho.");
-    if (step === 2 && (!evaluation.condition || !evaluation.battery)) {
-      return setError("Responda as duas perguntas para continuar.");
-    }
+  function handlePhotoUpload(key: PhotoSlotKey, e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    setPhotoSlots(prev =>
+      prev.map(slot => (slot.key === key ? { ...slot, file, previewUrl } : slot))
+    );
+  }
 
+  function removePhoto(key: PhotoSlotKey) {
+    setPhotoSlots(prev =>
+      prev.map(slot => {
+        if (slot.key === key) {
+          if (slot.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+          return { ...slot, file: undefined, previewUrl: undefined };
+        }
+        return slot;
+      })
+    );
+  }
+
+  const filledPhotosCount = useMemo(
+    () => photoSlots.filter(s => Boolean(s.file || s.previewUrl)).length,
+    [photoSlots]
+  );
+
+  // Validação por etapa
+  function validateCurrentStep(): boolean {
     setError("");
-    setStep(current => Math.min(current + 1, STEPS.length - 1));
+    if (step === 0) {
+      if (!data.name.trim()) {
+        setError("Digite seu primeiro nome para continuar.");
+        return false;
+      }
+      if (data.whatsapp.replace(/\D/g, "").length < 10) {
+        setError("Digite um WhatsApp válido com DDD.");
+        return false;
+      }
+    } else if (step === 1) {
+      if (!data.model.trim()) {
+        setError("Selecione ou digite o modelo do seu iPhone.");
+        return false;
+      }
+    } else if (step === 2) {
+      if (!data.purchaseLocation) {
+        setError("Selecione onde comprou o aparelho.");
+        return false;
+      }
+    } else if (step === 4) {
+      if (!data.targetModel) {
+        setError("Selecione o modelo que deseja ou escolha apenas vender.");
+        return false;
+      }
+    } else if (step === 14) {
+      // Fotos: recomenda frente e traseira, mas permite avançar
+    }
+    return true;
+  }
+
+  function goNext() {
+    if (validateCurrentStep()) {
+      setStep(curr => curr + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  function goBack() {
+    setError("");
+    setStep(curr => Math.max(0, curr - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function submitEvaluation() {
-    const destination = settings.whatsappJardim || "5567992086012";
-    const message = [
-      "Olá! Quero fazer uma avaliação para vender ou trocar meu aparelho.",
+    const destination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
+    const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
+
+    const summaryText = [
+      "📱 *Nova Solicitação de Avaliação - Troca Fácil BLK*",
       "",
-      `Nome: ${evaluation.name}`,
-      `WhatsApp: ${evaluation.whatsapp}`,
-      `Modelo: ${evaluation.model}`,
-      `Armazenamento: ${evaluation.storage || "Não informado"}`,
-      `Cor: ${evaluation.color || "Não informada"}`,
-      `Estado: ${evaluation.condition}`,
-      `Saúde da bateria: ${evaluation.battery}`,
-      `Fotos selecionadas: ${photos.length ? photos.join(", ") : "Ainda vou anexar"}`,
-      `Observações: ${evaluation.notes || "Nenhuma"}`,
+      `👤 *Cliente:* ${data.name.trim()}`,
+      `📞 *WhatsApp:* ${data.whatsapp.trim()}`,
+      `📲 *Aparelho atual:* ${data.model} ${data.storage ? `(${data.storage})` : ""}`,
+      `🎨 *Cor:* ${data.color || "Não especificada"}`,
+      `🏬 *Onde comprou:* ${data.purchaseLocation || "Não informado"}`,
+      `🔋 *Saúde da bateria:* ${batteryText}`,
+      `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
       "",
-      "Enviado pelo site da Lojinha do Celular.",
-    ].join("\n");
+      "🔍 *Diagnóstico Rápido:*",
+      `• Face ID: ${data.faceId || "Não informado"}`,
+      `• Tela original: ${data.screenOriginal || "Não informado"}`,
+      `• Bateria original: ${data.batteryOriginal || "Não informado"}`,
+      `• Câmeras: ${data.camerasOk || "Não informado"}`,
+      `• Áudio: ${data.audioOk || "Não informado"}`,
+      `• Conector de carga: ${data.chargingPortOk || "Não informado"}`,
+      `• Já aberto: ${data.openedBefore || "Não informado"}`,
+      `• Possui caixa: ${data.hasBox || "Não informado"}`,
+      `• Conservação visual: ${data.visualCondition || "Não informado"}`,
+      "",
+      `📸 *Fotos anexadas:* ${filledPhotosCount} de 5 selecionadas`,
+      data.notes ? `📝 *Obs:* ${data.notes}` : "",
+      "",
+      "Enviado pelo sistema Troca Fácil BLK.",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     // 1. Salva no banco de dados via tRPC
     submitMutation.mutate({
-      name: evaluation.name,
-      whatsapp: evaluation.whatsapp,
-      model: evaluation.model,
-      storage: evaluation.storage,
-      color: evaluation.color,
-      condition: evaluation.condition,
-      battery: evaluation.battery,
-      notes: evaluation.notes,
-      photosCount: photos.length,
+      name: data.name.trim(),
+      whatsapp: data.whatsapp.trim(),
+      model: data.model.trim(),
+      storage: data.storage.trim(),
+      color: data.color.trim(),
+      purchaseLocation: data.purchaseLocation,
+      targetModel: data.targetModel,
+      faceId: data.faceId,
+      screenOriginal: data.screenOriginal,
+      batteryOriginal: data.batteryOriginal,
+      camerasOk: data.camerasOk,
+      audioOk: data.audioOk,
+      chargingPortOk: data.chargingPortOk,
+      openedBefore: data.openedBefore,
+      hasBox: data.hasBox,
+      visualCondition: data.visualCondition,
+      condition: data.visualCondition || "Em análise",
+      battery: batteryText,
+      notes: data.notes.trim() || undefined,
+      photosCount: filledPhotosCount,
     });
 
-    // 2. Salva no histórico local de segurança
+    // 2. Histórico local de segurança
     try {
       const history = JSON.parse(safeStorage.getItem("lojinha_evaluations_history") || "[]");
       safeStorage.setItem(
         "lojinha_evaluations_history",
         JSON.stringify([
-          { ...evaluation, photosCount: photos.length, date: new Date().toISOString() },
+          { ...data, battery: batteryText, photosCount: filledPhotosCount, date: new Date().toISOString() },
           ...history.slice(0, 19),
         ])
       );
     } catch {}
 
     // 3. Abre conversa com o atendente
-    window.open(waLink(destination, message), "_blank", "noopener,noreferrer");
+    window.open(waLink(destination, summaryText), "_blank", "noopener,noreferrer");
     setSent(true);
   }
 
-
+  // TELA DE SUCESSO APÓS ENVIO
   if (sent) {
     return (
-      <main className="min-h-[100dvh] bg-[#fbfbfd] px-4 py-8 text-[#1d1d1f] sm:py-12">
+      <main className="min-h-[100dvh] bg-[#fbfbfd] px-4 py-8 text-[#1d1d1f] sm:py-16">
         <SEO
-          title="Avaliação de aparelho"
-          description="Faça uma pré-avaliação do seu celular para vender ou trocar na Lojinha do Celular."
+          title="Avaliação enviada | Troca Fácil BLK"
+          description="Sua solicitação de pré-avaliação foi enviada com sucesso para a equipe BLK STORE."
         />
-        <div className="mx-auto flex min-h-[80dvh] w-full max-w-[560px] flex-col items-center justify-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0071e3] text-white shadow-md">
-            <Check className="h-8 w-8" />
+        <div className="mx-auto flex min-h-[75dvh] w-full max-w-[500px] flex-col items-center justify-center text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 animate-scaleIn">
+            <Check className="h-10 w-10 stroke-[2.5]" />
           </div>
           <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-[#86868b]">
-            Avaliação enviada
+            TROCA FÁCIL BLK
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#1d1d1f] sm:text-4xl">
-            Agora é com a nossa equipe.
+            Proposta enviada com sucesso!
           </h1>
-          <p className="mt-3 max-w-md text-sm leading-6 text-neutral-600">
-            O WhatsApp foi aberto com os seus dados. Anexe as fotos do aparelho
-            na conversa para agilizar a pré-avaliação.
+          <p className="mt-3 max-w-sm text-sm leading-6 text-[#6e6e73]">
+            O WhatsApp foi aberto com os dados do seu aparelho. Caso tenha fotos, anexe-as na conversa
+            para agilizar a sua conferência.
           </p>
-          <Link
-            to="/"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white transition shadow-sm"
-          >
-            Voltar para a loja <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setSent(false);
+                setStep(0);
+                setData(INITIAL_EVALUATION);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-300 bg-white px-6 py-3.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-neutral-50 shadow-xs"
+            >
+              <RotateCcw className="h-4 w-4" /> Nova avaliação
+            </button>
+            <a
+              href={isTrocaFacilDomain ? "https://blkstore.com.br" : "/"}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-black shadow-sm"
+            >
+              Ver produtos disponíveis <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </main>
     );
   }
 
+  // Progresso relativo (etapas 0 a 15)
+  const totalSteps = 16;
+  const progressPercent = Math.min(100, Math.round(((step + 1) / totalSteps) * 100));
+
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#fbfbfd] px-4 py-6 text-[#1d1d1f] sm:py-10">
+    <main className="min-h-[100dvh] overflow-x-hidden bg-[#fbfbfd] text-[#1d1d1f]">
       <SEO
-        title="Troque seu aparelho"
-        description="Envie os dados do seu celular e receba uma pré-avaliação rápida da Lojinha do Celular."
+        title="Troca Fácil BLK | Avaliação de iPhone com Segurança"
+        description="Receba uma pré-avaliação rápida e transparente para vender ou trocar seu iPhone na BLK STORE."
       />
-      <div className="mx-auto w-full max-w-[560px]">
-        <header className="flex items-center justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2"
-            aria-label="Voltar para a página inicial"
-          >
-            <img
-              src="/images/logo-icon.png"
-              alt="Lojinha do Celular"
-              className="h-9 w-auto object-contain"
-            />
-            <div className="leading-tight">
-              <span className="block font-display text-sm font-bold text-[#1d1d1f]">
-                Lojinha
-              </span>
-              <span className="block font-display text-xs font-semibold text-[#86868b]">
-                do Celular
-              </span>
-            </div>
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#86868b] transition hover:text-[#1d1d1f]"
+
+      {/* Barra de Progresso Fina no Topo */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-neutral-200/60">
+        <div
+          className="h-full bg-[#0071e3] transition-all duration-300 ease-out"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[500px] flex-col justify-between px-4 py-6 sm:py-10">
+        {/* Header Compacto */}
+        <header className="flex items-center justify-between pb-4">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-xs font-bold tracking-[0.25em] text-[#86868b] uppercase">
+              TROCA FÁCIL BLK
+            </span>
+          </div>
+          <a
+            href={isTrocaFacilDomain ? "https://blkstore.com.br" : "/"}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#86868b] transition hover:text-[#1d1d1f]"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar para loja
-          </Link>
+          </a>
         </header>
 
-        <section className="pt-8 text-center sm:pt-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#86868b]">
-            Troca Fácil Lojinha
-          </p>
-          <h1 className="mt-2 max-w-full break-words font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl text-[#1d1d1f]">
-            Venda ou troque seu celular{" "}
-            <span className="text-[#0071e3]">com segurança</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-[440px] text-sm leading-6 text-[#6e6e73]">
-            Conte sobre o seu aparelho e receba uma pré-avaliação da nossa
-            equipe pelo WhatsApp.
-          </p>
-        </section>
-
-        <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 py-3 text-xs leading-5 text-[#6e6e73]">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#0071e3]" />
-          <span>
-            Esta é uma <b className="text-[#1d1d1f]">pré-avaliação online</b>. O valor
-            final é confirmado após a conferência presencial do aparelho na
-            loja.
-          </span>
-        </div>
-
-        <div className="mt-5 flex items-center gap-2">
-          {STEPS.map((label, index) => (
-            <div key={label} className="flex flex-1 items-center gap-2">
-              <div
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                  index <= step
-                    ? "bg-[#0071e3] text-white shadow-xs"
-                    : "bg-[#e5e5e7] text-neutral-500"
-                }`}
-              >
-                {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
-              </div>
-              <span
-                className={`hidden text-[11px] font-bold uppercase tracking-wide sm:block ${
-                  index === step ? "text-[#1d1d1f]" : "text-neutral-400"
-                }`}
-              >
-                {label}
-              </span>
-              {index < STEPS.length - 1 && (
-                <div
-                  className={`h-px flex-1 transition-colors ${
-                    index < step ? "bg-[#0071e3]" : "bg-[#e5e5e7]"
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <section className="mt-4 rounded-2xl border border-[#e5e5e7] bg-white p-5 shadow-[0_18px_50px_-20px_rgba(0,0,0,0.08)] sm:p-6">
+        {/* CORPO DO CARD PRINCIPAL */}
+        <div className="my-auto py-2">
+          {/* ========================================================================= */}
+          {/* ETAPA 0: VAMOS COMEÇAR (NOME E WHATSAPP)                                */}
+          {/* ========================================================================= */}
           {step === 0 && (
-            <>
-              <StepHeading
-                title="Vamos começar"
-                description="Primeiro, conta pra gente quem é você — é por aqui que enviamos sua pré-proposta."
-              />
-              <div className="mt-5 space-y-4">
-                <Field
-                  label="Primeiro nome"
-                  icon={<UserRound className="h-4 w-4" />}
-                >
-                  <input
-                    value={evaluation.name}
-                    onChange={event => updateField("name", event.target.value)}
-                    placeholder="Seu nome"
-                    autoComplete="name"
-                    className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
-                  />
-                </Field>
-                <div>
-                  <Field
-                    label="WhatsApp para receber a proposta"
-                    icon={<Phone className="h-4 w-4" />}
-                  >
+            <div className="space-y-5 animate-fadeIn">
+              <div className="text-center">
+                <h1 className="font-display text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-[#1d1d1f]">
+                  Venda ou troque seu iPhone <span className="text-[#0071e3]">com segurança</span>
+                </h1>
+                <p className="mt-2 text-sm leading-relaxed text-[#6e6e73]">
+                  Receba uma pré-avaliação rápida da equipe BLK STORE e descubra quanto o seu aparelho
+                  pode valer hoje.
+                </p>
+              </div>
+
+              {/* Box de segurança */}
+              <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-5 text-neutral-700">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0071e3]" />
+                <span>
+                  Esta é uma <b className="text-[#1d1d1f]">pré-avaliação online</b>. O valor final será
+                  confirmado após a conferência presencial do aparelho na loja.
+                </span>
+              </div>
+
+              {/* Card de formulário */}
+              <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)]">
+                <h2 className="font-display text-lg font-bold text-[#1d1d1f]">Vamos começar</h2>
+                <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                  Primeiro, conta pra gente quem é você — é por aqui que enviamos sua pré-proposta.
+                </p>
+
+                <div className="mt-5 space-y-4">
+                  <Field label="Primeiro nome" icon={<UserRound className="h-4 w-4" />}>
                     <input
-                      value={evaluation.whatsapp}
-                      onChange={event =>
-                        updateField("whatsapp", event.target.value)
-                      }
+                      value={data.name}
+                      onChange={e => updateField("name", e.target.value)}
+                      placeholder="Seu nome"
+                      autoComplete="name"
+                      className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
+                    />
+                  </Field>
+
+                  <Field label="WhatsApp para receber a proposta" icon={<Phone className="h-4 w-4" />}>
+                    <input
+                      value={data.whatsapp}
+                      onChange={e => updateField("whatsapp", e.target.value)}
                       placeholder="(67) 99999-9999"
                       inputMode="tel"
                       autoComplete="tel"
-                      className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
+                      className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
                     />
                   </Field>
-                  <p className="mt-2.5 text-[11.5px] leading-relaxed text-[#86868b]">
-                    Usamos seu WhatsApp apenas para enviar a avaliação do seu aparelho. Não enviamos spam.
-                  </p>
                 </div>
+
+                <p className="mt-3.5 text-[11px] leading-relaxed text-[#86868b]">
+                  Usamos seu nome e WhatsApp só para te devolver a avaliação deste aparelho. Não
+                  mandamos propaganda nem repassamos para ninguém.
+                </p>
+
+                {error && (
+                  <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
+                >
+                  Receber minha pré-avaliação <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
-            </>
+            </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* ETAPA 1: MODELO ATUAL (NOSSO SELETOR SUPERIOR MANTIDO & ENRIQUECIDO)      */}
+          {/* ========================================================================= */}
           {step === 1 && (
-            <>
-              <StepHeading
-                title="Qual aparelho você tem?"
-                description="Selecione um modelo popular ou digite o nome do seu iPhone ou celular."
-              />
-              <div className="mt-5 space-y-5">
-                <Field
-                  label="Modelo do aparelho"
-                  icon={<Smartphone className="h-4 w-4" />}
-                >
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Prazer, {data.name.trim() || "amigo"}! Qual é o seu iPhone?
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                Toque no modelo ou digite o nome do aparelho que você tem hoje.
+              </p>
+
+              <div className="mt-5 space-y-4">
+                {/* Campo de busca do modelo */}
+                <Field label="Modelo do aparelho" icon={<Smartphone className="h-4 w-4" />}>
                   <input
-                    value={evaluation.model}
-                    onChange={event => updateField("model", event.target.value)}
-                    placeholder="Ex.: iPhone 15 Pro, iPhone 13, Galaxy S23..."
+                    value={data.model}
+                    onChange={e => updateField("model", e.target.value)}
+                    placeholder="Ex.: iPhone 15 Pro, iPhone 13..."
                     autoComplete="off"
-                    className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
+                    className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
                   />
                 </Field>
 
-                {/* Pílulas de seleção rápida de modelos populares */}
+                {/* Chips de modelos populares */}
                 <div>
                   <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
-                    Toque para selecionar seu modelo
+                    Modelos mais comuns
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
                     {POPULAR_IPHONE_MODELS.map(popName => {
                       const isSelected =
                         detectedModel?.name.toLowerCase() === popName.toLowerCase() ||
-                        evaluation.model.toLowerCase().trim() === popName.toLowerCase();
+                        data.model.toLowerCase().trim() === popName.toLowerCase();
                       return (
                         <button
                           key={popName}
                           type="button"
                           onClick={() => selectPopularModel(popName)}
-                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                             isSelected
                               ? "bg-[#1d1d1f] text-white shadow-xs scale-102"
                               : "border border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-400 hover:bg-white"
@@ -436,282 +577,779 @@ export default function TradeIn() {
 
                 {/* Card de visualização do aparelho em tempo real */}
                 {detectedModel && (
-                  <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-neutral-50 p-4 sm:p-5 shadow-xs transition-all animate-fadeIn">
-                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                  <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-neutral-50 p-4 shadow-xs animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
                       {previewImage ? (
-                        <div className="relative flex h-36 w-36 sm:h-40 sm:w-40 shrink-0 items-center justify-center rounded-2xl bg-white p-2.5 shadow-sm border border-neutral-100/80">
+                        <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-white p-2 shadow-xs border border-neutral-100">
                           <img
                             key={previewImage}
                             src={previewImage}
                             alt={detectedModel.name}
-                            className="h-full w-full object-contain drop-shadow-md transition-all duration-300 animate-fadeIn"
-                            onError={(e) => {
+                            className="h-full w-full object-contain drop-shadow-sm"
+                            onError={e => {
                               (e.currentTarget as HTMLImageElement).style.display = "none";
                             }}
                           />
                         </div>
                       ) : (
-                        <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-2xl bg-white p-4 shadow-sm border border-neutral-100">
-                          <Smartphone className="h-12 w-12 text-[#0071e3]" />
+                        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-white p-3 shadow-xs border border-neutral-100">
+                          <Smartphone className="h-10 w-10 text-[#0071e3]" />
                         </div>
                       )}
                       <div className="flex-1 text-center sm:text-left min-w-0">
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#0071e3]">
+                        <div className="inline-flex items-center gap-1 rounded-full bg-blue-100/80 px-2 py-0.5 text-[10.5px] font-semibold text-[#0071e3]">
                           <Sparkles className="h-3 w-3" /> Modelo reconhecido
                         </div>
-                        <h3 className="font-display text-lg sm:text-xl font-bold text-[#1d1d1f] mt-1">
+                        <h3 className="font-display text-base font-bold text-[#1d1d1f] mt-0.5">
                           {detectedModel.name}
                         </h3>
-                        <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 text-xs text-[#6e6e73]">
-                          <span className="rounded-md bg-white border border-neutral-200/70 px-2.5 py-1 font-medium">
+                        <div className="mt-1 flex flex-wrap items-center justify-center sm:justify-start gap-1 text-[11px] text-[#6e6e73]">
+                          <span className="rounded bg-white border border-neutral-200 px-1.5 py-0.5 font-medium">
                             Ano {detectedModel.year}
                           </span>
-                          <span className="rounded-md bg-white border border-neutral-200/70 px-2.5 py-1 font-medium">
+                          <span className="rounded bg-white border border-neutral-200 px-1.5 py-0.5 font-medium">
                             Tela {detectedModel.screen}
                           </span>
-                          {evaluation.color && (
-                            <span className="rounded-md bg-white border border-neutral-200/70 px-2.5 py-1 font-medium inline-flex items-center gap-1.5">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full border border-black/15 shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    colorOptions.find((c) => c.name === evaluation.color)?.hex ?? "#999",
-                                }}
-                              />
-                              {evaluation.color}
-                            </span>
-                          )}
-                          {evaluation.storage && (
-                            <span className="rounded-md bg-[#0071e3]/10 border border-[#0071e3]/20 px-2.5 py-1 font-semibold text-[#0071e3]">
-                              {evaluation.storage}
-                            </span>
-                          )}
                         </div>
-                        <p className="mt-2 text-[11.5px] text-[#86868b]">
-                          Selecione abaixo a capacidade e a cor exata para visualizar o seu aparelho.
-                        </p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Armazenamento dinâmico */}
+                {/* Armazenamento */}
                 <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold tracking-wide text-[#6e6e73]">
-                      Armazenamento
-                    </span>
-                    {evaluation.storage && (
-                      <span className="text-xs font-bold text-[#0071e3]">
-                        {evaluation.storage}
-                      </span>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#6e6e73]">Capacidade</span>
+                    {data.storage && (
+                      <span className="text-xs font-bold text-[#0071e3]">{data.storage}</span>
                     )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {storageOptions.map(option => (
-                      <ChoiceButton
+                      <button
                         key={option}
-                        label={option}
-                        selected={evaluation.storage === option}
+                        type="button"
                         onClick={() => updateField("storage", option)}
-                      />
+                        className={`h-11 rounded-xl border text-xs font-semibold transition-all ${
+                          data.storage === option
+                            ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] ring-1 ring-[#0071e3]"
+                            : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-white"
+                        }`}
+                      >
+                        {option}
+                      </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Cores oficiais */}
+                {/* Cores Oficiais */}
                 <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold tracking-wide text-[#6e6e73]">
-                      Cor do aparelho
-                    </span>
-                    {evaluation.color && (
-                      <span className="text-xs font-bold text-[#0071e3]">
-                        {evaluation.color}
-                      </span>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#6e6e73]">Cor do aparelho</span>
+                    {data.color && (
+                      <span className="text-xs font-bold text-[#0071e3]">{data.color}</span>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {colorOptions.map(c => {
-                      const isSelected = evaluation.color === c.name;
+                      const isSelected = data.color === c.name;
                       return (
                         <button
                           key={c.name}
                           type="button"
                           onClick={() => updateField("color", c.name)}
-                          className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 text-left text-xs font-semibold transition-all duration-200 ${
+                          className={`flex h-11 items-center gap-2 rounded-xl border px-3 text-left text-xs font-semibold transition-all ${
                             isSelected
-                              ? "border-[#0071e3] bg-[#0071e3]/8 text-[#0071e3] ring-2 ring-[#0071e3]/20 shadow-xs"
-                              : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
+                              ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] ring-1 ring-[#0071e3]"
+                              : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-white"
                           }`}
                         >
                           <span
-                            className="h-4 w-4 shrink-0 rounded-full border border-black/15 shadow-2xs"
+                            className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/15"
                             style={{ backgroundColor: c.hex }}
                           />
                           <span className="truncate flex-1">{c.name}</span>
-                          {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" />}
+                          {isSelected && <Check className="h-3 w-3 text-[#0071e3]" />}
                         </button>
                       );
                     })}
                   </div>
                 </div>
               </div>
-            </>
-          )}
 
-          {step === 2 && (
-            <>
-              <StepHeading
-                title="Como está o aparelho?"
-                description="Responda com transparência para a equipe fazer uma análise mais próxima."
-              />
-              <div className="mt-5 space-y-5">
-                <div>
-                  <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-                    Estado geral
-                  </span>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {CONDITION_OPTIONS.map(option => (
-                      <ChoiceButton
-                        key={option}
-                        label={option}
-                        selected={evaluation.condition === option}
-                        onClick={() => updateField("condition", option)}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-                    Saúde da bateria
-                  </span>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {BATTERY_OPTIONS.map(option => (
-                      <ChoiceButton
-                        key={option}
-                        label={option}
-                        selected={evaluation.battery === option}
-                        onClick={() => updateField("battery", option)}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-[#86868b]">
-                    No iPhone, veja em Ajustes › Bateria › Saúde da bateria.
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <StepHeading
-                title="Agora as fotos"
-                description="Frente e traseira já ajudam bastante. Você poderá anexá-las na conversa do WhatsApp."
-              />
-              <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#d5d5d7] bg-[#f5f5f7] px-5 py-8 text-center transition-all hover:border-[#0071e3] hover:bg-white">
-                <Camera className="h-7 w-7 text-[#0071e3]" />
-                <span className="mt-3 text-sm font-semibold text-[#1d1d1f]">
-                  Selecionar fotos do aparelho
-                </span>
-                <span className="mt-1 text-xs text-[#86868b]">
-                  Frente, traseira, laterais e tela ligada
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="sr-only"
-                  onChange={handlePhotos}
-                />
-              </label>
-              {photos.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {photos.map(photo => (
-                    <div
-                      key={photo}
-                      className="flex items-center gap-2 rounded-lg bg-[#f5f5f7] px-3 py-2 text-xs text-neutral-700"
-                    >
-                      <FileImage className="h-4 w-4 text-[#0071e3]" />{" "}
-                      <span className="truncate">{photo}</span>
-                    </div>
-                  ))}
-                </div>
+              {error && (
+                <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
+                  {error}
+                </p>
               )}
-              <TextareaField
-                label="Alguma observação? (opcional)"
-                icon={<Smartphone className="h-4 w-4" />}
-              >
-                <textarea
-                  value={evaluation.notes}
-                  onChange={event => updateField("notes", event.target.value)}
-                  placeholder="Ex.: tenho caixa e acessórios originais"
-                  rows={3}
-                  className="w-full bg-transparent text-sm text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none resize-none shadow-none ring-0"
-                />
-              </TextareaField>
-            </>
+
+              <div className="mt-6 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-sm"
+                >
+                  Continuar <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           )}
 
-          {error && (
-            <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-              {error}
-            </p>
+          {/* ========================================================================= */}
+          {/* ETAPA 2: ONDE VOCÊ COMPROU ESSE IPHONE?                                 */}
+          {/* ========================================================================= */}
+          {step === 2 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Onde você comprou esse {data.model || "iPhone"}?
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                Se foi com a gente, sua troca já começa com uma condição melhor.
+              </p>
+
+              <div className="mt-5 space-y-2.5">
+                {PURCHASE_ORIGIN_OPTIONS.map(opt => {
+                  const isSelected = data.purchaseLocation === opt.id;
+                  const isAnimating = animatingSelection === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => autoAdvance("purchaseLocation", opt.id)}
+                      className={`flex w-full flex-col justify-center rounded-2xl border p-4 text-left transition-all ${
+                        isSelected || isAnimating
+                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-sm"
+                          : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
+                      }`}
+                    >
+                      <span className="text-sm font-semibold">{opt.label}</span>
+                      {opt.desc && (
+                        <span
+                          className={`mt-1 text-xs ${
+                            isSelected || isAnimating ? "text-neutral-300" : "text-[#86868b]"
+                          }`}
+                        >
+                          {opt.desc}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {error && (
+                <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
+                  {error}
+                </p>
+              )}
+
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
+              </div>
+            </div>
           )}
 
-          <div className="mt-6 flex items-center gap-2.5">
-            {step > 0 && (
+          {/* ========================================================================= */}
+          {/* ETAPA 3: COMO ESTÁ A SAÚDE DA BATERIA? (SLIDER VISUAL)                  */}
+          {/* ========================================================================= */}
+          {step === 3 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Como está a saúde da bateria?
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                Veja em Ajustes › Bateria › Saúde da bateria.
+              </p>
+
+              <div className="mt-8 space-y-6">
+                {!data.batteryUnknown ? (
+                  <div className="rounded-2xl border border-neutral-100 bg-[#fbfbfd] p-5">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-display text-5xl font-extrabold tracking-tight text-[#1d1d1f]">
+                        {data.batteryPercent}%
+                      </span>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          data.batteryPercent >= 90
+                            ? "bg-emerald-100 text-emerald-700"
+                            : data.batteryPercent >= 80
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {data.batteryPercent >= 90
+                          ? "Bateria ótima"
+                          : data.batteryPercent >= 80
+                          ? "Bateria boa"
+                          : "Manutenção recomendada"}
+                      </span>
+                    </div>
+
+                    <div className="mt-6">
+                      <input
+                        type="range"
+                        min={50}
+                        max={100}
+                        step={1}
+                        value={data.batteryPercent}
+                        onChange={e => updateField("batteryPercent", Number(e.target.value))}
+                        className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-neutral-200 accent-[#1d1d1f]"
+                      />
+                      <div className="mt-2 flex justify-between text-[11px] font-semibold text-[#86868b]">
+                        <span>50%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-center">
+                    <p className="text-xs font-semibold text-[#0071e3]">
+                      Opção "Não sei informar" selecionada. Nossa equipe fará a checagem no atendimento.
+                    </p>
+                  </div>
+                )}
+
+                {/* Alternar Não sei */}
+                <button
+                  type="button"
+                  onClick={() => updateField("batteryUnknown", !data.batteryUnknown)}
+                  className={`w-full rounded-xl border py-2.5 text-xs font-semibold transition ${
+                    data.batteryUnknown
+                      ? "border-[#1d1d1f] bg-[#1d1d1f] text-white"
+                      : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                  }`}
+                >
+                  {data.batteryUnknown ? "Quero informar a porcentagem" : "Não sei informar a porcentagem"}
+                </button>
+              </div>
+
+              <div className="mt-8 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition shadow-sm"
+                >
+                  Continuar <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPA 4: E PRA QUAL IPHONE VOCÊ QUER TROCAR?                            */}
+          {/* ========================================================================= */}
+          {step === 4 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                E pra qual iPhone você quer trocar?
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                Pode ser um modelo mais novo ou mais antigo — aceitamos os dois.
+              </p>
+
+              {/* Botão de apenas venda em destaque */}
               <button
                 type="button"
-                onClick={() => {
-                  setError("");
-                  setStep(current => current - 1);
-                }}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#e5e5e7] px-5 text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-[#f5f5f7]"
+                onClick={() => autoAdvance("targetModel", "Quero apenas vender (sem troca)")}
+                className={`mt-4 flex w-full items-center justify-between rounded-2xl border p-3.5 text-left text-xs font-bold transition-all ${
+                  data.targetModel === "Quero apenas vender (sem troca)"
+                    ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3]"
+                    : "border-blue-100 bg-blue-50/50 text-[#0071e3] hover:bg-blue-50"
+                }`}
               >
-                <ArrowLeft className="h-4 w-4" /> Voltar
+                <span>💰 Quero apenas vender meu aparelho (sem troca)</span>
+                <Check className="h-4 w-4" />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={step === STEPS.length - 1 ? submitEvaluation : nextStep}
-              className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-5 text-sm sm:text-base font-semibold text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.4)] transition-all active:scale-[0.99]"
-            >
-              {step === STEPS.length - 1
-                ? "Enviar para avaliação"
-                : "Continuar"}{" "}
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </section>
 
-        <p className="mx-auto mt-5 max-w-md text-center text-[11.5px] leading-5 text-[#86868b]">
-          Seus dados serão usados apenas para entrarmos em contato sobre esta
-          avaliação.
-        </p>
+              <div className="mt-4 grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                {TARGET_IPHONE_MODELS.map(targetName => {
+                  const isSelected = data.targetModel === targetName;
+                  const isAnimating = animatingSelection === targetName;
+                  return (
+                    <button
+                      key={targetName}
+                      type="button"
+                      onClick={() => autoAdvance("targetModel", targetName)}
+                      className={`flex h-12 items-center justify-center rounded-xl border px-3 text-center text-xs font-semibold transition-all ${
+                        isSelected || isAnimating
+                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.98] shadow-xs"
+                          : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
+                      }`}
+                    >
+                      <span className="truncate">{targetName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {error && (
+                <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
+                  {error}
+                </p>
+              )}
+
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPAS 5 A 12: DIAGNÓSTICO SIM / NÃO / NÃO SEI                           */}
+          {/* ========================================================================= */}
+          {step === 5 && (
+            <TriChoiceStep
+              title="Face ID funciona?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.faceId}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("faceId", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 6 && (
+            <TriChoiceStep
+              title="Tela original?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.screenOriginal}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("screenOriginal", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 7 && (
+            <TriChoiceStep
+              title="Bateria original?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.batteryOriginal}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("batteryOriginal", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 8 && (
+            <TriChoiceStep
+              title="Câmeras funcionando?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.camerasOk}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("camerasOk", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 9 && (
+            <TriChoiceStep
+              title="Áudio funcionando?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.audioOk}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("audioOk", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 10 && (
+            <TriChoiceStep
+              title="Conector de carga funcionando?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.chargingPortOk}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("chargingPortOk", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 11 && (
+            <TriChoiceStep
+              title="Aparelho já foi aberto?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.openedBefore}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("openedBefore", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {step === 12 && (
+            <TriChoiceStep
+              title="Tem caixa?"
+              subtitle="Só marcar — Sim, Não ou Não sei."
+              value={data.hasBox}
+              animating={animatingSelection}
+              onSelect={val => autoAdvance("hasBox", val)}
+              onBack={goBack}
+            />
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPA 13: COMO ESTÁ O VISUAL DELE?                                       */}
+          {/* ========================================================================= */}
+          {step === 13 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Como está o visual dele?
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                Seja sincero — a conferência é presencial.
+              </p>
+
+              <div className="mt-5 space-y-2.5">
+                {VISUAL_CONDITION_OPTIONS.map(opt => {
+                  const isSelected = data.visualCondition === opt;
+                  const isAnimating = animatingSelection === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => autoAdvance("visualCondition", opt)}
+                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left text-sm font-semibold transition-all ${
+                        isSelected || isAnimating
+                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
+                          : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
+                      }`}
+                    >
+                      <span>{opt}</span>
+                      {(isSelected || isAnimating) && <Check className="h-4 w-4" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPA 14: AGORA AS FOTOS (5 SLOTS DEDICADOS)                             */}
+          {/* ========================================================================= */}
+          {step === 14 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Agora as fotos
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                Com a frente e a traseira você já pode enviar — as outras aceleram sua pré-avaliação.
+              </p>
+
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                {photoSlots.slice(0, 4).map(slot => (
+                  <PhotoSlotCard
+                    key={slot.key}
+                    slot={slot}
+                    onTrigger={() => fileInputRefs.current[slot.key]?.click()}
+                    onRemove={() => removePhoto(slot.key)}
+                  />
+                ))}
+              </div>
+
+              <div className="mt-2.5">
+                <PhotoSlotCard
+                  slot={photoSlots[4]}
+                  onTrigger={() => fileInputRefs.current[photoSlots[4].key]?.click()}
+                  onRemove={() => removePhoto(photoSlots[4].key)}
+                  fullWidth
+                />
+              </div>
+
+              {/* Inputs de arquivo ocultos */}
+              {photoSlots.map(slot => (
+                <input
+                  key={slot.key}
+                  ref={el => {
+                    fileInputRefs.current[slot.key] = el;
+                  }}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => handlePhotoUpload(slot.key, e)}
+                />
+              ))}
+
+              {/* Observação opcional */}
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-[#6e6e73] mb-1">
+                  Alguma observação? (opcional)
+                </label>
+                <textarea
+                  value={data.notes}
+                  onChange={e => updateField("notes", e.target.value)}
+                  placeholder="Ex.: tenho carregador original, pequeno trinco na película..."
+                  rows={2}
+                  className="w-full rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] p-3 text-xs text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:border-[#0071e3] focus:bg-white resize-none"
+                />
+              </div>
+
+              <div className="mt-6 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition shadow-sm"
+                >
+                  Continuar <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPA 15: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO)                  */}
+          {/* ========================================================================= */}
+          {step === 15 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Última olhada antes de enviar
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">Confere se está tudo certinho.</p>
+
+              {/* Tabela de conferência */}
+              <div className="mt-5 divide-y divide-neutral-100 rounded-2xl border border-[#e5e5e7] bg-white text-xs">
+                <SummaryRow label="Nome" value={data.name} />
+                <SummaryRow label="WhatsApp" value={data.whatsapp} />
+                <SummaryRow
+                  label="Modelo"
+                  value={`${data.model} ${data.storage ? data.storage : ""}`}
+                  highlight
+                />
+                <SummaryRow label="Comprou" value={data.purchaseLocation || "Não informado"} />
+                <SummaryRow label="Cor" value={data.color || "Não informada"} />
+                <SummaryRow
+                  label="Bateria"
+                  value={data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`}
+                />
+                <SummaryRow
+                  label="Quer trocar por"
+                  value={data.targetModel || "Apenas vender"}
+                  highlight
+                />
+                <SummaryRow label="Estado" value={data.visualCondition || "Em análise"} />
+                <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
+              </div>
+
+              {/* Mini resumo do diagnóstico técnico */}
+              <div className="mt-3 rounded-xl bg-[#f5f5f7] p-3 text-[11px] leading-relaxed text-[#6e6e73]">
+                <span className="font-bold text-[#1d1d1f]">Diagnóstico: </span>
+                Face ID ({data.faceId || "–"}), Tela ({data.screenOriginal || "–"}), Bateria (
+                {data.batteryOriginal || "–"}), Câmeras ({data.camerasOk || "–"}), Áudio (
+                {data.audioOk || "–"}), Conector ({data.chargingPortOk || "–"}), Aberto (
+                {data.openedBefore || "–"}), Caixa ({data.hasBox || "–"}).
+              </div>
+
+              <div className="mt-6 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={submitEvaluation}
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> Enviar para avaliação BLK
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Rodapé Seguro */}
+        <footer className="pt-4 text-center text-[11px] text-[#86868b]">
+          Seus dados são confidenciais e protegidos pela LGPD. Avaliação gratuita sem compromisso.
+        </footer>
       </div>
     </main>
   );
 }
 
-function StepHeading({
+// COMPONENTE PARA TELAS DE 3 OPÇÕES (SIM, NÃO, NÃO SEI)
+function TriChoiceStep({
   title,
-  description,
+  subtitle,
+  value,
+  animating,
+  onSelect,
+  onBack,
 }: {
   title: string;
-  description: string;
+  subtitle: string;
+  value: string;
+  animating: string | null;
+  onSelect: (val: string) => void;
+  onBack: () => void;
 }) {
   return (
-    <div>
-      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight text-[#1d1d1f]">
+    <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+      <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
         {title}
       </h2>
-      <p className="mt-1.5 text-sm leading-6 text-[#6e6e73]">{description}</p>
+      <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">{subtitle}</p>
+
+      <div className="mt-6 space-y-2.5">
+        {SIMPLE_TRI_OPTIONS.map(opt => {
+          const isSelected = value === opt;
+          const isAnimating = animating === opt;
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onSelect(opt)}
+              className={`flex h-13 w-full items-center justify-center rounded-2xl border text-sm font-semibold transition-all ${
+                isSelected || isAnimating
+                  ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
+                  : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+        </button>
+        <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
+      </div>
     </div>
   );
 }
 
+// CARD DE SLOT DE FOTO INDIVIDUAL
+function PhotoSlotCard({
+  slot,
+  onTrigger,
+  onRemove,
+  fullWidth = false,
+}: {
+  slot: PhotoSlot;
+  onTrigger: () => void;
+  onRemove: () => void;
+  fullWidth?: boolean;
+}) {
+  return (
+    <div
+      className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all ${
+        slot.previewUrl
+          ? "border-emerald-500/50 bg-emerald-50/20"
+          : "border-[#d5d5d7] bg-[#f5f5f7] hover:border-[#1d1d1f] hover:bg-white"
+      } ${fullWidth ? "h-28" : "h-32"} p-2 text-center cursor-pointer`}
+      onClick={onTrigger}
+    >
+      {slot.previewUrl ? (
+        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl">
+          <img
+            src={slot.previewUrl}
+            alt={slot.label}
+            className="h-full w-full object-cover rounded-xl"
+          />
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white shadow-xs hover:bg-black"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-200/60">
+            <Camera className="h-4 w-4 text-[#1d1d1f]" />
+          </div>
+          <span className="mt-2 text-[11px] font-semibold text-[#1d1d1f] leading-tight px-1">
+            {slot.label}
+          </span>
+          {slot.required && (
+            <span className="text-[10px] font-bold text-[#0071e3] mt-0.5">Essencial</span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// LINHA DE RESUMO FINAL
+function SummaryRow({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between px-3.5 py-2.5">
+      <span className="text-[#86868b] font-medium">{label}</span>
+      <span
+        className={`font-semibold text-right ${
+          highlight ? "text-[#1d1d1f] font-bold" : "text-neutral-700"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// CAMPO GENÉRICO DE INPUT
 function Field({
   label,
   icon,
@@ -723,42 +1361,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-        {label}
-      </span>
-      <div className="group flex h-12 items-center gap-3 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
-        <span className="shrink-0 text-[#86868b] transition-colors group-focus-within:text-[#0071e3]">
+      <span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">{label}</span>
+      <div className="group flex h-12 items-center gap-2.5 rounded-2xl border border-[#e5e5e7] bg-[#f5f5f7] px-3.5 transition-all focus-within:border-[#1d1d1f] focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5">
+        <span className="shrink-0 text-[#86868b] transition-colors group-focus-within:text-[#1d1d1f]">
           {icon}
         </span>
-        <div className="flex-1 min-w-0 [&_input]:w-full [&_input]:bg-transparent [&_input]:text-[15px] sm:[&_input]:text-[16px] [&_input]:text-[#1d1d1f] [&_input]:placeholder:text-[#86868b] [&_input]:outline-none [&_input]:focus:outline-none [&_input]:focus:ring-0 [&_input]:border-none [&_input]:shadow-none [&_input]:ring-0">
-          {children}
-        </div>
-      </div>
-    </label>
-  );
-}
-
-function TextareaField({
-  label,
-  icon,
-  children,
-}: {
-  label: string;
-  icon: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block mt-4">
-      <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-        {label}
-      </span>
-      <div className="group flex items-start gap-3 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] p-3.5 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
-        <span className="mt-0.5 shrink-0 text-[#86868b] transition-colors group-focus-within:text-[#0071e3]">
-          {icon}
-        </span>
-        <div className="flex-1 min-w-0 [&_textarea]:w-full [&_textarea]:bg-transparent [&_textarea]:text-sm [&_textarea]:text-[#1d1d1f] [&_textarea]:placeholder:text-[#86868b] [&_textarea]:outline-none [&_textarea]:focus:outline-none [&_textarea]:focus:ring-0 [&_textarea]:border-none [&_textarea]:resize-none [&_textarea]:shadow-none [&_textarea]:ring-0">
-          {children}
-        </div>
+        <div className="flex-1 min-w-0">{children}</div>
       </div>
     </label>
   );
