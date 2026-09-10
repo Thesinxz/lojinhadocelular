@@ -1,11 +1,10 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router";
+import { Routes, Route, useLocation, Navigate } from "react-router";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import WelcomePopup from "./components/WelcomePopup";
 import WhatsAppFloat from "./components/WhatsAppFloat";
 import Home from "./pages/Home";
-import Catalogo from "./pages/Catalogo";
 import Produto from "./pages/Produto";
 import TradeIn from "./pages/TradeIn";
 
@@ -63,20 +62,20 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-white font-sans text-ink">
+    <div className="flex min-h-[100dvh] flex-col bg-[#0a0a0a] font-sans text-white">
       <ScrollToHash />
       <Header />
       <main className="flex-1">
         <Suspense
           fallback={
             <div className="mx-auto max-w-6xl px-4 py-16">
-              <div className="h-64 animate-pulse rounded-2xl bg-neutral-200" />
+              <div className="h-64 animate-pulse rounded-2xl bg-neutral-800" />
             </div>
           }
         >
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/catalogo" element={<Catalogo />} />
+            <Route path="/catalogo" element={<Navigate to="/#vitrine" replace />} />
             <Route path="/produto/:id" element={<Produto />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Home />} />
