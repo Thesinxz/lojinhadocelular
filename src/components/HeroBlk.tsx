@@ -48,7 +48,7 @@ export default function HeroBlk() {
         muted
         loop
         playsInline
-        preload="auto"
+        preload="metadata"
         poster="/hero-poster.jpg"
         className="absolute inset-0 h-full w-full object-cover"
       >

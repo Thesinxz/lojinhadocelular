@@ -236,11 +236,11 @@ export default function Produto() {
         }📍 Unidade: Jardim - MS\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
 
-  const prodTitle = product
-    ? `${product.name}${version && !product.name.includes(version) ? ` ${version}` : ""}${
-        storage && storage !== "Padrão" ? ` ${storage}` : ""
-      }${color ? ` ${color}` : ""}`
-    : "";
+  const prodTitle = cleanTitle
+    ? `${cleanTitle} — Lojinha do Celular`
+    : product
+      ? `${product.name} — Lojinha do Celular`
+      : "";
   const prodDesc = product
     ? product.description ||
       `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`

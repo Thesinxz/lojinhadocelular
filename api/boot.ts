@@ -47,6 +47,12 @@ app.use("/images/*", async (c, next) => {
   c.res.headers.set("Cache-Control", "public, max-age=86400");
 });
 
+// Cache para mídia pesada do Hero (vídeo hero.mp4 e hero-poster.jpg)
+app.use("/hero*", async (c, next) => {
+  await next();
+  c.res.headers.set("Cache-Control", "public, max-age=604800");
+});
+
 // Limite seguro de payload JSON para evitar DoS por exaustão de memória
 app.use(bodyLimit({ maxSize: 2 * 1024 * 1024 }));
 
