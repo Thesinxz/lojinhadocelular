@@ -1,188 +1,228 @@
-import { Link } from "react-router";
+import { useMemo, useState } from "react";
+import { useSearchParams, Link } from "react-router";
 import {
-  ShieldCheck,
-  Plane,
+  Search,
+  ArrowUpDown,
+  MessageCircle,
+  MapPin,
   Wrench,
   Smartphone,
-  BadgeCheck,
-  MapPin,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
-import { trpc } from "@/providers/trpc";
+import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
-import HeroCarousel from "@/components/HeroCarousel";
-import { useShopSettings } from "@/lib/shop";
 import SEO from "@/components/SEO";
+import { trpc, type ProductWithVariants } from "@/providers/trpc";
+import { useShopSettings, sortProducts, type SortOption, waLink } from "@/lib/shop";
+import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
+import type { CategoryValue } from "@contracts/types";
 
-const CATEGORY_CARDS = [
-  {
-    to: "/catalogo?categoria=iphone_lacrado",
-    icon: Sparkles,
-    title: "iPhones Lacrados",
-    desc: "Importados direto dos EUA, na caixa, com 1 ano de garantia.",
-  },
-  {
-    to: "/catalogo?categoria=iphone_seminovo",
-    icon: BadgeCheck,
-    title: "iPhones Seminovos",
-    desc: "Revisados, com bateria saudável e 1 ano de garantia.",
-  },
-  {
-    to: "/catalogo?categoria=android",
-    icon: Smartphone,
-    title: "Xiaomi, Realme, Tecno e Infinix",
-    desc: "Os melhores custo-benefício do Android, novos e lacrados.",
-  },
-  {
-    to: "/#servicos",
-    icon: Wrench,
-    title: "Manutenção",
-    desc: "Troca de tela, bateria, conector e muito mais, na hora.",
-  },
+const CATEGORY_PILLS: { label: string; value: CategoryValue | undefined }[] = [
+  { label: "Todos", value: undefined },
+  { label: "iPhones Lacrados", value: "iphone_lacrado" },
+  { label: "iPhones Seminovos", value: "iphone_seminovo" },
+  { label: "Xiaomi & Android", value: "android" },
+  { label: "Acessórios", value: "acessorio" },
 ];
 
 export default function Home() {
   const s = useShopSettings();
-  const featured = trpc.shop.featured.useQuery();
+  const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
+
+  const [searchParams] = useSearchParams();
+  const initialCategory = useMemo(() => {
+    const c = searchParams.get("categoria");
+    if (
+      c === "iphone_lacrado" ||
+      c === "iphone_seminovo" ||
+      c === "android" ||
+      c === "acessorio"
+    ) {
+      return c as CategoryValue;
+    }
+    return undefined;
+  }, [searchParams]);
+
+  const [selectedCategory, setSelectedCategory] = useState<CategoryValue | undefined>(
+    initialCategory,
+  );
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("relevancia");
+
+  const productsQuery = trpc.shop.products.useQuery(undefined, {
+    staleTime: 1000 * 30,
+  });
+
+  // Combina produtos do banco com DEMO_PRODUCTS sem duplicar ID ou Nome
+  const allProducts = useMemo(() => {
+    const dbList = (productsQuery.data ?? []) as ProductWithVariants[];
+    const dbIds = new Set(dbList.map((p) => p.id));
+    const dbNames = new Set(dbList.map((p) => p.name.trim().toLowerCase()));
+
+    const demoList = (DEMO_PRODUCTS as unknown as ProductWithVariants[]).filter(
+      (p) => !dbIds.has(p.id) && !dbNames.has(p.name.trim().toLowerCase()),
+    );
+
+    return [...dbList, ...demoList];
+  }, [productsQuery.data]);
+
+  // Filtra por categoria e termo de busca, e ordena
+  const filteredProducts = useMemo(() => {
+    let list = allProducts;
+
+    if (selectedCategory) {
+      list = list.filter((p) => p.category === selectedCategory);
+    }
+
+    if (search.trim()) {
+      const term = search.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(term) ||
+          p.brand.toLowerCase().includes(term) ||
+          p.variants.some(
+            (v) =>
+              v.storage.toLowerCase().includes(term) ||
+              v.version.toLowerCase().includes(term) ||
+              v.color.toLowerCase().includes(term),
+          ),
+      );
+    }
+
+    return sortProducts(list, sortBy);
+  }, [allProducts, selectedCategory, search, sortBy]);
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
       <SEO
-        title="Lojinha do Celular — iPhones e Android em Jardim-MS"
-        description="iPhones lacrados e seminovos importados dos EUA com 1 ano de garantia. Xiaomi, Realme, Tecno e assistência técnica em Jardim-MS e Guia Lopes da Laguna."
+        title="Lojinha do Celular — Vitrine de iPhones e Celulares em Jardim-MS"
+        description="iPhones lacrados e seminovos com 1 ano de garantia, pronta entrega e assistência técnica especializada em Jardim e Guia Lopes da Laguna."
       />
-      {/* HERO */}
-      <section className="relative overflow-hidden bg-brand">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-14 md:grid-cols-2 md:py-20">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-ink">
-              <Plane className="h-3.5 w-3.5" /> Importados dos EUA
-            </span>
-            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] text-ink md:text-6xl">
-              Seu próximo iPhone está aqui.
-            </h1>
-            <p className="mt-4 max-w-md text-base font-medium text-ink/70 md:text-lg">
-              iPhones lacrados e seminovos com{" "}
-              <strong>1 ano de garantia</strong>, além de Xiaomi, Realme, Tecno
-              e assistência técnica completa.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                to="/catalogo"
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-3 font-display font-bold text-brand shadow-[4px_4px_0_0_rgba(20,20,20,0.3)] transition hover:-translate-y-0.5"
-              >
-                Ver catálogo <ArrowRight className="h-4 w-4" />
-              </Link>
-              <a
-                href="#unidades"
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-6 py-3 font-display font-bold text-ink transition hover:-translate-y-0.5"
-              >
-                <MapPin className="h-4 w-4" /> Nossas lojas
-              </a>
-            </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-ink">
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4" /> 1 ano de garantia
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <BadgeCheck className="h-4 w-4" /> Seminovos revisados
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Wrench className="h-4 w-4" /> Assistência técnica
-              </span>
-            </div>
-          </div>
 
-          <HeroCarousel images={s.heroImages} />
-        </div>
-      </section>
+      {/* 1. HERO COM VÍDEO E PROVA SOCIAL */}
+      <HeroBlk />
 
-      {/* TROCA FÁCIL */}
-      <section className="border-b-4 border-ink bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 px-4 py-8 md:flex-row md:items-center">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-brand">
-              <Smartphone className="h-6 w-6 text-ink" />
-            </div>
+      {/* 2. SEÇÃO VITRINE INTEGRADA */}
+      <section id="vitrine" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-10">
+        <div className="flex flex-col gap-4">
+          {/* Cabeçalho da Seção */}
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="font-display text-lg font-bold text-ink">
-                Seu aparelho pode valer uma nova história.
-              </p>
-              <p className="mt-1 text-sm text-neutral-600">
-                Faça uma pré-avaliação online e use o valor na troca por outro
-                celular.
-              </p>
-            </div>
-          </div>
-          <Link
-            to="/avaliacao"
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl border-2 border-ink bg-brand px-5 py-3 font-display text-sm font-bold text-ink shadow-[3px_3px_0_0_#141414] transition hover:-translate-y-0.5"
-          >
-            Avaliar meu aparelho <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
-
-      {/* CATEGORIAS */}
-      <section className="mx-auto max-w-6xl px-4 py-14">
-        <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
-          O que você procura?
-        </h2>
-        <p className="mt-1 text-neutral-600">
-          Escolha uma categoria e confira os modelos disponíveis.
-        </p>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {CATEGORY_CARDS.map(c => (
-            <Link
-              key={c.title}
-              to={c.to}
-              className="group rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-1 hover:bg-brand"
-            >
-              <c.icon className="h-8 w-8 text-ink" />
-              <h3 className="mt-3 font-display text-lg font-bold text-ink">
-                {c.title}
-              </h3>
-              <p className="mt-1 text-sm text-neutral-600 group-hover:text-ink/70">
-                {c.desc}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* DESTAQUES */}
-      <section className="border-y-4 border-ink bg-neutral-50">
-        <div className="mx-auto max-w-6xl px-4 py-14">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
-                Destaques da loja
+              <h2 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                Vitrine de Produtos
               </h2>
-              <p className="mt-1 text-neutral-600">
-                Os modelos mais procurados, com estoque atualizado.
+              <p className="text-xs text-neutral-400 sm:text-sm">
+                Aparelhos selecionados à pronta entrega com 1 ano de garantia e procedência garantida.
               </p>
             </div>
-            <Link
-              to="/catalogo"
-              className="hidden shrink-0 items-center gap-1 font-semibold text-ink underline decoration-brand decoration-4 underline-offset-4 hover:decoration-ink md:inline-flex"
-            >
-              Ver todos <ArrowRight className="h-4 w-4" />
-            </Link>
+            <span className="text-xs text-neutral-500 font-medium">
+              {filteredProducts.length} {filteredProducts.length === 1 ? "produto disponível" : "produtos disponíveis"}
+            </span>
           </div>
 
-          {featured.isLoading ? (
-            <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-[3/4] animate-pulse rounded-2xl bg-neutral-200"
-                />
-              ))}
+          {/* Controles de Busca e Ordenação */}
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Campo de Busca */}
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por modelo, cor, capacidade..."
+                className="w-full rounded-full border border-white/10 bg-[#141414] py-2.5 pl-11 pr-4 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-white/30 focus:bg-[#18181b]"
+              />
+            </div>
+
+            {/* Seletor de Ordenação */}
+            <div className="relative flex items-center shrink-0">
+              <ArrowUpDown className="pointer-events-none absolute left-3.5 h-3.5 w-3.5 text-neutral-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="rounded-full border border-white/10 bg-[#141414] py-2.5 pl-9 pr-4 text-xs font-semibold text-white outline-none cursor-pointer hover:border-white/20 focus:border-white/30 focus:bg-[#18181b]"
+              >
+                <option value="relevancia" className="bg-[#141414] text-white">
+                  Lançamentos / Relevância
+                </option>
+                <option value="menor_preco" className="bg-[#141414] text-white">
+                  Menor Preço
+                </option>
+                <option value="maior_preco" className="bg-[#141414] text-white">
+                  Maior Preço
+                </option>
+                <option value="modelo_recente" className="bg-[#141414] text-white">
+                  Modelo Recente
+                </option>
+              </select>
+            </div>
+          </div>
+
+          {/* Pílulas de Categoria (scroll suave no mobile) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {CATEGORY_PILLS.map((pill) => {
+              const isActive = selectedCategory === pill.value;
+              return (
+                <button
+                  key={pill.label}
+                  type="button"
+                  onClick={() => setSelectedCategory(pill.value)}
+                  className={`shrink-0 cursor-pointer ${
+                    isActive
+                      ? "bg-white text-black font-semibold rounded-full px-4 py-1.5 text-xs sm:text-sm transition"
+                      : "bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white rounded-full px-4 py-1.5 text-xs sm:text-sm transition"
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Grid de Produtos ou Estado Vazio */}
+          {filteredProducts.length === 0 ? (
+            <div className="mt-8 rounded-2xl border border-white/10 bg-[#141414] p-8 text-center sm:p-12">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-neutral-400">
+                <Search className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 font-display text-lg font-semibold text-white sm:text-xl">
+                Nenhum produto encontrado
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-xs sm:text-sm text-neutral-400">
+                Não encontramos aparelhos com os critérios de busca selecionados. Fale conosco no WhatsApp para consultar novas entradas ou encomendas!
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                {(search || selectedCategory) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setSelectedCategory(undefined);
+                    }}
+                    className="cursor-pointer rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+                <a
+                  href={waLink(
+                    whatsapp,
+                    search
+                      ? `Olá! Estou procurando por "${search}" na Lojinha do Celular. Vocês têm em estoque ou previsão?`
+                      : "Olá! Gostaria de consultar a disponibilidade de aparelhos na Lojinha do Celular.",
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2 text-xs font-semibold text-white transition hover:brightness-105"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Consultar no WhatsApp</span>
+                </a>
+              </div>
             </div>
           ) : (
-            <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {(featured.data ?? []).map((p, i) => (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {filteredProducts.map((p, i) => (
                 <ProductCard
                   key={p.id}
                   product={p}
@@ -193,93 +233,64 @@ export default function Home() {
               ))}
             </div>
           )}
-
-          <div className="mt-8 text-center md:hidden">
-            <Link
-              to="/catalogo"
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-3 font-display font-bold text-brand"
-            >
-              Ver catálogo completo <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
         </div>
       </section>
 
-      {/* SOBRE */}
-      <section id="sobre" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14">
-        <div className="grid items-center gap-10 md:grid-cols-2">
-          <div>
-            <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
-              Por que comprar na Lojinha?
-            </h2>
-            <div className="mt-6 space-y-5">
-              {[
-                {
-                  icon: Plane,
-                  title: "Importados direto dos EUA",
-                  desc: "Trabalhamos com iPhones trazidos diretamente dos Estados Unidos, sem intermediários — por isso o preço é melhor.",
-                },
-                {
-                  icon: ShieldCheck,
-                  title: "Garantia de verdade da loja",
-                  desc: "Aparelhos com garantia de 6 meses a 1 ano direto com a nossa loja. Comprou, ficou tranquilo.",
-                },
-                {
-                  icon: BadgeCheck,
-                  title: "Seminovos revisados",
-                  desc: "Cada seminovo passa por teste completo de tela, bateria, câmeras e Face ID antes de ir pra vitrine.",
-                },
-                {
-                  icon: Wrench,
-                  title: "Manutenção especializada",
-                  desc: "Troca de tela, bateria, conector de carga, vidro traseiro e diagnóstico gratuito em todas as marcas.",
-                },
-              ].map(item => (
-                <div key={item.title} className="flex gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-brand">
-                    <item.icon className="h-5 w-5 text-ink" />
-                  </div>
-                  <div>
-                    <h3 className="font-display font-bold text-ink">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-neutral-600">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
+      {/* 3. BANNER DE TROCA / TRADE-IN */}
+      <section className="border-t border-white/10 bg-[#0d0d0d]">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-10 md:flex-row md:items-center">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white">
+              <Smartphone className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-display text-lg font-bold text-white sm:text-xl">
+                Seu aparelho usado vale desconto no novo.
+              </p>
+              <p className="mt-1 text-sm text-neutral-400">
+                Faça uma pré-avaliação online em poucos minutos e use o valor na troca por outro celular.
+              </p>
             </div>
           </div>
-          <div className="rounded-3xl border-4 border-ink bg-brand p-8 shadow-[8px_8px_0_0_#141414]">
-            <p className="font-display text-3xl font-bold leading-tight text-ink">
-              "Comprou na Lojinha, levou garantia."
-            </p>
-            <p className="mt-4 font-medium text-ink/70">
-              Atendemos em Jardim-MS e Guia Lopes da Laguna com loja física,
-              estoque à pronta entrega e suporte pelo WhatsApp.
-            </p>
-            <Link
-              to="/catalogo"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-3 font-display font-bold text-brand"
-            >
-              Conferir estoque <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <Link
+            to="/avaliacao"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3 font-display text-sm font-semibold text-black transition hover:bg-neutral-200"
+          >
+            Avaliar meu aparelho <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
-      {/* SERVIÇOS */}
-      <section
-        id="servicos"
-        className="border-y-4 border-ink bg-ink text-white"
-      >
-        <div className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14">
-          <h2 className="font-display text-2xl font-bold text-brand md:text-3xl">
-            Assistência técnica
-          </h2>
-          <p className="mt-1 text-white/70">
-            Manutenção em iPhone, Xiaomi, Realme, Tecno e outras marcas.
-          </p>
-          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+      {/* 4. SERVIÇOS DE ASSISTÊNCIA TÉCNICA */}
+      <section id="servicos" className="border-t border-white/10 bg-[#0a0a0a] text-white">
+        <div className="mx-auto max-w-6xl scroll-mt-24 px-4 py-16">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
+                Assistência Especializada
+              </span>
+              <h2 className="mt-1 font-display text-2xl font-bold text-white md:text-3xl">
+                Serviços de Manutenção
+              </h2>
+              <p className="mt-1 text-sm text-neutral-400">
+                Reparos em iPhone, Xiaomi, Realme, Tecno e outras marcas com peças de alta qualidade.
+              </p>
+            </div>
+            <a
+              href={waLink(
+                whatsapp,
+                "Olá! Gostaria de fazer um orçamento de assistência técnica na Lojinha do Celular.",
+              )}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/10 md:self-auto"
+            >
+              <Wrench className="h-4 w-4 text-neutral-300" />
+              <span>Pedir orçamento</span>
+            </a>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               "Troca de tela",
               "Troca de bateria",
@@ -289,10 +300,10 @@ export default function Home() {
               "Placa e reparo avançado",
               "Películas e capinhas",
               "Diagnóstico gratuito",
-            ].map(service => (
+            ].map((service) => (
               <div
                 key={service}
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-4 text-center text-sm font-semibold text-white transition hover:border-brand hover:text-brand"
+                className="rounded-2xl border border-white/10 bg-[#141414] p-4 text-center text-xs sm:text-sm font-medium text-white transition hover:border-white/25 hover:bg-[#18181b]"
               >
                 {service}
               </div>
@@ -301,62 +312,73 @@ export default function Home() {
         </div>
       </section>
 
-      {/* UNIDADES */}
-      <section
-        id="unidades"
-        className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14"
-      >
-        <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
-          Nossas unidades
-        </h2>
-        <p className="mt-1 text-neutral-600">
-          Duas lojas pra te atender de pertinho.
-        </p>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {[
-            {
-              city: "Jardim-MS",
-              address: s.addressJardim,
-              maps: s.mapsJardim,
-              whatsapp: s.whatsappJardim,
-            },
-            {
-              city: "Guia Lopes da Laguna-MS",
-              address: s.addressGll,
-              maps: s.mapsGll,
-              whatsapp: s.whatsappGll,
-            },
-          ].map(u => (
-            <div
-              key={u.city}
-              className="rounded-2xl border-2 border-ink bg-white p-6 shadow-[4px_4px_0_0_#141414]"
-            >
-              <h3 className="font-display text-lg font-bold text-ink">
-                {u.city}
-              </h3>
-              <p className="mt-1 flex items-start gap-2 text-sm text-neutral-600">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {u.address}
-              </p>
-              <div className="mt-4 flex gap-3">
-                <a
-                  href={u.maps}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 rounded-xl border-2 border-ink bg-brand px-4 py-2.5 text-center text-sm font-bold text-ink transition hover:brightness-95"
-                >
-                  Ver no mapa
-                </a>
-                <a
-                  href={`https://wa.me/${u.whatsapp.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 rounded-xl border-2 border-ink bg-[#25D366] px-4 py-2.5 text-center text-sm font-bold text-ink transition hover:brightness-105"
-                >
-                  WhatsApp
-                </a>
+      {/* 5. NOSSAS UNIDADES */}
+      <section id="unidades" className="border-t border-white/10 bg-[#0a0a0a] text-white">
+        <div className="mx-auto max-w-6xl scroll-mt-24 px-4 py-16">
+          <div className="text-center md:text-left">
+            <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
+              Lojas Físicas
+            </span>
+            <h2 className="mt-1 font-display text-2xl font-bold text-white md:text-3xl">
+              Nossas Unidades
+            </h2>
+            <p className="mt-1 text-sm text-neutral-400">
+              Visite nossas lojas em Jardim e Guia Lopes da Laguna para testar os aparelhos em mãos.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {[
+              {
+                city: "Jardim-MS",
+                address: s.addressJardim || "Av. Duque de Caxias, 486 - Jardim/MS",
+                maps: s.mapsJardim,
+                whatsapp: s.whatsappJardim || whatsapp,
+              },
+              {
+                city: "Guia Lopes da Laguna-MS",
+                address: s.addressGll || "Rua Macias Barbosa, 2185 - Guia Lopes da Laguna/MS",
+                maps: s.mapsGll,
+                whatsapp: s.whatsappGll || whatsapp,
+              },
+            ].map((u) => (
+              <div
+                key={u.city}
+                className="flex flex-col justify-between rounded-2xl border border-white/10 bg-[#141414] p-6 transition hover:border-white/20"
+              >
+                <div>
+                  <h3 className="font-display text-lg font-bold text-white">
+                    {u.city}
+                  </h3>
+                  <p className="mt-2 flex items-start gap-2 text-sm text-neutral-400">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
+                    <span>{u.address}</span>
+                  </p>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  {u.maps ? (
+                    <a
+                      href={u.maps}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-center text-xs font-semibold text-white transition hover:bg-white/10"
+                    >
+                      Ver no mapa
+                    </a>
+                  ) : null}
+                  <a
+                    href={`https://wa.me/${u.whatsapp.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 rounded-full bg-[#25D366] px-4 py-2.5 text-center text-xs font-semibold text-white transition hover:brightness-105"
+                  >
+                    Falar com a loja
+                  </a>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
     </div>
