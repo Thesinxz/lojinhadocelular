@@ -450,3 +450,77 @@ export function resolveProductImage(
   return cleanUrl || "/images/logo.png";
 }
 
+/**
+ * Detecta um modelo de iPhone pelo texto digitado ou selecionado
+ */
+export function detectIphoneModel(query: string): IphoneModelSpec | null {
+  const raw = String(query || "").trim();
+  if (!raw) return null;
+
+  const q = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // Busca exata no catálogo
+  for (const model of IPHONE_CATALOG) {
+    const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (q === mName || q === mName.replace(/^iphone\s*/, "")) {
+      return model;
+    }
+  }
+
+  // Ordena por comprimento decrescente para não confundir "iPhone 16 Pro Max" com "iPhone 16"
+  const sorted = [...IPHONE_CATALOG].sort((a, b) => b.name.length - a.name.length);
+  for (const model of sorted) {
+    const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const shortName = mName.replace(/^iphone\s*/, "");
+
+    const escapedShort = shortName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+    const escapedFull = mName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+
+    if (
+      new RegExp(`\\b${escapedFull}\\b`, "i").test(q) ||
+      new RegExp(`\\b${escapedShort}\\b`, "i").test(q)
+    ) {
+      return model;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Modelos populares para seleção rápida por pílulas
+ */
+export const POPULAR_IPHONE_MODELS = [
+  "iPhone 16 Pro Max",
+  "iPhone 16 Pro",
+  "iPhone 16",
+  "iPhone 15 Pro Max",
+  "iPhone 15 Pro",
+  "iPhone 15",
+  "iPhone 14 Pro Max",
+  "iPhone 14",
+  "iPhone 13 Pro Max",
+  "iPhone 13",
+  "iPhone 12",
+  "iPhone 11",
+];
+
+export const FALLBACK_STORAGE_OPTIONS = [
+  "64 GB",
+  "128 GB",
+  "256 GB",
+  "512 GB",
+  "1 TB",
+  "Não sei",
+];
+
+export const FALLBACK_COLOR_OPTIONS = [
+  { name: "Preto", hex: "#1d1d1f" },
+  { name: "Branco / Prateado", hex: "#f5f5f7" },
+  { name: "Azul", hex: "#2c4d5e" },
+  { name: "Dourado", hex: "#fae7cf" },
+  { name: "Verde", hex: "#475c4d" },
+  { name: "Rosa / Roxo", hex: "#b5a7cb" },
+  { name: "Outra cor", hex: "#888888" },
+];
+

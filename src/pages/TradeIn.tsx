@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type ReactNode } from "react";
+import { useState, useMemo, type ChangeEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,21 +8,20 @@ import {
   Phone,
   ShieldCheck,
   Smartphone,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { Link } from "react-router";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink } from "@/lib/shop";
+import {
+  detectIphoneModel,
+  POPULAR_IPHONE_MODELS,
+  FALLBACK_STORAGE_OPTIONS,
+  FALLBACK_COLOR_OPTIONS,
+} from "@/lib/iphoneCatalog";
 
 const STEPS = ["Você", "Aparelho", "Estado", "Fotos"];
-const STORAGE_OPTIONS = [
-  "64 GB",
-  "128 GB",
-  "256 GB",
-  "512 GB",
-  "1 TB",
-  "Não sei",
-];
 const CONDITION_OPTIONS = [
   "Novo ou sem marcas",
   "Bem conservado",
@@ -41,6 +40,7 @@ type Evaluation = {
   whatsapp: string;
   model: string;
   storage: string;
+  color: string;
   condition: string;
   battery: string;
   notes: string;
@@ -51,6 +51,7 @@ const INITIAL_EVALUATION: Evaluation = {
   whatsapp: "",
   model: "",
   storage: "",
+  color: "",
   condition: "",
   battery: "",
   notes: "",
@@ -98,6 +99,28 @@ export default function TradeIn() {
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
 
+  const detectedModel = useMemo(
+    () => detectIphoneModel(evaluation.model),
+    [evaluation.model]
+  );
+
+  const storageOptions = useMemo(() => {
+    if (detectedModel && detectedModel.capacities.length > 0) {
+      const formatted = detectedModel.capacities.map(c =>
+        c.replace(/([0-9]+)\s*(gb|tb)/i, "$1 $2").toUpperCase()
+      );
+      return [...formatted, "Não sei"];
+    }
+    return FALLBACK_STORAGE_OPTIONS;
+  }, [detectedModel]);
+
+  const colorOptions = useMemo(() => {
+    if (detectedModel && detectedModel.colors.length > 0) {
+      return detectedModel.colors;
+    }
+    return FALLBACK_COLOR_OPTIONS;
+  }, [detectedModel]);
+
   function updateField(field: keyof Evaluation, value: string) {
     const finalValue = field === "whatsapp" ? formatPhoneInput(value) : value;
     setEvaluation(current => ({ ...current, [field]: finalValue }));
@@ -136,6 +159,7 @@ export default function TradeIn() {
       `WhatsApp: ${evaluation.whatsapp}`,
       `Modelo: ${evaluation.model}`,
       `Armazenamento: ${evaluation.storage || "Não informado"}`,
+      `Cor: ${evaluation.color || "Não informada"}`,
       `Estado: ${evaluation.condition}`,
       `Saúde da bateria: ${evaluation.battery}`,
       `Fotos selecionadas: ${photos.length ? photos.join(", ") : "Ainda vou anexar"}`,
@@ -316,9 +340,9 @@ export default function TradeIn() {
             <>
               <StepHeading
                 title="Qual aparelho você tem?"
-                description="Pode ser um iPhone ou Android. Digite o modelo que está com você hoje."
+                description="Selecione um modelo popular ou digite o nome do seu iPhone ou celular."
               />
-              <div className="mt-5 space-y-4">
+              <div className="mt-5 space-y-5">
                 <Field
                   label="Modelo do aparelho"
                   icon={<Smartphone className="h-4 w-4" />}
@@ -326,17 +350,66 @@ export default function TradeIn() {
                   <input
                     value={evaluation.model}
                     onChange={event => updateField("model", event.target.value)}
-                    placeholder="Ex.: iPhone 13 Pro"
+                    placeholder="Ex.: iPhone 15 Pro, iPhone 13, Galaxy S23..."
                     autoComplete="off"
                     className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
                   />
                 </Field>
+
+                {/* Pílulas de seleção rápida de modelos populares */}
                 <div>
-                  <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-                    Armazenamento
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
+                    Toque para selecionar seu modelo
                   </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {POPULAR_IPHONE_MODELS.map(popName => {
+                      const isSelected =
+                        detectedModel?.name.toLowerCase() === popName.toLowerCase() ||
+                        evaluation.model.toLowerCase().trim() === popName.toLowerCase();
+                      return (
+                        <button
+                          key={popName}
+                          type="button"
+                          onClick={() => {
+                            updateField("model", popName);
+                          }}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                            isSelected
+                              ? "bg-[#1d1d1f] text-white shadow-xs scale-102"
+                              : "border border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-400 hover:bg-white"
+                          }`}
+                        >
+                          {popName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Banner de reconhecimento inteligente */}
+                {detectedModel && (
+                  <div className="flex items-center gap-2.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3.5 py-2.5 text-xs font-medium text-blue-900 animate-fadeIn">
+                    <Sparkles className="h-4 w-4 shrink-0 text-[#0071e3]" />
+                    <span>
+                      Modelo reconhecido: <b className="text-[#0071e3]">{detectedModel.name}</b>. Listando as opções oficiais de cor e capacidade abaixo.
+                    </span>
+                  </div>
+                )}
+
+                {/* Armazenamento dinâmico */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold tracking-wide text-[#6e6e73]">
+                      Armazenamento
+                    </span>
+                    {evaluation.storage && (
+                      <span className="text-xs font-bold text-[#0071e3]">
+                        {evaluation.storage}
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {STORAGE_OPTIONS.map(option => (
+                    {storageOptions.map(option => (
                       <ChoiceButton
                         key={option}
                         label={option}
@@ -344,6 +417,44 @@ export default function TradeIn() {
                         onClick={() => updateField("storage", option)}
                       />
                     ))}
+                  </div>
+                </div>
+
+                {/* Cores oficiais */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold tracking-wide text-[#6e6e73]">
+                      Cor do aparelho
+                    </span>
+                    {evaluation.color && (
+                      <span className="text-xs font-bold text-[#0071e3]">
+                        {evaluation.color}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {colorOptions.map(c => {
+                      const isSelected = evaluation.color === c.name;
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => updateField("color", c.name)}
+                          className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 text-left text-xs font-semibold transition-all duration-200 ${
+                            isSelected
+                              ? "border-[#0071e3] bg-[#0071e3]/8 text-[#0071e3] ring-2 ring-[#0071e3]/20 shadow-xs"
+                              : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
+                          }`}
+                        >
+                          <span
+                            className="h-4 w-4 shrink-0 rounded-full border border-black/15 shadow-2xs"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          <span className="truncate flex-1">{c.name}</span>
+                          {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
