@@ -88,3 +88,21 @@
 .tv-slide-in {
   animation: tv-slide-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Animação de Marquee Contínuo (Prova Social) */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
