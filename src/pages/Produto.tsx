@@ -9,6 +9,7 @@ import {
   Plus,
   RefreshCcw,
   Gift,
+  Video,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -16,6 +17,7 @@ import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
 import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
+import { getVideoEmbed } from "@/components/admin/AdminProductEditor";
 import SEO from "@/components/SEO";
 
 type Variant = ProductWithVariants["variants"][number];
@@ -58,6 +60,7 @@ export default function Produto() {
   const [userColor, setUserColor] = useState<string | null>(null);
   const [userVariantId, setUserVariantId] = useState<number | null>(null);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
+  const [mediaTab, setMediaTab] = useState<"photo" | "video">("photo");
 
   if (selectedProductId !== numericId) {
     setSelectedProductId(numericId);
@@ -66,6 +69,7 @@ export default function Produto() {
     setUserColor(null);
     setUserVariantId(null);
     setShowAllInstallments(false);
+    setMediaTab("photo");
   }
 
   const defaultVariant = useMemo(() => {
@@ -227,6 +231,17 @@ export default function Produto() {
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const productCode = `B${(product?.id ?? 1000) + 1600}`;
+  const displaySku = selected?.sku || productCode;
+  const warrantyDisplay =
+    selected?.warranty ||
+    product?.warranty ||
+    (isLacrado ? "1 ano de garantia" : "6 meses de garantia");
+
+  const videoUrl =
+    selected?.videoUrl ||
+    (product as unknown as { videoUrl?: string })?.videoUrl ||
+    "";
+  const videoEmbed = videoUrl ? getVideoEmbed(videoUrl) : null;
 
   if (!isValidId) {
     return (
@@ -343,9 +358,70 @@ export default function Produto() {
 
         {/* Grid em 2 colunas no desktop */}
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start max-w-5xl mx-auto">
-          {/* Coluna da Esquerda (Foto do Produto Limpa em Fundo Branco) */}
+          {/* Coluna da Esquerda (Foto do Produto ou Vídeo) */}
           <div className="aspect-square w-full rounded-3xl bg-[#fbfbfd] border border-neutral-100 p-4 sm:p-8 flex items-center justify-center shadow-xs overflow-hidden relative">
-            {prodImage ? (
+            {videoEmbed && (
+              <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-full bg-black/75 p-1 backdrop-blur-md shadow-md">
+                <button
+                  type="button"
+                  onClick={() => setMediaTab("photo")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                    mediaTab === "photo"
+                      ? "bg-white text-black shadow-xs"
+                      : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  📷 Foto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaTab("video")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                    mediaTab === "video"
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  <Video className="h-3.5 w-3.5" /> Vídeo
+                </button>
+              </div>
+            )}
+
+            {mediaTab === "video" && videoEmbed ? (
+              <div className="h-full w-full flex items-center justify-center bg-black rounded-2xl overflow-hidden">
+                {videoEmbed.type === "youtube" ? (
+                  <iframe
+                    src={videoEmbed.src}
+                    title="Vídeo do aparelho"
+                    className="h-full w-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : videoEmbed.type === "video" ? (
+                  <video
+                    src={videoEmbed.src}
+                    controls
+                    autoPlay
+                    muted
+                    playsInline
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center p-6 text-white">
+                    <Video className="mx-auto h-10 w-10 text-purple-400 mb-2" />
+                    <p className="text-sm font-semibold">Vídeo demonstrativo</p>
+                    <a
+                      href={videoEmbed.src}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-500"
+                    >
+                      Assistir vídeo externo
+                    </a>
+                  </div>
+                )}
+              </div>
+            ) : prodImage ? (
               <img
                 src={optimizeImageUrl(prodImage, 800, 85)}
                 srcSet={getImageSrcSet(prodImage)}
@@ -384,7 +460,7 @@ export default function Produto() {
 
               {/* Código do produto */}
               <span className="rounded-full border border-neutral-200 px-2.5 py-0.5 text-xs font-mono text-neutral-500">
-                {productCode}
+                {displaySku}
               </span>
 
               {/* Bateria para seminovos */}
@@ -611,10 +687,24 @@ export default function Produto() {
                     <span className="font-bold text-neutral-900 text-right">{storage}</span>
                   </div>
                 )}
+                {batteryHealthDisplay && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-neutral-500">Saúde da bateria</span>
+                    <span className="font-bold text-emerald-700 text-right">
+                      {batteryHealthDisplay}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-neutral-500">Código</span>
-                  <span className="font-mono text-neutral-600 text-right">{productCode}</span>
+                  <span className="font-mono text-neutral-600 text-right">{displaySku}</span>
                 </div>
+                {warrantyDisplay && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-neutral-500">Garantia</span>
+                    <span className="font-bold text-neutral-900 text-right">{warrantyDisplay}</span>
+                  </div>
+                )}
               </div>
 
               {/* Nota de Procedência & Confiança */}

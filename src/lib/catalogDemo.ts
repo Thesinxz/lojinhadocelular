@@ -15,6 +15,8 @@ export interface DemoVariant {
   color: string;
   colorHex: string | null;
   imageUrl: string | null;
+  videoUrl?: string | null;
+  sku?: string | null;
   batteryHealth: string | null;
   warranty: string | null;
   condition: string | null;
@@ -32,6 +34,7 @@ export interface DemoProduct {
   condition: string;
   description: string | null;
   imageUrl: string | null;
+  videoUrl?: string | null;
   warranty: string | null;
   featured: boolean;
   active: boolean;

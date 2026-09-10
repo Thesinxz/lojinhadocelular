@@ -22,6 +22,7 @@ export async function ensureTables() {
         \`condition\` VARCHAR(30) NOT NULL DEFAULT 'lacrado',
         description TEXT,
         image_url TEXT,
+        video_url TEXT,
         warranty VARCHAR(120) DEFAULT '1 ano de garantia',
         featured BOOLEAN NOT NULL DEFAULT FALSE,
         active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -41,6 +42,8 @@ export async function ensureTables() {
         color VARCHAR(60) NOT NULL,
         color_hex VARCHAR(9) DEFAULT '#111111',
         image_url TEXT,
+        video_url TEXT,
+        sku VARCHAR(60) DEFAULT '',
         battery_health VARCHAR(30) DEFAULT '',
         warranty VARCHAR(120) DEFAULT '',
         \`condition\` VARCHAR(30) DEFAULT '',
@@ -53,6 +56,9 @@ export async function ensureTables() {
     `);
 
     // Migrações incrementais seguras
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS sku VARCHAR(60) DEFAULT ''`).catch(() => {});
+    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS video_url TEXT`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS battery_health VARCHAR(30) DEFAULT ''`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS image_url TEXT`).catch(() => {});
     await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS warranty VARCHAR(120) DEFAULT ''`).catch(() => {});

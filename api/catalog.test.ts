@@ -55,5 +55,34 @@ describe("Catalog Demo Data", () => {
     expect(mAir?.name).toBe("iPhone Air");
     expect(mAir?.screen).toBe('6.5"');
   });
+
+  it("deve processar links de vídeo para players responsivos (YouTube e MP4 direto)", async () => {
+    const { getVideoEmbed } = await import("../src/components/admin/AdminProductEditor");
+    
+    // Link completo do YouTube
+    const yt1 = getVideoEmbed("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(yt1).toEqual({
+      type: "youtube",
+      src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    });
+
+    // Link encurtado youtu.be
+    const yt2 = getVideoEmbed("https://youtu.be/dQw4w9WgXcQ");
+    expect(yt2).toEqual({
+      type: "youtube",
+      src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    });
+
+    // Arquivo de vídeo direto MP4
+    const mp4 = getVideoEmbed("https://meusite.com/videos/aparelho.mp4");
+    expect(mp4).toEqual({
+      type: "video",
+      src: "https://meusite.com/videos/aparelho.mp4",
+    });
+
+    // Vazio retorna nulo
+    expect(getVideoEmbed("")).toBeNull();
+    expect(getVideoEmbed("   ")).toBeNull();
+  });
 });
 

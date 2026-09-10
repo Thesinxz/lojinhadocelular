@@ -26,6 +26,7 @@ export const products = mysqlTable(
     condition: varchar("condition", { length: 30 }).notNull().default("lacrado"), // lacrado | seminovo | novo
     description: text("description"),
     imageUrl: text("image_url"),
+    videoUrl: text("video_url"),
     warranty: varchar("warranty", { length: 120 }).default("1 ano de garantia"),
     featured: boolean("featured").notNull().default(false),
     active: boolean("active").notNull().default(true),
@@ -48,6 +49,8 @@ export const variants = mysqlTable(
     color: varchar("color", { length: 60 }).notNull(), // ex: "Preto"
     colorHex: varchar("color_hex", { length: 9 }).default("#111111"),
     imageUrl: text("image_url"), // URL da foto específica desta variante/cor
+    videoUrl: text("video_url"), // URL do vídeo específico desta unidade/cor
+    sku: varchar("sku", { length: 60 }).default(""), // Código de estoque/etiqueta ex: "19046F05"
     batteryHealth: varchar("battery_health", { length: 30 }).default(""), // ex: "85%", "100%", "Bateria Nova"
     warranty: varchar("warranty", { length: 120 }).default(""), // ex: "3 meses", "1 ano", "Garantia Apple Nov/2026"
     condition: varchar("condition", { length: 30 }).default(""), // ex: "lacrado", "seminovo_eua", "seminovo_entrada"

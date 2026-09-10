@@ -91,6 +91,8 @@ export type VariantInput = {
   color: string;
   colorHex?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  sku?: string;
   batteryHealth?: string;
   warranty?: string;
   condition?: string;
@@ -108,6 +110,7 @@ export type ProductInput = {
   condition: string;
   description?: string;
   imageUrl?: string;
+  videoUrl?: string;
   warranty?: string;
   featured: boolean;
   active: boolean;
