@@ -1,23 +1,18 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
 import {
   ShieldCheck,
   MessageCircle,
   ChevronLeft,
   BadgeCheck,
-  HardDrive,
-  Palette,
-  Package,
-  BatteryCharging,
-  FileText,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
-import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet, isImportedEua } from "@/lib/shop";
-
+import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
+import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import SEO from "@/components/SEO";
 
 type Variant = ProductWithVariants["variants"][number];
@@ -25,33 +20,63 @@ type Variant = ProductWithVariants["variants"][number];
 export default function Produto() {
   const { id } = useParams<{ id: string }>();
   const numericId = Number(id);
-  const isValidId = !Number.isNaN(numericId) && numericId > 0;
+
+  const demoFallback = useMemo(() => {
+    if (Number.isNaN(numericId)) return undefined;
+    return (
+      DEMO_PRODUCTS.find((p) => p.id === numericId) ||
+      DEMO_PRODUCTS.find((p) => p.id === Math.abs(numericId)) ||
+      (numericId < 0 ? DEMO_PRODUCTS[0] : undefined)
+    );
+  }, [numericId]);
+
+  const isDemo = !!demoFallback;
+  const isValidId = (!Number.isNaN(numericId) && numericId > 0) || isDemo;
 
   const s = useShopSettings();
   const query = trpc.shop.product.useQuery(
-    { id: numericId },
-    { enabled: isValidId, staleTime: 1000 * 30 },
+    { id: numericId > 0 ? numericId : 1 },
+    {
+      enabled: !Number.isNaN(numericId) && numericId > 0 && !isDemo,
+      staleTime: 1000 * 30,
+    },
   );
-  const product = query.data;
 
-  const [version, setVersion] = useState("");
-  const [storage, setStorage] = useState("");
-  const [color, setColor] = useState("");
-  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const product = useMemo(() => {
+    if (query.data) return query.data as ProductWithVariants;
+    if (demoFallback) return demoFallback as unknown as ProductWithVariants;
+    return null;
+  }, [query.data, demoFallback]);
+
+  // Gerenciamento de seleção sem useEffect (compatível com React 19)
+  const [selectedProductId, setSelectedProductId] = useState<number>(numericId);
+  const [userVersion, setUserVersion] = useState<string | null>(null);
+  const [userStorage, setUserStorage] = useState<string | null>(null);
+  const [userColor, setUserColor] = useState<string | null>(null);
+  const [userVariantId, setUserVariantId] = useState<number | null>(null);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
 
-  // Seleção inicial: primeira combinação disponível
-  useEffect(() => {
-    if (!product) return;
-    const first =
-      product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ?? product.variants[0];
-    if (first) {
-      setVersion(first.version);
-      setStorage(first.storage);
-      setColor(first.color);
-      setSelectedVariantId(first.id ?? null);
-    }
+  if (selectedProductId !== numericId) {
+    setSelectedProductId(numericId);
+    setUserVersion(null);
+    setUserStorage(null);
+    setUserColor(null);
+    setUserVariantId(null);
+    setShowAllInstallments(false);
+  }
+
+  const defaultVariant = useMemo(() => {
+    if (!product || product.variants.length === 0) return null;
+    return (
+      product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ??
+      product.variants[0]
+    );
   }, [product]);
+
+  const version = userVersion ?? defaultVariant?.version ?? "";
+  const storage = userStorage ?? defaultVariant?.storage ?? "";
+  const color = userColor ?? defaultVariant?.color ?? "";
+  const selectedVariantId = userVariantId ?? defaultVariant?.id ?? null;
 
   const derived = useMemo(() => {
     if (!product) return null;
@@ -96,79 +121,116 @@ export default function Produto() {
   }
 
   function pickStorage(st: string) {
-    setStorage(st);
+    setUserStorage(st);
     if (!product) return;
     const match = product.variants.find(
-      (v) => v.version === version && v.storage === st && v.color === color && v.available && (v.quantity ?? 1) > 0,
+      (v) =>
+        v.version === version &&
+        v.storage === st &&
+        v.color === color &&
+        v.available &&
+        (v.quantity ?? 1) > 0,
     );
     if (match) {
-      setSelectedVariantId(match.id ?? null);
+      setUserVariantId(match.id ?? null);
     } else {
       const first = product.variants.find(
-        (v) => v.version === version && v.storage === st && v.available && (v.quantity ?? 1) > 0,
+        (v) =>
+          v.version === version &&
+          v.storage === st &&
+          v.available &&
+          (v.quantity ?? 1) > 0,
       );
       if (first) {
-        setColor(first.color);
-        setSelectedVariantId(first.id ?? null);
+        setUserColor(first.color);
+        setUserVariantId(first.id ?? null);
       }
     }
   }
 
   function pickColor(c: string) {
-    setColor(c);
+    setUserColor(c);
     if (!product) return;
     const match = product.variants.find(
-      (v) => v.version === version && v.storage === storage && v.color === c && v.available && (v.quantity ?? 1) > 0,
+      (v) =>
+        v.version === version &&
+        v.storage === storage &&
+        v.color === c &&
+        v.available &&
+        (v.quantity ?? 1) > 0,
     );
     if (match) {
-      setSelectedVariantId(match.id ?? null);
+      setUserVariantId(match.id ?? null);
     } else {
       const first = product.variants.find(
-        (v) => v.version === version && v.color === c && v.available && (v.quantity ?? 1) > 0,
+        (v) =>
+          v.version === version &&
+          v.color === c &&
+          v.available &&
+          (v.quantity ?? 1) > 0,
       );
       if (first) {
-        setStorage(first.storage);
-        setSelectedVariantId(first.id ?? null);
+        setUserStorage(first.storage);
+        setUserVariantId(first.id ?? null);
       }
     }
   }
 
   function pickVersion(ver: string) {
-    setVersion(ver);
+    setUserVersion(ver);
     if (!product) return;
     const first =
       product.variants.find((v) => v.version === ver && v.available && (v.quantity ?? 1) > 0) ??
       product.variants.find((v) => v.version === ver) ??
       product.variants[0];
     if (first) {
-      setStorage(first.storage);
-      setColor(first.color);
-      setSelectedVariantId(first.id ?? null);
+      setUserStorage(first.storage);
+      setUserColor(first.color);
+      setUserVariantId(first.id ?? null);
     }
   }
 
   const selected = derived?.selected;
-  const isAvailable = !!selected?.available;
+  const isAvailable = !!selected?.available && (selected?.quantity ?? 1) > 0;
   const price = selected?.priceCash ?? null;
   const maxFee = s.fees[String(s.installmentsMax)] ?? 0;
+  const fee12 = s.fees["12"] ?? maxFee;
+  const installment12 = price != null ? installmentFromFees(price, 12, fee12) : null;
+
+  const isLacrado =
+    selected?.condition === "lacrado" || product?.condition === "lacrado";
+  const isIphone =
+    product?.brand.toLowerCase() === "apple" ||
+    (product?.name.toLowerCase().includes("iphone") ?? false);
+  const batteryHealthDisplay =
+    selected?.batteryHealth ||
+    (isLacrado && isIphone ? "100%" : !isLacrado && isIphone ? "85%+" : null);
+
   const categoryLabel = product
     ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)
     : "";
 
+  const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
+  const conditionLabel = isLacrado ? "Lacrado" : "Seminovo";
+  const formattedPrice = price != null ? formatBRL(price) : "";
   const buyMessage = product
-    ? `Olá! Quero comprar o ${product.name}${
-        version ? ` ${version}` : ""
-      } ${storage} na cor ${color}${price != null ? ` (${formatBRL(price)} à vista)` : ""}. Está disponível?`
+    ? `Olá! Vi na vitrine da Lojinha do Celular o ${product.name}${
+        storage && storage !== "Padrão" ? ` ${storage}` : ""
+      }${color ? ` ${color}` : ""} (${conditionLabel}${
+        formattedPrice ? ` - ${formattedPrice}` : ""
+      }) e gostaria de fechar o pedido!`
     : "";
 
   const prodTitle = product
-    ? `${product.name}${version ? ` ${version}` : ""} ${storage} ${color}`
+    ? `${product.name}${version && !product.name.includes(version) ? ` ${version}` : ""}${
+        storage && storage !== "Padrão" ? ` ${storage}` : ""
+      }${color ? ` ${color}` : ""}`
     : "";
   const prodDesc = product
     ? product.description ||
       `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`
     : "";
-  const prodImage = product?.imageUrl || "/images/logo.png";
+  const prodImage = selected?.imageUrl || product?.imageUrl || "/images/logo.png";
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const productJsonLd = useMemo(() => {
@@ -176,81 +238,99 @@ export default function Produto() {
     return {
       "@context": "https://schema.org",
       "@type": "Product",
-      "name": prodTitle,
-      "image":
+      name: prodTitle,
+      image:
         prodImage.startsWith("/") && typeof window !== "undefined"
           ? `${window.location.origin}${prodImage}`
           : prodImage,
-      "description": prodDesc,
-      "brand": {
+      description: prodDesc,
+      brand: {
         "@type": "Brand",
-        "name": product.brand,
+        name: product.brand,
       },
-      "offers": {
+      offers: {
         "@type": "Offer",
-        "priceCurrency": "BRL",
-        "price": price != null ? (price / 100).toFixed(2) : undefined,
-        "itemCondition":
-          product.condition === "seminovo"
-            ? "https://schema.org/UsedCondition"
-            : "https://schema.org/NewCondition",
-        "availability": isAvailable
+        priceCurrency: "BRL",
+        price: price != null ? (price / 100).toFixed(2) : undefined,
+        itemCondition: isLacrado
+          ? "https://schema.org/NewCondition"
+          : "https://schema.org/UsedCondition",
+        availability: isAvailable
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
       },
     };
-  }, [product, prodTitle, prodDesc, prodImage, price, isAvailable]);
+  }, [product, prodTitle, prodDesc, prodImage, price, isLacrado, isAvailable]);
+
+  const isLoading = query.isLoading && !product;
+  const isError = query.isError && !product;
 
   if (!isValidId) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-20 text-center">
-        <p className="font-display text-xl font-bold text-neutral-500">Endereço de produto inválido</p>
-        <Link to="/catalogo" className="mt-4 inline-block font-semibold text-ink underline">
-          Voltar ao catálogo
-        </Link>
+      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+        <div className="mx-auto max-w-5xl text-center py-20">
+          <p className="font-display text-xl font-bold text-neutral-400">
+            Endereço de produto inválido
+          </p>
+          <Link
+            to="/#vitrine"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition"
+          >
+            <ChevronLeft className="h-4 w-4" /> Loja
+          </Link>
+        </div>
       </div>
     );
   }
 
-  if (query.isLoading) {
+  if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="grid gap-8 md:grid-cols-2">
-          <div className="aspect-square animate-pulse rounded-3xl bg-neutral-200" />
-          <div className="space-y-4">
-            <div className="h-8 w-2/3 animate-pulse rounded bg-neutral-200" />
-            <div className="h-5 w-1/3 animate-pulse rounded bg-neutral-200" />
-            <div className="h-24 animate-pulse rounded bg-neutral-200" />
+      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+        <div className="mx-auto max-w-5xl">
+          <div className="h-4 w-16 animate-pulse rounded bg-white/10 mb-6" />
+          <div className="grid md:grid-cols-2 gap-8 items-start">
+            <div className="aspect-square w-full rounded-3xl bg-white/5 border border-white/10 animate-pulse" />
+            <div className="space-y-4">
+              <div className="h-6 w-1/3 animate-pulse rounded-full bg-white/10" />
+              <div className="h-10 w-3/4 animate-pulse rounded bg-white/10" />
+              <div className="h-24 animate-pulse rounded-2xl bg-white/5 border border-white/10" />
+              <div className="h-12 animate-pulse rounded-full bg-white/10" />
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (query.isError) {
+  if (isError) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <div className="rounded-3xl border-2 border-ink bg-white p-8 shadow-[4px_4px_0_0_#141414]">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-brand">
-            <AlertCircle className="h-6 w-6 text-ink" />
-          </div>
-          <h2 className="mt-3 font-display text-lg font-bold text-ink">Erro ao carregar detalhes do produto</h2>
-          <p className="mt-1 text-sm text-neutral-600">
-            Não foi possível comunicar com o servidor. Tente novamente em instantes.
-          </p>
-          <div className="mt-5 flex justify-center gap-3">
-            <button
-              onClick={() => query.refetch()}
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-4 py-2.5 text-sm font-bold text-brand shadow-[2px_2px_0_0_rgba(20,20,20,0.3)] hover:-translate-y-0.5 transition"
-            >
-              <RefreshCw className="h-4 w-4" /> Recarregar
-            </button>
-            <Link
-              to="/catalogo"
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-bold text-ink hover:bg-neutral-50"
-            >
-              Voltar ao catálogo
-            </Link>
+      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+        <div className="mx-auto max-w-md text-center py-20">
+          <div className="rounded-3xl border border-white/10 bg-[#141414] p-8">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <h2 className="mt-4 font-display text-lg font-bold text-white">
+              Erro ao carregar detalhes do produto
+            </h2>
+            <p className="mt-2 text-sm text-neutral-400">
+              Não foi possível comunicar com o servidor. Tente novamente em instantes.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => query.refetch()}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-black hover:bg-neutral-200 transition cursor-pointer"
+              >
+                <RefreshCw className="h-4 w-4" /> Recarregar
+              </button>
+              <Link
+                to="/#vitrine"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-xs font-semibold text-white hover:bg-white/10 transition"
+              >
+                Voltar à loja
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -259,17 +339,27 @@ export default function Produto() {
 
   if (!product || !derived) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-20 text-center">
-        <p className="font-display text-xl font-bold text-neutral-500">Produto não encontrado</p>
-        <Link to="/catalogo" className="mt-4 inline-block font-semibold text-ink underline">
-          Voltar ao catálogo
-        </Link>
+      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+        <div className="mx-auto max-w-5xl text-center py-20">
+          <p className="font-display text-xl font-bold text-neutral-400">
+            Produto não encontrado
+          </p>
+          <Link
+            to="/#vitrine"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition"
+          >
+            <ChevronLeft className="h-4 w-4" /> Loja
+          </Link>
+        </div>
       </div>
     );
   }
 
+  const showStorages = derived.storages.filter(Boolean).length > 0;
+  const showColors = derived.colors.filter(Boolean).length > 0;
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
+    <div className="bg-[#0a0a0a] min-h-screen text-white pt-6 pb-16 px-4">
       <SEO
         title={prodTitle}
         description={prodDesc}
@@ -277,251 +367,255 @@ export default function Produto() {
         url={prodUrl}
         jsonLd={productJsonLd}
       />
-      <Link
-        to="/catalogo"
-        className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-500 hover:text-ink"
-      >
-        <ChevronLeft className="h-4 w-4" /> Voltar ao catálogo
-      </Link>
 
-      <div className="mt-4 grid gap-8 md:grid-cols-2">
-        {/* Imagem */}
-        <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-neutral-100 shadow-[6px_6px_0_0_#141414]">
-          {selected?.imageUrl || product.imageUrl ? (
-            <img
-              src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 720, 80)}
-              srcSet={getImageSrcSet(selected?.imageUrl || product.imageUrl!)}
-              sizes="(max-width: 768px) 100vw, 500px"
-              alt={product.name}
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              onError={(e) => {
-                const raw = selected?.imageUrl || product.imageUrl;
-                if (raw && e.currentTarget.src !== raw) {
-                  e.currentTarget.src = raw;
-                }
-              }}
-              className="aspect-square w-full object-contain pt-14 pb-4 px-4 transition-all duration-300"
-            />
-          ) : (
-            <div className="flex aspect-square items-center justify-center text-neutral-300">Sem foto</div>
-          )}
-          {(() => {
-            const vCond = selected?.condition || product.condition;
-            const vWarr = selected?.warranty || product.warranty || "";
-            const isEua = vCond === "seminovo_eua" || vWarr.includes("EUA") || isImportedEua(product);
-            const isLacrado = vCond === "lacrado" || product.condition === "lacrado";
+      <div className="max-w-5xl mx-auto">
+        {/* Botão de retorno discreto no topo: ← Loja */}
+        <Link
+          to="/#vitrine"
+          className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition"
+        >
+          <ChevronLeft className="h-4 w-4" /> Loja
+        </Link>
 
-            if (isLacrado) {
-              return (
-                <span className="absolute left-4 top-4 z-10 rounded-full border-2 border-ink bg-brand px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-ink shadow-sm">
-                  ✨ Lacrado Novo
-                </span>
-              );
-            }
-            if (isEua) {
-              return (
-                <span className="absolute left-4 top-4 z-10 rounded-full border-2 border-ink bg-blue-600 px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-sm">
-                  🇺🇸 Seminovo EUA (1 Ano)
-                </span>
-              );
-            }
-            return (
-              <span className="absolute left-4 top-4 z-10 rounded-full border-2 border-ink bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink shadow-sm">
-                🔄 Seminovo (Pego na Troca)
-              </span>
-            );
-          })()}
-        </div>
-
-        {/* Detalhes */}
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-400">
-            <span>{product.brand}</span>•<span>{categoryLabel}</span>
-          </div>
-          <h1 className="mt-1 font-display text-3xl font-bold text-ink">
-            {product.name}
-            {version ? <span className="text-neutral-400"> {version}</span> : null}
-          </h1>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {(selected?.warranty || product.warranty) && (
-              <p className="inline-flex items-center gap-1.5 rounded-full bg-brand/40 px-3 py-1 text-xs font-bold text-ink">
-                <ShieldCheck className="h-3.5 w-3.5" /> {selected?.warranty || product.warranty}
-              </p>
-            )}
-            {selected?.batteryHealth ? (
-              <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-300 px-3 py-1 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
-                <BatteryCharging className="h-4 w-4 text-ink" /> Saúde da Bateria: {selected.batteryHealth}
-              </p>
-            ) : product.condition === "seminovo" ? (
-              <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-100 px-3 py-1 text-xs font-bold text-ink">
-                <BatteryCharging className="h-4 w-4 text-emerald-700" /> Bateria Excelente (80%+)
-              </p>
-            ) : null}
-            {selected?.notes && (
-              <p className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-amber-200 px-3 py-1 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_#141414]">
-                <FileText className="h-4 w-4 text-ink" /> Obs: {selected.notes}
-              </p>
+        {/* Grid em 2 colunas no desktop */}
+        <div className="grid md:grid-cols-2 gap-8 items-start max-w-5xl mx-auto mt-4">
+          {/* Coluna da Esquerda (Foto) */}
+          <div className="aspect-square w-full rounded-3xl bg-white p-6 sm:p-8 flex items-center justify-center shadow-xl overflow-hidden relative">
+            {selected?.imageUrl || product.imageUrl ? (
+              <img
+                src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 800, 85)}
+                srcSet={getImageSrcSet(selected?.imageUrl || product.imageUrl!)}
+                sizes="(max-width: 768px) 100vw, 500px"
+                alt={product.name}
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                onError={(e) => {
+                  const raw = selected?.imageUrl || product.imageUrl;
+                  if (raw && e.currentTarget.src !== raw) {
+                    e.currentTarget.src = raw;
+                  }
+                }}
+                className="h-full w-full object-contain transition-all duration-300"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm font-medium text-neutral-400">
+                Sem foto
+              </div>
             )}
           </div>
 
-          {/* Status do Estoque */}
-          {selected && (
-            <div className="mt-2.5">
-              {(selected.quantity ?? 1) > 1 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-950">
-                  📦 {selected.quantity} unidades disponíveis em estoque
-                </span>
-              ) : (selected.quantity ?? 1) === 1 && isAvailable ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950">
-                  ⚡ Última unidade disponível em estoque!
+          {/* Coluna da Direita (Configuração e Compra) */}
+          <div className="flex flex-col">
+            {/* Badges no topo */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Condição */}
+              {isLacrado ? (
+                <span className="rounded-full px-3 py-1 text-xs font-semibold bg-white text-black">
+                  ✨ Lacrado
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-red-100 px-3 py-1 text-xs font-bold text-red-950">
-                  ❌ Esgotado no momento
+                <span className="rounded-full px-3 py-1 text-xs font-semibold border border-white/20 bg-white/10 text-white">
+                  🔄 Seminovo
                 </span>
               )}
-            </div>
-          )}
 
-          {/* Preço */}
-          <div className="mt-5 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
-            {price != null && isAvailable ? (
-              <>
-                <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">No cartão em</p>
-                <p className="font-display text-4xl font-bold text-ink md:text-5xl">
-                  12x de {formatBRL(installmentFromFees(price, 12, s.fees["12"] ?? maxFee))}
-                </p>
-                <p className="mt-2 text-sm font-semibold text-neutral-600">
-                  ou <span className="font-display text-2xl font-bold text-ink">{formatBRL(price)}</span> à vista (PIX ou dinheiro)
-                </p>
-                {s.installmentsMax > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllInstallments((v) => !v)}
-                    className="mt-2 text-xs font-bold text-ink underline decoration-brand decoration-2 underline-offset-2"
-                  >
-                    {showAllInstallments ? "Ocultar parcelas ▲" : "Ver todas as parcelas ▼"}
-                  </button>
-                )}
-                {showAllInstallments && (
-                  <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 border-t border-ink/10 pt-3 sm:grid-cols-3">
-                    {Array.from({ length: s.installmentsMax }, (_, i) => i + 1).map((n) => {
-                      const fee = s.fees[String(n)] ?? 0;
-                      const value = installmentFromFees(price, n, fee);
-                      return (
-                        <p key={n} className="text-xs text-neutral-600">
-                          <span className="font-bold text-ink">{n}x</span> de{" "}
-                          <span className="font-semibold">{formatBRL(value)}</span>
-                          {n === 1 ? " (crédito)" : ""}
-                        </p>
-                      );
-                    })}
+              {/* Saúde da Bateria */}
+              {batteryHealthDisplay && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-xs font-medium text-emerald-400">
+                  🔋 {batteryHealthDisplay}
+                </span>
+              )}
+
+              {/* Garantia */}
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-400">
+                🛡️ {selected?.warranty || product.warranty || "1 Ano de Garantia"}
+              </span>
+            </div>
+
+            {/* Categoria / Marca */}
+            <div className="mt-2 text-xs font-medium uppercase tracking-wider text-neutral-400">
+              {product.brand} {categoryLabel ? `• ${categoryLabel}` : ""}
+            </div>
+
+            {/* Título do Produto */}
+            <h1 className="font-display text-2xl sm:text-4xl font-bold text-white mt-1">
+              {product.name}
+            </h1>
+
+            {/* Bloco de Preço */}
+            <div className="mt-4 rounded-2xl border border-white/10 bg-[#141414] p-5">
+              {price != null && isAvailable ? (
+                <>
+                  {/* Selo de Pix */}
+                  <div>
+                    <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-400 mb-1">
+                      10% OFF no Pix
+                    </span>
                   </div>
-                )}
-              </>
-            ) : (
-              <p className="font-display text-xl font-bold text-neutral-400">
-                Combinação indisponível no momento
-              </p>
-            )}
-          </div>
 
-          {/* Versões */}
-          {derived.versions.filter(Boolean).length > 1 && (
-            <OptionGroup icon={<Package className="h-4 w-4" />} label="Versão">
-              <div className="flex flex-wrap gap-2">
-                {derived.versions.map((ver) => {
-                  const any = product.variants.some((v) => v.version === ver && v.available);
-                  return (
-                    <OptionButton
-                      key={ver || "padrao"}
-                      active={version === ver}
-                      disabled={!any}
-                      onClick={() => pickVersion(ver)}
+                  {/* Preço à vista destacado */}
+                  <p className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                    {formatBRL(price)}
+                  </p>
+
+                  {/* Subtítulo */}
+                  <p className="text-sm text-neutral-400">
+                    à vista no Pix ou dinheiro
+                  </p>
+
+                  {/* Parcelamento no cartão */}
+                  <p className="text-sm text-neutral-300 mt-2">
+                    ou até 12x de {formatBRL(installment12 ?? 0)} no cartão
+                  </p>
+
+                  {/* Botão retrátil para ver tabela completa de parcelas */}
+                  {s.installmentsMax > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllInstallments((v) => !v)}
+                      className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-white underline decoration-white/30 underline-offset-4 transition cursor-pointer"
                     >
-                      {ver || "Padrão"}
-                    </OptionButton>
-                  );
-                })}
+                      {showAllInstallments
+                        ? "Ocultar tabela de parcelas ▲"
+                        : "Ver parcelas de 1x a 12x no cartão ▼"}
+                    </button>
+                  )}
+
+                  {showAllInstallments && (
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-xl border border-white/10 bg-[#18181b] p-3 text-xs">
+                      {Array.from(
+                        { length: Math.min(s.installmentsMax, 12) },
+                        (_, i) => i + 1,
+                      ).map((n) => {
+                        const fee = s.fees[String(n)] ?? 0;
+                        const val = installmentFromFees(price, n, fee);
+                        return (
+                          <div
+                            key={n}
+                            className="flex items-center justify-between gap-1 text-neutral-400"
+                          >
+                            <span className="font-semibold text-white">{n}x</span>
+                            <span className="text-neutral-200">{formatBRL(val)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="font-display text-lg font-semibold text-neutral-400">
+                  Combinação indisponível no momento
+                </p>
+              )}
+            </div>
+
+            {/* Seletores */}
+            {/* Versão (se houver mais de uma versão) */}
+            {derived.versions.filter(Boolean).length > 1 && (
+              <div className="mt-5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-2">
+                  Versão
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {derived.versions.map((ver) => {
+                    const isSelected = version === ver;
+                    const any = product.variants.some((v) => v.version === ver && v.available);
+                    return (
+                      <button
+                        key={ver || "padrao"}
+                        type="button"
+                        disabled={!any}
+                        onClick={() => pickVersion(ver)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+                          isSelected
+                            ? "bg-white text-black font-semibold"
+                            : "bg-[#18181b] border border-white/10 text-neutral-300 hover:border-white/20"
+                        } ${!any ? "opacity-40 cursor-not-allowed" : ""}`}
+                      >
+                        {ver || "Padrão"}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </OptionGroup>
-          )}
+            )}
 
-          {/* Armazenamento */}
-          <OptionGroup icon={<HardDrive className="h-4 w-4" />} label="Armazenamento">
-            <div className="flex flex-wrap gap-2">
-              {derived.storages.map((st) => {
-                const ok = derived.storageAvailable(st);
-                const isSelected = storage === st;
-                return (
-                  <button
-                    key={st}
-                    onClick={() => pickStorage(st)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition ${
-                      isSelected
-                        ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
-                        : ok
-                          ? "border-ink/30 bg-white text-ink hover:border-ink"
-                          : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400 hover:border-ink/50"
-                    }`}
-                  >
-                    <span>{st}</span>
-                    {!ok && (
-                      <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-                        Esgotado
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </OptionGroup>
+            {/* Armazenamento */}
+            {showStorages && (
+              <div className="mt-5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-2">
+                  Capacidade
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {derived.storages.map((st) => {
+                    const isSelected = storage === st;
+                    const ok = derived.storageAvailable(st);
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => pickStorage(st)}
+                        className={`rounded-full px-4 py-2 text-sm transition cursor-pointer ${
+                          isSelected
+                            ? "bg-white text-black font-semibold"
+                            : "bg-[#18181b] border border-white/10 text-neutral-300 hover:border-white/20"
+                        } ${!ok ? "opacity-50" : ""}`}
+                      >
+                        {st}
+                        {!ok && (
+                          <span className="ml-1 text-[10px] text-neutral-400">(esgotado)</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-          {/* Cores */}
-          <OptionGroup icon={<Palette className="h-4 w-4" />} label={`Cor — ${color || "selecione"}`}>
-            <div className="flex flex-wrap gap-2">
-              {derived.colors.map((c) => {
-                const ok = derived.colorAvailable(c);
-                const isSelected = color === c;
-                return (
-                  <button
-                    key={c}
-                    onClick={() => pickColor(c)}
-                    className={`flex items-center gap-2 rounded-full border-2 px-3.5 py-2 text-sm font-semibold transition ${
-                      isSelected
-                        ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
-                        : ok
-                          ? "border-ink/30 bg-white text-ink hover:border-ink"
-                          : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-500 hover:border-ink/50"
-                    }`}
-                  >
-                    <span
-                      className="h-4 w-4 rounded-full border border-ink/40 shrink-0"
-                      style={{ backgroundColor: derived.colorHex(c) }}
-                    />
-                    <span>{c}</span>
-                    {!ok && (
-                      <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-                        Esgotado
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </OptionGroup>
+            {/* Cores */}
+            {showColors && (
+              <div className="mt-5">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                    Cor
+                  </label>
+                  <span className="text-xs text-neutral-300 font-medium">{color}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {derived.colors.map((c) => {
+                    const isSelected = color === c;
+                    const hex = derived.colorHex(c);
+                    const ok = derived.colorAvailable(c);
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => pickColor(c)}
+                        className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition cursor-pointer ${
+                          isSelected
+                            ? "bg-white text-black font-semibold"
+                            : "bg-[#18181b] border border-white/10 text-neutral-300 hover:border-white/20"
+                        } ${!ok ? "opacity-50" : ""}`}
+                      >
+                        <span
+                          className="h-3.5 w-3.5 rounded-full border border-black/20 shrink-0"
+                          style={{ backgroundColor: hex }}
+                        />
+                        <span>{c}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-          {/* Opções / Unidades em Estoque (quando há unidades da mesma cor) */}
-          {(() => {
-            const hasMultipleUnits = derived.matchingVariants.length > 1;
-
-            if (!hasMultipleUnits) return null;
-
-            return (
-              <OptionGroup icon={<BadgeCheck className="h-4 w-4" />} label="Selecione a Unidade / Aparelho Específico">
+            {/* Seletor de Unidades Específicas se houver */}
+            {derived.matchingVariants.length > 1 && (
+              <div className="mt-5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-2">
+                  Selecione o Aparelho Específico
+                </label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {derived.matchingVariants.map((v, idx) => {
                     const isSelectedUnit = selected?.id === v.id;
@@ -529,184 +623,97 @@ export default function Produto() {
                       <button
                         key={v.id ?? idx}
                         type="button"
-                        onClick={() => setSelectedVariantId(v.id ?? null)}
-                        className={`flex flex-col gap-1 rounded-2xl border-2 p-3 text-left transition ${
+                        onClick={() => setUserVariantId(v.id ?? null)}
+                        className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition cursor-pointer ${
                           isSelectedUnit
-                            ? "border-ink bg-brand/20 shadow-[3px_3px_0_0_#141414]"
-                            : v.available && (v.quantity ?? 1) > 0
-                              ? "border-ink/30 bg-white text-ink hover:border-ink"
-                              : "border-dashed border-neutral-300 bg-neutral-100 text-neutral-400"
+                            ? "border-white bg-white/10 text-white"
+                            : "border-white/10 bg-[#18181b] text-neutral-300 hover:border-white/20"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-ink text-sm">
-                            📱 Unidade #{idx + 1} {v.batteryHealth ? `• Bat. ${v.batteryHealth}` : ""}
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-white">
+                            Unidade #{idx + 1} {v.batteryHealth ? `• Bat. ${v.batteryHealth}` : ""}
                           </span>
-                          <span className="font-display font-extrabold text-ink">
+                          <span className="font-bold text-white">
                             {formatBRL(v.priceCash)}
                           </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
-                          {v.warranty && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 font-bold text-amber-900">
-                              🛡️ {v.warranty}
-                            </span>
-                          )}
-                          {v.notes && (
-                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 font-semibold text-neutral-700">
-                              📝 {v.notes}
-                            </span>
-                          )}
-                        </div>
+                        {v.notes && (
+                          <p className="text-[11px] text-neutral-400 line-clamp-1">{v.notes}</p>
+                        )}
                       </button>
                     );
                   })}
                 </div>
-              </OptionGroup>
-            );
-          })()}
-
-          {/* SOBRE ESTE APARELHO (Diferenciais e Observações da Variante) */}
-          <div className="mt-6 rounded-2xl border-2 border-ink bg-white p-5 shadow-[4px_4px_0_0_#141414]">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-ink bg-brand font-bold text-ink">
-                📱
-              </div>
-              <h2 className="font-display text-xl font-bold text-ink">Sobre este aparelho</h2>
-            </div>
-
-            {/* Observações / Histórico Específico desta Variante */}
-            {selected?.notes && (
-              <div className="mt-4 rounded-xl border-2 border-ink bg-amber-100 p-4 shadow-[2px_2px_0_0_#141414]">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-amber-900 shrink-0" />
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-950">
-                    Detalhes & Histórico desta Unidade
-                  </span>
-                </div>
-                <p className="mt-1 text-sm font-bold leading-relaxed text-amber-950">
-                  {selected.notes}
-                </p>
               </div>
             )}
 
-            {/* Descrição Geral */}
-            {product.description && (
-              <p className="mt-4 whitespace-pre-line text-sm font-medium leading-relaxed text-neutral-700">
-                {product.description}
-              </p>
-            )}
-
-            {/* Diferenciais da Loja */}
-            <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>Garantia de {selected?.warranty || product.warranty || "1 ano de garantia"}</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
-                <BadgeCheck className="h-4 w-4 text-blue-600 shrink-0" />
-                <span>100% Testado, Revisado & Original</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
-                <BatteryCharging className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>Bateria: {selected?.batteryHealth || "Excelente (80%+)"}</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl border border-ink/20 bg-neutral-50 p-3 text-xs font-bold text-ink">
-                <Package className="h-4 w-4 text-brand shrink-0" />
-                <span>Pronta entrega em Jardim e Guia Lopes</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Comprar */}
-          <div className="mt-6 space-y-3">
-            {isAvailable ? (
-              <>
+            {/* Botões de Ação */}
+            <div className="mt-6 flex flex-col gap-3">
+              {/* Botão de Compra no WhatsApp */}
+              {isAvailable ? (
                 <a
-                  href={waLink(s.whatsappJardim, buyMessage)}
+                  href={waLink(whatsapp, buyMessage)}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-[#25D366] px-6 py-4 font-display text-lg font-bold text-ink shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
+                  className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] shadow-lg text-base"
                 >
-                  <MessageCircle className="h-5 w-5" /> Comprar — Loja Jardim
+                  <MessageCircle className="h-5 w-5" />
+                  Comprar no WhatsApp
                 </a>
-                <a
-                  href={waLink(s.whatsappGll, buyMessage)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-[#25D366] px-6 py-4 font-display text-lg font-bold text-ink shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
-                >
-                  <MessageCircle className="h-5 w-5" /> Comprar — Loja Guia Lopes
-                </a>
-              </>
-            ) : (
-              <div className="space-y-2">
-                <p className="rounded-xl border-2 border-dashed border-red-300 bg-red-50 p-3 text-center text-xs font-bold text-red-700">
-                  ⚠️ Esta opção ({storage} - {color}) está esgotada no momento.
-                </p>
+              ) : (
                 <a
                   href={waLink(
-                    s.whatsappJardim,
-                    `Olá! Tenho interesse no ${product.name} ${version} ${storage} na cor ${color}. Podem me avisar quando chegar em estoque?`,
+                    whatsapp,
+                    `Olá! Vi na vitrine da Lojinha do Celular o ${product.name}${
+                      storage && storage !== "Padrão" ? ` ${storage}` : ""
+                    }${color ? ` ${color}` : ""}. Podem me avisar quando estiver disponível?`,
                   )}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-ink bg-ink px-6 py-4 font-display text-lg font-bold text-brand shadow-[4px_4px_0_0_#141414] transition hover:-translate-y-0.5"
+                  className="w-full rounded-full border border-white/20 bg-white/10 hover:bg-white/15 text-white py-3.5 px-6 font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98]"
                 >
-                  <MessageCircle className="h-5 w-5" /> Avise-me no WhatsApp quando chegar
+                  <MessageCircle className="h-5 w-5" />
+                  Avise-me no WhatsApp quando chegar
                 </a>
+              )}
+
+              {/* Botão Secundário de Trade-In */}
+              <Link
+                to="/avaliacao"
+                className="w-full rounded-full border border-white/20 bg-white/5 hover:bg-white/10 text-white py-3 px-6 font-medium text-sm flex items-center justify-center gap-2 transition"
+              >
+                Avaliar meu aparelho na troca
+              </Link>
+            </div>
+
+            {/* Informações complementares / Sobre este aparelho */}
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#141414] p-5">
+              <h2 className="font-display text-base font-bold text-white">Sobre este aparelho</h2>
+              {selected?.notes && (
+                <p className="mt-2 text-xs text-amber-300/90 bg-amber-950/30 border border-amber-500/20 rounded-lg p-2.5 leading-relaxed">
+                  📝 <span className="font-semibold text-amber-200">Nota da Unidade:</span> {selected.notes}
+                </p>
+              )}
+              {product.description && (
+                <p className="mt-3 text-xs leading-relaxed text-neutral-400">
+                  {product.description}
+                </p>
+              )}
+              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-neutral-300">
+                <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>{selected?.warranty || product.warranty || "1 Ano de Garantia"}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
+                  <BadgeCheck className="h-4 w-4 text-blue-400 shrink-0" />
+                  <span>100% Original & Testado</span>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function OptionGroup({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-6">
-      <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-ink">
-        {icon} {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function OptionButton({
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition ${
-        active
-          ? "border-ink bg-ink !text-brand font-bold shadow-[2px_2px_0_0_#141414]"
-          : disabled
-            ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 opacity-70"
-            : "border-ink/30 bg-white text-ink hover:border-ink"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
