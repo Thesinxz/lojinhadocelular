@@ -62,14 +62,14 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[#0a0a0a] font-sans text-white">
+    <div className="flex min-h-[100dvh] flex-col bg-[#fbfbfd] font-sans text-[#1d1d1f] antialiased">
       <ScrollToHash />
       <Header />
       <main className="flex-1">
         <Suspense
           fallback={
             <div className="mx-auto max-w-6xl px-4 py-16">
-              <div className="h-64 animate-pulse rounded-2xl bg-neutral-800" />
+              <div className="h-64 animate-pulse rounded-2xl bg-neutral-100" />
             </div>
           }
         >

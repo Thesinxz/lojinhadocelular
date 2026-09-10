@@ -26,26 +26,26 @@ export default function WelcomePopup() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md sm:items-center sm:pb-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center sm:pb-4"
       onClick={close}
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#121212] shadow-2xl transition-all"
+        className="w-full max-w-md overflow-hidden rounded-3xl border border-neutral-100 bg-white shadow-2xl transition-all animate-in fade-in-50 zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative border-b border-white/5 bg-gradient-to-b from-white/[0.06] to-transparent px-6 pb-6 pt-8 text-center">
+        <div className="relative border-b border-neutral-100 bg-gradient-to-b from-neutral-50 to-white px-6 pb-6 pt-8 text-center">
           <button
             onClick={close}
-            className="absolute right-3.5 top-3.5 rounded-full border border-white/10 bg-white/5 p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+            className="absolute right-3.5 top-3.5 rounded-full bg-neutral-100 p-1.5 text-neutral-400 transition hover:bg-neutral-200 hover:text-neutral-900"
             aria-label="Fechar"
           >
             <X className="h-4 w-4" />
           </button>
-          <img src="/images/logo-icon.png" alt="Lojinha do Celular" className="mx-auto h-20 w-auto object-contain" />
-          <h2 className="mt-3 font-display text-xl font-bold text-white">
+          <img src="/images/logo-icon.png" alt="Lojinha do Celular" className="mx-auto h-16 w-auto object-contain" />
+          <h2 className="mt-3 font-display text-xl font-bold text-neutral-900">
             Bem-vindo à Lojinha do Celular!
           </h2>
-          <p className="mt-1 text-sm font-medium text-neutral-400">
+          <p className="mt-1 text-sm font-medium text-neutral-500">
             Como podemos te ajudar hoje?
           </p>
         </div>
@@ -55,24 +55,24 @@ export default function WelcomePopup() {
             href={waLink(s.whatsappJardim, "Olá! Vim pelo site da Lojinha do Celular.")}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 font-semibold text-white transition hover:bg-[#20ba59] active:scale-[0.99] shadow-lg shadow-[#25D366]/20"
+            className="flex items-center gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 font-semibold text-white transition hover:bg-[#20ba59] active:scale-[0.99] shadow-sm"
           >
-            <MessageCircle className="h-5 w-5 fill-current" />
+            <MessageCircle className="h-5 w-5 fill-white/20" />
             <div className="text-left">
               <span className="block text-sm font-bold">Chamar no WhatsApp</span>
-              <span className="block text-xs text-white/80">Unidade Jardim-MS</span>
+              <span className="block text-xs text-white/90">Unidade Jardim-MS</span>
             </div>
           </a>
           <a
             href={waLink(s.whatsappGll, "Olá! Vim pelo site da Lojinha do Celular.")}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 font-semibold text-white transition hover:bg-[#20ba59] active:scale-[0.99] shadow-lg shadow-[#25D366]/20"
+            className="flex items-center gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 font-semibold text-white transition hover:bg-[#20ba59] active:scale-[0.99] shadow-sm"
           >
-            <MessageCircle className="h-5 w-5 fill-current" />
+            <MessageCircle className="h-5 w-5 fill-white/20" />
             <div className="text-left">
               <span className="block text-sm font-bold">Chamar no WhatsApp</span>
-              <span className="block text-xs text-white/80">Unidade Guia Lopes da Laguna</span>
+              <span className="block text-xs text-white/90">Unidade Guia Lopes da Laguna</span>
             </div>
           </a>
 
@@ -81,23 +81,23 @@ export default function WelcomePopup() {
               href={s.mapsJardim}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-neutral-200 transition hover:bg-white/10 hover:text-white"
+              className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 hover:text-black"
             >
-              <MapPin className="h-4 w-4 text-brand" /> Jardim
+              <MapPin className="h-4 w-4 text-neutral-500" /> Jardim
             </a>
             <a
               href={s.mapsGll}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-neutral-200 transition hover:bg-white/10 hover:text-white"
+              className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 hover:text-black"
             >
-              <MapPin className="h-4 w-4 text-brand" /> Guia Lopes
+              <MapPin className="h-4 w-4 text-neutral-500" /> Guia Lopes
             </a>
           </div>
 
           <button
             onClick={close}
-            className="w-full rounded-xl py-2.5 text-sm font-medium text-neutral-400 transition hover:text-white"
+            className="w-full rounded-xl py-2.5 text-xs font-semibold text-neutral-400 transition hover:text-neutral-900 cursor-pointer"
           >
             Quero só olhar a vitrine →
           </button>

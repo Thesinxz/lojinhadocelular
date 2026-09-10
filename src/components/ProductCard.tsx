@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
+import { Plus, Flame, BatteryCharging } from "lucide-react";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
 import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
@@ -34,8 +35,7 @@ export default function ProductCard({
   }, []);
 
   const rawUrl = product.imageUrl;
-  // Imagem ultra-leve e progressiva para visualização rápida no catálogo
-  const optimizedUrl = optimizeImageUrl(rawUrl, 360, 75);
+  const optimizedUrl = optimizeImageUrl(rawUrl, 420, 80);
   const srcSet = getImageSrcSet(rawUrl);
 
   const isSeminovo =
@@ -44,11 +44,12 @@ export default function ProductCard({
   return (
     <Link
       to={`/produto/${product.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#141414] hover:border-white/25 hover:bg-[#18181b] transition-all duration-200 active:scale-[0.99]"
+      className="group flex flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white p-3.5 sm:p-4 shadow-[0_2px_14px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(0,0,0,0.09)] active:scale-[0.99]"
     >
-      <div className="relative aspect-square overflow-hidden bg-neutral-900/50 flex items-center justify-center p-3 sm:p-4 rounded-xl">
+      {/* Container da foto com fundo neutro suave */}
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-50/70 p-3 sm:p-4 flex items-center justify-center">
         {!isLoaded && rawUrl && (
-          <div className="absolute inset-0 animate-pulse bg-neutral-800/40" />
+          <div className="absolute inset-0 animate-pulse bg-neutral-100" />
         )}
         {rawUrl ? (
           <img
@@ -62,7 +63,6 @@ export default function ProductCard({
             decoding="async"
             onLoad={() => setIsLoaded(true)}
             onError={(e) => {
-              // Se o proxy falhar por algum motivo, fallback imediato para a URL original
               if (rawUrl && e.currentTarget.src !== rawUrl) {
                 e.currentTarget.src = rawUrl;
               }
@@ -72,38 +72,37 @@ export default function ProductCard({
             }`}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-neutral-500">
+          <div className="flex h-full items-center justify-center text-xs text-neutral-400">
             Sem foto
           </div>
         )}
 
-        {/* Badges superiores com posicionamento absoluto refinado */}
-        <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex items-center justify-between gap-1 pointer-events-none">
+        {/* Badges superiores exatamente como na BLK Store */}
+        <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-col items-start gap-1.5 pointer-events-none">
+          {/* Badge de Promoção Vermelha */}
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
+            <Flame className="h-3 w-3 fill-white" />
+            PROMOÇÃO
+          </span>
+
+          {/* Badge de Condição */}
           {isSeminovo ? (
-            <>
-              <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm">
-                🔄 Seminovo
-              </span>
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-                🔋 {batteryHealth ? `${batteryHealth}` : "85%+"}
-              </span>
-            </>
+            <span className="rounded-full border border-neutral-200 bg-white/95 px-2.5 py-0.5 text-[10px] font-semibold text-neutral-800 shadow-sm backdrop-blur-sm">
+              Seminovo
+            </span>
           ) : (
-            <>
-              <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-black">
-                ✨ Lacrado
-              </span>
-              <span className="rounded-full border border-amber-500/30 bg-amber-950/50 px-2 py-0.5 text-[10px] font-medium text-amber-400">
-                🛡️ 1 Ano
-              </span>
-            </>
+            <span className="rounded-full bg-[#1d1d1f] px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+              Lacrado
+            </span>
           )}
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+      {/* Conteúdo do Card */}
+      <div className="flex flex-1 flex-col pt-3">
+        {/* Marca */}
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
             {product.brand}
           </span>
           {colors.length > 0 && (
@@ -112,7 +111,7 @@ export default function ProductCard({
                 <span
                   key={c.color}
                   title={c.color}
-                  className="h-3 w-3 rounded-full border border-white/20"
+                  className="h-2.5 w-2.5 rounded-full border border-neutral-300 shadow-xs"
                   style={{ backgroundColor: c.hex }}
                 />
               ))}
@@ -120,31 +119,50 @@ export default function ProductCard({
           )}
         </div>
 
-        <h3 className="font-display text-sm sm:text-base font-semibold leading-snug text-white line-clamp-1">
+        {/* Nome do Produto */}
+        <h3 className="mt-1 font-display text-sm sm:text-base font-bold leading-tight text-neutral-900 line-clamp-2 min-h-[2.5rem]">
           {product.name}
         </h3>
 
-        <div className="mt-auto pt-1">
+        {/* Saúde da bateria (caso seminovo) */}
+        {isSeminovo && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-neutral-500 font-medium">
+            <BatteryCharging className="h-3.5 w-3.5 text-neutral-400" />
+            <span>Bateria {batteryHealth ? `${batteryHealth}` : "90%+"}</span>
+          </div>
+        )}
+
+        {/* Bloco de Preço */}
+        <div className="mt-auto pt-3">
           {price != null ? (
             <>
-              <div className="flex items-center gap-1.5">
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                  PIX
-                </span>
-                <p className="text-lg sm:text-xl font-bold text-white tracking-tight">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-xl sm:text-2xl font-black tracking-tight text-neutral-950">
                   {formatBRL(price)}
-                </p>
-              </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                ou 12x de{" "}
-                <span className="font-semibold text-neutral-200">
-                  {formatBRL(installment12 ?? 0)}
                 </span>
+                <span className="rounded-full bg-[#e8f2ff] px-2 py-0.5 text-[11px] font-bold text-[#0066cc]">
+                  12% OFF no Pix
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-neutral-500">
+                no Pix · ou 12x de{" "}
+                <span className="font-semibold text-neutral-800">
+                  {formatBRL(installment12 ?? 0)}
+                </span>{" "}
+                sem juros
               </p>
             </>
           ) : (
-            <p className="text-xs text-neutral-500">Indisponível no momento</p>
+            <p className="text-xs text-neutral-400 font-medium">Indisponível no momento</p>
           )}
+
+          {/* Botão Azul Adicionar */}
+          <div className="mt-3">
+            <span className="w-full rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs">
+              <Plus className="h-4 w-4" />
+              <span>Adicionar</span>
+            </span>
+          </div>
         </div>
       </div>
     </Link>

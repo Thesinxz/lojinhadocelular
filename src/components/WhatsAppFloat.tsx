@@ -20,11 +20,12 @@ export default function WhatsAppFloat() {
       href={waLink(s.whatsappJardim, "Olá! Vim pelo site da Lojinha do Celular.")}
       target="_blank"
       rel="noreferrer"
-      aria-label="Falar no WhatsApp"
+      aria-label="Pedir agora no WhatsApp"
       style={{ bottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}
-      className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-[#25D366] text-white shadow-lg shadow-[#25D366]/25 transition duration-200 active:scale-95 hover:scale-110 hover:bg-[#20ba59] hover:shadow-xl hover:shadow-[#25D366]/35"
+      className="fixed right-4 sm:right-6 z-40 flex items-center gap-2 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white px-5 py-3 font-bold text-sm shadow-[0_4px_20px_rgba(37,211,102,0.4)] transition-all duration-200 active:scale-95 hover:scale-105"
     >
-      <MessageCircle className="h-7 w-7" />
+      <MessageCircle className="h-5 w-5 fill-white/20" />
+      <span className="font-semibold tracking-wide">Pedir agora</span>
     </a>
   );
 }

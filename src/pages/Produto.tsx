@@ -4,9 +4,11 @@ import {
   ShieldCheck,
   MessageCircle,
   ChevronLeft,
-  BadgeCheck,
   AlertCircle,
   RefreshCw,
+  Plus,
+  RefreshCcw,
+  Gift,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -48,7 +50,7 @@ export default function Produto() {
     return null;
   }, [query.data, demoFallback]);
 
-  // Gerenciamento de seleção sem useEffect (compatível com React 19)
+  // Gerenciamento de seleção compatível com React 19
   const [selectedProductId, setSelectedProductId] = useState<number>(numericId);
   const [userVersion, setUserVersion] = useState<string | null>(null);
   const [userStorage, setUserStorage] = useState<string | null>(null);
@@ -176,20 +178,6 @@ export default function Produto() {
     }
   }
 
-  function pickVersion(ver: string) {
-    setUserVersion(ver);
-    if (!product) return;
-    const first =
-      product.variants.find((v) => v.version === ver && v.available && (v.quantity ?? 1) > 0) ??
-      product.variants.find((v) => v.version === ver) ??
-      product.variants[0];
-    if (first) {
-      setUserStorage(first.storage);
-      setUserColor(first.color);
-      setUserVariantId(first.id ?? null);
-    }
-  }
-
   const selected = derived?.selected;
   const isAvailable = !!selected?.available && (selected?.quantity ?? 1) > 0;
   const price = selected?.priceCash ?? null;
@@ -204,7 +192,7 @@ export default function Produto() {
     (product?.name.toLowerCase().includes("iphone") ?? false);
   const batteryHealthDisplay =
     selected?.batteryHealth ||
-    (isLacrado && isIphone ? "100%" : !isLacrado && isIphone ? "85%+" : null);
+    (isLacrado && isIphone ? null : !isLacrado && isIphone ? "93%" : null);
 
   const categoryLabel = product
     ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)
@@ -233,48 +221,18 @@ export default function Produto() {
   const prodImage = selected?.imageUrl || product?.imageUrl || "/images/logo.png";
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
-  const productJsonLd = useMemo(() => {
-    if (!product) return undefined;
-    return {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name: prodTitle,
-      image:
-        prodImage.startsWith("/") && typeof window !== "undefined"
-          ? `${window.location.origin}${prodImage}`
-          : prodImage,
-      description: prodDesc,
-      brand: {
-        "@type": "Brand",
-        name: product.brand,
-      },
-      offers: {
-        "@type": "Offer",
-        priceCurrency: "BRL",
-        price: price != null ? (price / 100).toFixed(2) : undefined,
-        itemCondition: isLacrado
-          ? "https://schema.org/NewCondition"
-          : "https://schema.org/UsedCondition",
-        availability: isAvailable
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-      },
-    };
-  }, [product, prodTitle, prodDesc, prodImage, price, isLacrado, isAvailable]);
-
-  const isLoading = query.isLoading && !product;
-  const isError = query.isError && !product;
+  const productCode = `B${(product?.id ?? 1000) + 1600}`;
 
   if (!isValidId) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+      <div className="min-h-screen bg-white text-neutral-900 pt-6 pb-16 px-4">
         <div className="mx-auto max-w-5xl text-center py-20">
-          <p className="font-display text-xl font-bold text-neutral-400">
+          <p className="font-display text-xl font-bold text-neutral-700">
             Endereço de produto inválido
           </p>
           <Link
             to="/#vitrine"
-            className="mt-4 inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-black transition"
           >
             <ChevronLeft className="h-4 w-4" /> Loja
           </Link>
@@ -283,18 +241,18 @@ export default function Produto() {
     );
   }
 
-  if (isLoading) {
+  if (query.isLoading && !isDemo) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+      <div className="min-h-screen bg-white text-neutral-900 pt-6 pb-16 px-4">
         <div className="mx-auto max-w-5xl">
-          <div className="h-4 w-16 animate-pulse rounded bg-white/10 mb-6" />
+          <div className="h-4 w-16 animate-pulse rounded bg-neutral-100 mb-6" />
           <div className="grid md:grid-cols-2 gap-8 items-start">
-            <div className="aspect-square w-full rounded-3xl bg-white/5 border border-white/10 animate-pulse" />
+            <div className="aspect-square w-full rounded-3xl bg-neutral-100 animate-pulse" />
             <div className="space-y-4">
-              <div className="h-6 w-1/3 animate-pulse rounded-full bg-white/10" />
-              <div className="h-10 w-3/4 animate-pulse rounded bg-white/10" />
-              <div className="h-24 animate-pulse rounded-2xl bg-white/5 border border-white/10" />
-              <div className="h-12 animate-pulse rounded-full bg-white/10" />
+              <div className="h-6 w-1/3 animate-pulse rounded-full bg-neutral-100" />
+              <div className="h-10 w-3/4 animate-pulse rounded bg-neutral-100" />
+              <div className="h-24 animate-pulse rounded-2xl bg-neutral-100" />
+              <div className="h-12 animate-pulse rounded-full bg-neutral-100" />
             </div>
           </div>
         </div>
@@ -302,31 +260,31 @@ export default function Produto() {
     );
   }
 
-  if (isError) {
+  if (query.isError && !isDemo) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+      <div className="min-h-screen bg-white text-neutral-900 pt-6 pb-16 px-4">
         <div className="mx-auto max-w-md text-center py-20">
-          <div className="rounded-3xl border border-white/10 bg-[#141414] p-8">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
+          <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
               <AlertCircle className="h-6 w-6" />
             </div>
-            <h2 className="mt-4 font-display text-lg font-bold text-white">
+            <h2 className="mt-4 font-display text-lg font-bold text-neutral-900">
               Erro ao carregar detalhes do produto
             </h2>
-            <p className="mt-2 text-sm text-neutral-400">
+            <p className="mt-2 text-sm text-neutral-500">
               Não foi possível comunicar com o servidor. Tente novamente em instantes.
             </p>
             <div className="mt-6 flex justify-center gap-3">
               <button
                 type="button"
                 onClick={() => query.refetch()}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-black hover:bg-neutral-200 transition cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-xs font-semibold text-white hover:bg-black transition cursor-pointer"
               >
                 <RefreshCw className="h-4 w-4" /> Recarregar
               </button>
               <Link
                 to="/#vitrine"
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-xs font-semibold text-white hover:bg-white/10 transition"
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-5 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition"
               >
                 Voltar à loja
               </Link>
@@ -339,14 +297,14 @@ export default function Produto() {
 
   if (!product || !derived) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white pt-6 pb-16 px-4">
+      <div className="min-h-screen bg-white text-neutral-900 pt-6 pb-16 px-4">
         <div className="mx-auto max-w-5xl text-center py-20">
-          <p className="font-display text-xl font-bold text-neutral-400">
+          <p className="font-display text-xl font-bold text-neutral-700">
             Produto não encontrado
           </p>
           <Link
             to="/#vitrine"
-            className="mt-4 inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-black transition"
           >
             <ChevronLeft className="h-4 w-4" /> Loja
           </Link>
@@ -359,28 +317,29 @@ export default function Produto() {
   const showColors = derived.colors.filter(Boolean).length > 0;
 
   return (
-    <div className="bg-[#0a0a0a] min-h-screen text-white pt-6 pb-16 px-4">
+    <div className="bg-white min-h-screen text-[#1d1d1f] pt-4 pb-20 px-4">
       <SEO
         title={prodTitle}
         description={prodDesc}
         image={prodImage}
         url={prodUrl}
-        jsonLd={productJsonLd}
       />
 
       <div className="max-w-5xl mx-auto">
         {/* Botão de retorno discreto no topo: ← Loja */}
-        <Link
-          to="/#vitrine"
-          className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition"
-        >
-          <ChevronLeft className="h-4 w-4" /> Loja
-        </Link>
+        <div className="mb-4">
+          <Link
+            to="/#vitrine"
+            className="inline-flex items-center gap-1 text-sm font-medium text-neutral-500 hover:text-black transition"
+          >
+            <ChevronLeft className="h-4 w-4" /> Loja
+          </Link>
+        </div>
 
         {/* Grid em 2 colunas no desktop */}
-        <div className="grid md:grid-cols-2 gap-8 items-start max-w-5xl mx-auto mt-4">
-          {/* Coluna da Esquerda (Foto) */}
-          <div className="aspect-square w-full rounded-3xl bg-white p-6 sm:p-8 flex items-center justify-center shadow-xl overflow-hidden relative">
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start max-w-5xl mx-auto">
+          {/* Coluna da Esquerda (Foto do Produto Limpa em Fundo Branco) */}
+          <div className="aspect-square w-full rounded-3xl bg-white border border-neutral-100 p-6 sm:p-10 flex items-center justify-center shadow-xs overflow-hidden relative">
             {selected?.imageUrl || product.imageUrl ? (
               <img
                 src={optimizeImageUrl(selected?.imageUrl || product.imageUrl!, 800, 85)}
@@ -407,83 +366,71 @@ export default function Produto() {
 
           {/* Coluna da Direita (Configuração e Compra) */}
           <div className="flex flex-col">
-            {/* Badges no topo */}
+            {/* Badges superiores exatamente como na BLK Store */}
             <div className="flex flex-wrap items-center gap-2">
-              {/* Condição */}
               {isLacrado ? (
-                <span className="rounded-full px-3 py-1 text-xs font-semibold bg-white text-black">
-                  ✨ Lacrado
+                <span className="rounded-full px-3 py-1 text-xs font-semibold bg-[#1d1d1f] text-white">
+                  Lacrado
                 </span>
               ) : (
-                <span className="rounded-full px-3 py-1 text-xs font-semibold border border-white/20 bg-white/10 text-white">
-                  🔄 Seminovo
+                <span className="rounded-full px-3 py-1 text-xs font-medium border border-neutral-300 bg-neutral-100 text-neutral-800">
+                  Seminovo
                 </span>
               )}
 
-              {/* Saúde da Bateria */}
-              {batteryHealthDisplay && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-xs font-medium text-emerald-400">
-                  🔋 {batteryHealthDisplay}
-                </span>
-              )}
-
-              {/* Garantia */}
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-400">
-                🛡️ {selected?.warranty || product.warranty || "1 Ano de Garantia"}
+              {/* Código do produto */}
+              <span className="rounded-full border border-neutral-200 px-2.5 py-0.5 text-xs font-mono text-neutral-500">
+                {productCode}
               </span>
-            </div>
 
-            {/* Categoria / Marca */}
-            <div className="mt-2 text-xs font-medium uppercase tracking-wider text-neutral-400">
-              {product.brand} {categoryLabel ? `• ${categoryLabel}` : ""}
+              {/* Bateria para seminovos */}
+              {batteryHealthDisplay && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                  🔋 Bateria {batteryHealthDisplay}
+                </span>
+              )}
             </div>
 
             {/* Título do Produto */}
-            <h1 className="font-display text-2xl sm:text-4xl font-bold text-white mt-1">
+            <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-neutral-950 mt-3 leading-tight">
               {product.name}
+              {color ? ` - ${color}` : ""}
+              {storage && storage !== "Padrão" ? ` ${storage}` : ""}
             </h1>
 
             {/* Bloco de Preço */}
-            <div className="mt-4 rounded-2xl border border-white/10 bg-[#141414] p-5">
+            <div className="mt-4">
               {price != null && isAvailable ? (
-                <>
+                <div>
                   {/* Selo de Pix */}
-                  <div>
-                    <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-400 mb-1">
-                      10% OFF no Pix
-                    </span>
-                  </div>
+                  <span className="inline-block rounded-full bg-[#e8f2ff] px-3 py-1 text-xs font-bold text-[#0066cc] mb-1">
+                    12% OFF no Pix
+                  </span>
 
                   {/* Preço à vista destacado */}
-                  <p className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                  <div className="text-4xl sm:text-5xl font-black text-neutral-950 tracking-tight mt-1">
                     {formatBRL(price)}
+                  </div>
+
+                  {/* Subtítulo à vista no Pix */}
+                  <p className="text-xs text-neutral-500 mt-0.5 font-medium">
+                    à vista no Pix
                   </p>
 
-                  {/* Subtítulo */}
-                  <p className="text-sm text-neutral-400">
-                    à vista no Pix ou dinheiro
+                  {/* Linha de Parcelamento */}
+                  <p
+                    onClick={() => setShowAllInstallments((v) => !v)}
+                    className="text-xs sm:text-sm text-neutral-600 mt-2 cursor-pointer hover:text-black transition"
+                  >
+                    ou em até{" "}
+                    <span className="font-bold text-neutral-900">12x de {formatBRL(installment12 ?? 0)}</span> no cartão —{" "}
+                    <span className="underline decoration-neutral-300">
+                      {showAllInstallments ? "ocultar parcelas" : "ver todas as parcelas"}
+                    </span>
                   </p>
-
-                  {/* Parcelamento no cartão */}
-                  <p className="text-sm text-neutral-300 mt-2">
-                    ou até 12x de {formatBRL(installment12 ?? 0)} no cartão
-                  </p>
-
-                  {/* Botão retrátil para ver tabela completa de parcelas */}
-                  {s.installmentsMax > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllInstallments((v) => !v)}
-                      className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-white underline decoration-white/30 underline-offset-4 transition cursor-pointer"
-                    >
-                      {showAllInstallments
-                        ? "Ocultar tabela de parcelas ▲"
-                        : "Ver parcelas de 1x a 12x no cartão ▼"}
-                    </button>
-                  )}
 
                   {showAllInstallments && (
-                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-xl border border-white/10 bg-[#18181b] p-3 text-xs">
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3.5 text-xs animate-in fade-in-50">
                       {Array.from(
                         { length: Math.min(s.installmentsMax, 12) },
                         (_, i) => i + 1,
@@ -493,16 +440,16 @@ export default function Produto() {
                         return (
                           <div
                             key={n}
-                            className="flex items-center justify-between gap-1 text-neutral-400"
+                            className="flex items-center justify-between gap-1 text-neutral-600"
                           >
-                            <span className="font-semibold text-white">{n}x</span>
-                            <span className="text-neutral-200">{formatBRL(val)}</span>
+                            <span className="font-bold text-neutral-900">{n}x</span>
+                            <span className="text-neutral-800 font-medium">{formatBRL(val)}</span>
                           </div>
                         );
                       })}
                     </div>
                   )}
-                </>
+                </div>
               ) : (
                 <p className="font-display text-lg font-semibold text-neutral-400">
                   Combinação indisponível no momento
@@ -510,41 +457,10 @@ export default function Produto() {
               )}
             </div>
 
-            {/* Seletores */}
-            {/* Versão (se houver mais de uma versão) */}
-            {derived.versions.filter(Boolean).length > 1 && (
-              <div className="mt-5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-2">
-                  Versão
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {derived.versions.map((ver) => {
-                    const isSelected = version === ver;
-                    const any = product.variants.some((v) => v.version === ver && v.available);
-                    return (
-                      <button
-                        key={ver || "padrao"}
-                        type="button"
-                        disabled={!any}
-                        onClick={() => pickVersion(ver)}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold transition cursor-pointer ${
-                          isSelected
-                            ? "bg-white text-black font-semibold"
-                            : "bg-[#18181b] border border-white/10 text-neutral-300 hover:border-white/20"
-                        } ${!any ? "opacity-40 cursor-not-allowed" : ""}`}
-                      >
-                        {ver || "Padrão"}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Armazenamento */}
+            {/* Seletores de Capacidade e Cores */}
             {showStorages && (
-              <div className="mt-5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-2">
+              <div className="mt-6">
+                <label className="text-xs font-bold uppercase tracking-wider text-neutral-500 block mb-2">
                   Capacidade
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -556,16 +472,13 @@ export default function Produto() {
                         key={st}
                         type="button"
                         onClick={() => pickStorage(st)}
-                        className={`rounded-full px-4 py-2 text-sm transition cursor-pointer ${
+                        className={`rounded-full px-5 py-2 text-sm font-semibold transition cursor-pointer ${
                           isSelected
-                            ? "bg-white text-black font-semibold"
-                            : "bg-[#18181b] border border-white/10 text-neutral-300 hover:border-white/20"
-                        } ${!ok ? "opacity-50" : ""}`}
+                            ? "bg-[#1d1d1f] text-white shadow-xs"
+                            : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                        } ${!ok ? "opacity-40" : ""}`}
                       >
                         {st}
-                        {!ok && (
-                          <span className="ml-1 text-[10px] text-neutral-400">(esgotado)</span>
-                        )}
                       </button>
                     );
                   })}
@@ -573,33 +486,31 @@ export default function Produto() {
               </div>
             )}
 
-            {/* Cores */}
             {showColors && (
               <div className="mt-5">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                     Cor
                   </label>
-                  <span className="text-xs text-neutral-300 font-medium">{color}</span>
+                  <span className="text-xs text-neutral-700 font-semibold">{color}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {derived.colors.map((c) => {
                     const isSelected = color === c;
                     const hex = derived.colorHex(c);
-                    const ok = derived.colorAvailable(c);
                     return (
                       <button
                         key={c}
                         type="button"
                         onClick={() => pickColor(c)}
-                        className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition cursor-pointer ${
+                        className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition cursor-pointer ${
                           isSelected
-                            ? "bg-white text-black font-semibold"
-                            : "bg-[#18181b] border border-white/10 text-neutral-300 hover:border-white/20"
-                        } ${!ok ? "opacity-50" : ""}`}
+                            ? "bg-[#1d1d1f] text-white shadow-xs"
+                            : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                        }`}
                       >
                         <span
-                          className="h-3.5 w-3.5 rounded-full border border-black/20 shrink-0"
+                          className="h-3.5 w-3.5 rounded-full border border-black/10 shrink-0"
                           style={{ backgroundColor: hex }}
                         />
                         <span>{c}</span>
@@ -610,105 +521,102 @@ export default function Produto() {
               </div>
             )}
 
-            {/* Seletor de Unidades Específicas se houver */}
-            {derived.matchingVariants.length > 1 && (
-              <div className="mt-5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-2">
-                  Selecione o Aparelho Específico
-                </label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {derived.matchingVariants.map((v, idx) => {
-                    const isSelectedUnit = selected?.id === v.id;
-                    return (
-                      <button
-                        key={v.id ?? idx}
-                        type="button"
-                        onClick={() => setUserVariantId(v.id ?? null)}
-                        className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition cursor-pointer ${
-                          isSelectedUnit
-                            ? "border-white bg-white/10 text-white"
-                            : "border-white/10 bg-[#18181b] text-neutral-300 hover:border-white/20"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-white">
-                            Unidade #{idx + 1} {v.batteryHealth ? `• Bat. ${v.batteryHealth}` : ""}
-                          </span>
-                          <span className="font-bold text-white">
-                            {formatBRL(v.priceCash)}
-                          </span>
-                        </div>
-                        {v.notes && (
-                          <p className="text-[11px] text-neutral-400 line-clamp-1">{v.notes}</p>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Botões de Ação */}
-            <div className="mt-6 flex flex-col gap-3">
-              {/* Botão de Compra no WhatsApp */}
-              {isAvailable ? (
-                <a
-                  href={waLink(whatsapp, buyMessage)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] shadow-lg text-base"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Comprar no WhatsApp
-                </a>
-              ) : (
-                <a
-                  href={waLink(
-                    whatsapp,
-                    `Olá! Vi na vitrine da Lojinha do Celular o ${product.name}${
-                      storage && storage !== "Padrão" ? ` ${storage}` : ""
-                    }${color ? ` ${color}` : ""}. Podem me avisar quando estiver disponível?`,
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full rounded-full border border-white/20 bg-white/10 hover:bg-white/15 text-white py-3.5 px-6 font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98]"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Avise-me no WhatsApp quando chegar
-                </a>
-              )}
-
-              {/* Botão Secundário de Trade-In */}
-              <Link
-                to="/avaliacao"
-                className="w-full rounded-full border border-white/20 bg-white/5 hover:bg-white/10 text-white py-3 px-6 font-medium text-sm flex items-center justify-center gap-2 transition"
+            {/* Botões de Ação Duplos (Screenshot 3: + Adicionar e Pedir agora) */}
+            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+              <a
+                href={waLink(whatsapp, buyMessage)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
               >
-                Avaliar meu aparelho na troca
-              </Link>
+                <Plus className="h-4 w-4" />
+                <span>Adicionar</span>
+              </a>
+
+              <a
+                href={waLink(whatsapp, buyMessage)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Pedir agora</span>
+              </a>
             </div>
 
-            {/* Informações complementares / Sobre este aparelho */}
-            <div className="mt-6 rounded-2xl border border-white/10 bg-[#141414] p-5">
-              <h2 className="font-display text-base font-bold text-white">Sobre este aparelho</h2>
-              {selected?.notes && (
-                <p className="mt-2 text-xs text-amber-300/90 bg-amber-950/30 border border-amber-500/20 rounded-lg p-2.5 leading-relaxed">
-                  📝 <span className="font-semibold text-amber-200">Nota da Unidade:</span> {selected.notes}
-                </p>
-              )}
-              {product.description && (
-                <p className="mt-3 text-xs leading-relaxed text-neutral-400">
-                  {product.description}
-                </p>
-              )}
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-neutral-300">
-                <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span>{selected?.warranty || product.warranty || "1 Ano de Garantia"}</span>
+            {/* Promo Cards (Screenshot 4: Trade-in e Brinde) */}
+            <div className="mt-6 flex flex-col gap-3">
+              {/* Card 1: Trade-in */}
+              <Link
+                to="/avaliacao"
+                className="rounded-2xl border border-neutral-200/90 bg-white p-4 flex items-center gap-3.5 shadow-xs hover:border-neutral-300 transition group"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-800 group-hover:scale-105 transition">
+                  <RefreshCcw className="h-5 w-5" />
                 </div>
-                <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
-                  <BadgeCheck className="h-4 w-4 text-blue-400 shrink-0" />
-                  <span>100% Original & Testado</span>
+                <div className="text-left">
+                  <p className="text-xs sm:text-sm font-bold text-neutral-900 leading-snug">
+                    Tem um iPhone pra dar de entrada?
+                  </p>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Descubra quanto vale o seu e pague só a diferença — avaliação online, sem compromisso.
+                  </p>
                 </div>
+              </Link>
+
+              {/* Card 2: Brinde */}
+              <div className="rounded-2xl bg-[#eef5ff] border border-[#d2e4ff] text-[#0066cc] p-4 flex items-center gap-3.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ddecff] text-[#0066cc]">
+                  <Gift className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs sm:text-sm font-bold text-[#0055b3] leading-snug">
+                    Fechando hoje: capa e película de brinde.
+                  </p>
+                  <p className="text-xs text-[#0066cc]/80 mt-0.5">
+                    Fale com a gente pra garantir seu kit completo.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabela de Especificações (Screenshot 4) */}
+            <div className="mt-8 border-t border-neutral-200 pt-4">
+              <div className="divide-y divide-neutral-100 text-xs sm:text-sm">
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-neutral-500">Modelo</span>
+                  <span className="font-bold text-neutral-900 text-right">{product.name}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-neutral-500">Categoria</span>
+                  <span className="font-bold text-neutral-900 text-right">{categoryLabel || "iPhone"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-neutral-500">Condição</span>
+                  <span className="font-bold text-neutral-900 text-right">{conditionLabel}</span>
+                </div>
+                {color && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-neutral-500">Cor</span>
+                    <span className="font-bold text-neutral-900 text-right">{color}</span>
+                  </div>
+                )}
+                {storage && storage !== "Padrão" && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-neutral-500">Armazenamento</span>
+                    <span className="font-bold text-neutral-900 text-right">{storage}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-neutral-500">Código</span>
+                  <span className="font-mono text-neutral-600 text-right">{productCode}</span>
+                </div>
+              </div>
+
+              {/* Nota de Procedência & Confiança */}
+              <div className="mt-5 flex items-center gap-2.5 rounded-2xl bg-neutral-50 border border-neutral-100 p-3.5 text-xs text-neutral-600">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Garantia de 1 ano, nota fiscal e procedência verificada. Entrega rápida na região.</span>
               </div>
             </div>
           </div>
