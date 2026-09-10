@@ -27,4 +27,33 @@ describe("Catalog Demo Data", () => {
       });
     });
   });
+
+  it("deve carregar a base completa de iPhones com especificações oficiais", async () => {
+    const { IPHONE_CATALOG, detectIphoneModel, getIphoneModelColorImage } = await import(
+      "../src/lib/iphoneCatalog"
+    );
+    expect(IPHONE_CATALOG.length).toBeGreaterThanOrEqual(45);
+
+    // Teste de detecção de modelos recentes
+    const m17 = detectIphoneModel("iPhone 17 Pro Max");
+    expect(m17).toBeTruthy();
+    expect(m17?.year).toBe(2025);
+    expect(m17?.screen).toBe('6.9"');
+    expect(m17?.capacities).toContain("256GB");
+
+    // Teste de resolução de imagem por cor
+    const imgOrange = getIphoneModelColorImage(m17, "Cosmic Orange");
+    expect(imgOrange).toContain("iphone-17-pro-max-cosmic-orange.png");
+    expect(imgOrange).toContain("https://gestaocelular.com.br");
+
+    // Teste de detecção flexível (sem 'iPhone' ou case insensitive)
+    const m16 = detectIphoneModel("16 pro");
+    expect(m16?.name).toBe("iPhone 16 Pro");
+    expect(m16?.year).toBe(2024);
+
+    const mAir = detectIphoneModel("iPhone Air");
+    expect(mAir?.name).toBe("iPhone Air");
+    expect(mAir?.screen).toBe('6.5"');
+  });
 });
+

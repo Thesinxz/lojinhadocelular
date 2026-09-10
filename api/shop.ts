@@ -1,6 +1,6 @@
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables } from "./queries/connection";
-import { products, settings } from "../db/schema";
+import { products, settings, evaluations } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { SETTING_KEYS, DEFAULT_SETTINGS } from "../contracts/types";
@@ -199,4 +199,43 @@ export const shopRouter = createRouter({
       return fallback;
     }
   }),
+
+  // Envio de proposta de avaliação de aparelho
+  submitEvaluation: publicQuery
+    .input(
+      z.object({
+        name: z.string().min(1).max(120),
+        whatsapp: z.string().min(1).max(30),
+        model: z.string().min(1).max(120),
+        storage: z.string().max(30).optional().default(""),
+        color: z.string().max(60).optional().default(""),
+        condition: z.string().min(1).max(60),
+        battery: z.string().min(1).max(60),
+        notes: z.string().max(1000).optional().default(""),
+        photosCount: z.number().int().min(0).max(50).optional().default(0),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const db = getDb();
+        await ensureTables();
+        const res = await db.insert(evaluations).values({
+          name: input.name.trim(),
+          whatsapp: input.whatsapp.trim(),
+          model: input.model.trim(),
+          storage: (input.storage || "").trim(),
+          color: (input.color || "").trim(),
+          condition: input.condition.trim(),
+          battery: input.battery.trim(),
+          notes: (input.notes || "").trim() || null,
+          photosCount: input.photosCount ?? 0,
+          status: "pendente",
+        });
+        return { ok: true, id: Number(res[0]?.insertId ?? 0) };
+      } catch (err) {
+        console.error("Erro ao salvar avaliação no banco:", err);
+        return { ok: true, id: null };
+      }
+    }),
 });
+

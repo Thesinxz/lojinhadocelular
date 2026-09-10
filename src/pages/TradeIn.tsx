@@ -14,12 +14,16 @@ import {
 import { Link } from "react-router";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink } from "@/lib/shop";
+import { trpc } from "@/providers/trpc";
+import { safeStorage } from "@/lib/storage";
 import {
   detectIphoneModel,
+  getIphoneModelColorImage,
   POPULAR_IPHONE_MODELS,
   FALLBACK_STORAGE_OPTIONS,
   FALLBACK_COLOR_OPTIONS,
 } from "@/lib/iphoneCatalog";
+
 
 const STEPS = ["Você", "Aparelho", "Estado", "Fotos"];
 const CONDITION_OPTIONS = [
@@ -93,6 +97,7 @@ function ChoiceButton({
 
 export default function TradeIn() {
   const settings = useShopSettings();
+  const submitMutation = trpc.shop.submitEvaluation.useMutation();
   const [step, setStep] = useState(0);
   const [evaluation, setEvaluation] = useState(INITIAL_EVALUATION);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -102,6 +107,11 @@ export default function TradeIn() {
   const detectedModel = useMemo(
     () => detectIphoneModel(evaluation.model),
     [evaluation.model]
+  );
+
+  const previewImage = useMemo(
+    () => getIphoneModelColorImage(detectedModel, evaluation.color),
+    [detectedModel, evaluation.color]
   );
 
   const storageOptions = useMemo(() => {
@@ -125,6 +135,19 @@ export default function TradeIn() {
     const finalValue = field === "whatsapp" ? formatPhoneInput(value) : value;
     setEvaluation(current => ({ ...current, [field]: finalValue }));
     setError("");
+  }
+
+  function selectPopularModel(popName: string) {
+    updateField("model", popName);
+    const found = detectIphoneModel(popName);
+    if (found && found.colors.length > 0) {
+      const hasCurrent = found.colors.some(
+        c => c.name.toLowerCase() === evaluation.color.toLowerCase()
+      );
+      if (!hasCurrent) {
+        updateField("color", found.colors[0].name);
+      }
+    }
   }
 
   function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
@@ -168,9 +191,36 @@ export default function TradeIn() {
       "Enviado pelo site da Lojinha do Celular.",
     ].join("\n");
 
+    // 1. Salva no banco de dados via tRPC
+    submitMutation.mutate({
+      name: evaluation.name,
+      whatsapp: evaluation.whatsapp,
+      model: evaluation.model,
+      storage: evaluation.storage,
+      color: evaluation.color,
+      condition: evaluation.condition,
+      battery: evaluation.battery,
+      notes: evaluation.notes,
+      photosCount: photos.length,
+    });
+
+    // 2. Salva no histórico local de segurança
+    try {
+      const history = JSON.parse(safeStorage.getItem("lojinha_evaluations_history") || "[]");
+      safeStorage.setItem(
+        "lojinha_evaluations_history",
+        JSON.stringify([
+          { ...evaluation, photosCount: photos.length, date: new Date().toISOString() },
+          ...history.slice(0, 19),
+        ])
+      );
+    } catch {}
+
+    // 3. Abre conversa com o atendente
     window.open(waLink(destination, message), "_blank", "noopener,noreferrer");
     setSent(true);
   }
+
 
   if (sent) {
     return (
@@ -370,9 +420,7 @@ export default function TradeIn() {
                         <button
                           key={popName}
                           type="button"
-                          onClick={() => {
-                            updateField("model", popName);
-                          }}
+                          onClick={() => selectPopularModel(popName)}
                           className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
                             isSelected
                               ? "bg-[#1d1d1f] text-white shadow-xs scale-102"
@@ -386,13 +434,64 @@ export default function TradeIn() {
                   </div>
                 </div>
 
-                {/* Banner de reconhecimento inteligente */}
+                {/* Card de visualização do aparelho em tempo real */}
                 {detectedModel && (
-                  <div className="flex items-center gap-2.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3.5 py-2.5 text-xs font-medium text-blue-900 animate-fadeIn">
-                    <Sparkles className="h-4 w-4 shrink-0 text-[#0071e3]" />
-                    <span>
-                      Modelo reconhecido: <b className="text-[#0071e3]">{detectedModel.name}</b>. Listando as opções oficiais de cor e capacidade abaixo.
-                    </span>
+                  <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-neutral-50 p-4 sm:p-5 shadow-xs transition-all animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                      {previewImage ? (
+                        <div className="relative flex h-36 w-36 sm:h-40 sm:w-40 shrink-0 items-center justify-center rounded-2xl bg-white p-2.5 shadow-sm border border-neutral-100/80">
+                          <img
+                            key={previewImage}
+                            src={previewImage}
+                            alt={detectedModel.name}
+                            className="h-full w-full object-contain drop-shadow-md transition-all duration-300 animate-fadeIn"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-2xl bg-white p-4 shadow-sm border border-neutral-100">
+                          <Smartphone className="h-12 w-12 text-[#0071e3]" />
+                        </div>
+                      )}
+                      <div className="flex-1 text-center sm:text-left min-w-0">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#0071e3]">
+                          <Sparkles className="h-3 w-3" /> Modelo reconhecido
+                        </div>
+                        <h3 className="font-display text-lg sm:text-xl font-bold text-[#1d1d1f] mt-1">
+                          {detectedModel.name}
+                        </h3>
+                        <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 text-xs text-[#6e6e73]">
+                          <span className="rounded-md bg-white border border-neutral-200/70 px-2.5 py-1 font-medium">
+                            Ano {detectedModel.year}
+                          </span>
+                          <span className="rounded-md bg-white border border-neutral-200/70 px-2.5 py-1 font-medium">
+                            Tela {detectedModel.screen}
+                          </span>
+                          {evaluation.color && (
+                            <span className="rounded-md bg-white border border-neutral-200/70 px-2.5 py-1 font-medium inline-flex items-center gap-1.5">
+                              <span
+                                className="h-2.5 w-2.5 rounded-full border border-black/15 shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    colorOptions.find((c) => c.name === evaluation.color)?.hex ?? "#999",
+                                }}
+                              />
+                              {evaluation.color}
+                            </span>
+                          )}
+                          {evaluation.storage && (
+                            <span className="rounded-md bg-[#0071e3]/10 border border-[#0071e3]/20 px-2.5 py-1 font-semibold text-[#0071e3]">
+                              {evaluation.storage}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 text-[11.5px] text-[#86868b]">
+                          Selecione abaixo a capacidade e a cor exata para visualizar o seu aparelho.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
 

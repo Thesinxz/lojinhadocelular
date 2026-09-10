@@ -1,7 +1,7 @@
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables } from "./queries/connection";
-import { products, variants, settings } from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { products, variants, settings, evaluations } from "../db/schema";
+import { eq, inArray, desc } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -194,4 +194,48 @@ export const adminRouter = createRouter({
       }
       return { ok: true };
     }),
+
+  evaluations: publicQuery.query(async ({ ctx }) => {
+    requireAdmin(ctx.req);
+    try {
+      const db = getDb();
+      await ensureTables();
+      return await db
+        .select()
+        .from(evaluations)
+        .orderBy(desc(evaluations.createdAt));
+    } catch (err) {
+      console.error("Erro ao consultar avaliações admin:", err);
+      return [];
+    }
+  }),
+
+  updateEvaluationStatus: publicQuery
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        status: z.enum(["pendente", "atendimento", "concluido", "recusado"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const db = getDb();
+      await ensureTables();
+      await db
+        .update(evaluations)
+        .set({ status: input.status })
+        .where(eq(evaluations.id, input.id));
+      return { ok: true };
+    }),
+
+  deleteEvaluation: publicQuery
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const db = getDb();
+      await ensureTables();
+      await db.delete(evaluations).where(eq(evaluations.id, input.id));
+      return { ok: true };
+    }),
 });
+

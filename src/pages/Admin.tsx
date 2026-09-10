@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
-import { Lock, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Settings, Package, RefreshCw } from "lucide-react";
+import { Lock, LogOut, Plus, Pencil, Trash2, Eye, EyeOff, Settings, Package, RefreshCw, Smartphone } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { formatBRL, CATEGORIES } from "@contracts/types";
 import { minPrice } from "@/lib/shop";
 import { safeStorage } from "@/lib/storage";
 import AdminProductEditor from "@/components/admin/AdminProductEditor";
 import AdminSettings from "@/components/admin/AdminSettings";
+import AdminEvaluations from "@/components/admin/AdminEvaluations";
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -14,7 +15,9 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const tab = (searchParams.get("tab") as "produtos" | "config") || "produtos";
+  const tab =
+    (searchParams.get("tab") as "produtos" | "avaliacoes" | "config") ||
+    "produtos";
   const editingRaw = searchParams.get("editing");
   const editing: number | "novo" | null =
     editingRaw === "novo" ? "novo" : editingRaw ? Number(editingRaw) : null;
@@ -34,7 +37,7 @@ export default function Admin() {
     );
   }
 
-  function setTab(t: "produtos" | "config") {
+  function setTab(t: "produtos" | "avaliacoes" | "config") {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -44,6 +47,7 @@ export default function Admin() {
       { replace: true }
     );
   }
+
 
   const utils = trpc.useUtils();
   const login = trpc.admin.login.useMutation({
@@ -59,6 +63,17 @@ export default function Admin() {
     enabled: !!token,
     retry: 1,
   });
+
+  const evaluationsQuery = trpc.admin.evaluations.useQuery(undefined, {
+    enabled: !!token,
+    retry: 1,
+    refetchInterval: 30000,
+  });
+
+  const pendingEvaluationsCount = (evaluationsQuery.data ?? []).filter(
+    (e) => (e.status || "pendente") === "pendente"
+  ).length;
+
 
   useEffect(() => {
     if (products.error) {
@@ -209,6 +224,21 @@ export default function Admin() {
             <Package className="h-4 w-4" /> Produtos
           </button>
           <button
+            onClick={() => setTab("avaliacoes")}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs sm:text-sm font-semibold transition-all ${
+              tab === "avaliacoes"
+                ? "bg-white text-[#1d1d1f] shadow-xs"
+                : "text-[#6e6e73] hover:text-[#1d1d1f]"
+            }`}
+          >
+            <Smartphone className="h-4 w-4" /> Avaliações
+            {pendingEvaluationsCount > 0 && (
+              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                {pendingEvaluationsCount}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setTab("config")}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs sm:text-sm font-semibold transition-all ${
               tab === "config"
@@ -232,8 +262,11 @@ export default function Admin() {
 
       {tab === "config" ? (
         <AdminSettings />
+      ) : tab === "avaliacoes" ? (
+        <AdminEvaluations />
       ) : (
         <div className="mt-6">
+
           <div className="space-y-3">
             {products.isLoading &&
               Array.from({ length: 3 }).map((_, i) => (

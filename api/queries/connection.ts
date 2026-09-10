@@ -67,10 +67,30 @@ export async function ensureTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS evaluations (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        whatsapp VARCHAR(30) NOT NULL,
+        model VARCHAR(120) NOT NULL,
+        storage VARCHAR(30) DEFAULT '',
+        color VARCHAR(60) DEFAULT '',
+        \`condition\` VARCHAR(60) NOT NULL,
+        battery VARCHAR(60) NOT NULL,
+        notes TEXT,
+        photos_count INT NOT NULL DEFAULT 0,
+        status ENUM('pendente', 'atendimento', 'concluido', 'recusado') NOT NULL DEFAULT 'pendente',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_evaluations_status (status),
+        INDEX idx_evaluations_created_at (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     tablesEnsured = true;
   } catch (err) {
     console.error("Erro ao verificar/criar tabelas no banco MySQL:", err);
   }
+
 }
 
 export function getDb(): MySql2Database<typeof fullSchema> {

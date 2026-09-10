@@ -65,3 +65,26 @@ export const settings = mysqlTable("settings", {
   key: varchar("key", { length: 60 }).primaryKey(),
   value: text("value"),
 });
+
+export const evaluations = mysqlTable(
+  "evaluations",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 120 }).notNull(),
+    whatsapp: varchar("whatsapp", { length: 30 }).notNull(),
+    model: varchar("model", { length: 120 }).notNull(),
+    storage: varchar("storage", { length: 30 }).default(""),
+    color: varchar("color", { length: 60 }).default(""),
+    condition: varchar("condition", { length: 60 }).notNull(),
+    battery: varchar("battery", { length: 60 }).notNull(),
+    notes: text("notes"),
+    photosCount: int("photos_count").notNull().default(0),
+    status: mysqlEnum("status", ["pendente", "atendimento", "concluido", "recusado"]).notNull().default("pendente"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    statusIdx: index("idx_evaluations_status").on(table.status),
+    createdAtIdx: index("idx_evaluations_created_at").on(table.createdAt),
+  }),
+);
+

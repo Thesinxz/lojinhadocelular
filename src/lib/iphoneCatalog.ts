@@ -1,387 +1,748 @@
+export type IphoneColorSpec = {
+  name: string;
+  hex: string;
+  imageUrl?: string;
+};
+
 export type IphoneModelSpec = {
   name: string;
   year: number;
+  screen: string;
   capacities: string[];
-  colors: { name: string; hex: string; imageUrl?: string }[];
+  colors: IphoneColorSpec[];
   defaultImageUrl?: string;
 };
 
+export function resolveIphoneImageUrl(pathOrUrl?: string): string {
+  if (!pathOrUrl) return "";
+  if (pathOrUrl.startsWith("http")) return pathOrUrl;
+  const clean = pathOrUrl.startsWith("/") ? pathOrUrl : "/" + pathOrUrl;
+  return "https://gestaocelular.com.br" + clean;
+}
+
 export const IPHONE_CATALOG: IphoneModelSpec[] = [
+  // ===== 2026 =====
+  {
+    name: "iPhone 17e",
+    year: 2026,
+    screen: "6.1\"",
+    capacities: ["256GB", "512GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-17e-black.png" },
+      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-17e-white.png" },
+      { name: "Soft Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-17e-pink.png" },
+    ],
+  },
+
+  // ===== 2025 =====
   {
     name: "iPhone 17 Pro Max",
     year: 2025,
+    screen: "6.9\"",
     capacities: ["256GB", "512GB", "1TB", "2TB"],
     colors: [
-      { name: "Prateado", hex: "#e2e4e1", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Laranja-cósmico", hex: "#e65c00", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Azul-intenso", hex: "#1d3557", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-17-pro-max-silver.png" },
+      { name: "Cosmic Orange", hex: "#ff6f3c", imageUrl: "/images/iphones/iphone-17-pro-max-cosmic-orange.png" },
+      { name: "Deep Blue", hex: "#1a365d", imageUrl: "/images/iphones/iphone-17-pro-max-deep-blue.png" },
     ],
   },
   {
     name: "iPhone 17 Pro",
     year: 2025,
+    screen: "6.3\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Prateado", hex: "#e2e4e1", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Laranja-cósmico", hex: "#e65c00", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Azul-intenso", hex: "#1d3557", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-17-pro-silver.png" },
+      { name: "Cosmic Orange", hex: "#ff6f3c", imageUrl: "/images/iphones/iphone-17-pro-cosmic-orange.png" },
+      { name: "Deep Blue", hex: "#1a365d", imageUrl: "/images/iphones/iphone-17-pro-deep-blue.png" },
     ],
   },
   {
     name: "iPhone 17",
     year: 2025,
+    screen: "6.3\"",
     capacities: ["256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-black?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Branco", hex: "#f7f7f7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-white?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Azul-névoa", hex: "#a7c1d9", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-ultramarine?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Sálvia", hex: "#778e78", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-teal?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Lavanda", hex: "#b5a7cb", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-pink?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-17-black.png" },
+      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-17-white.png" },
+      { name: "Mist Blue", hex: "#9bb7d4", imageUrl: "/images/iphones/iphone-17-mist-blue.png" },
+      { name: "Sage", hex: "#9caf88", imageUrl: "/images/iphones/iphone-17-sage.png" },
+      { name: "Lavender", hex: "#b8a9c9", imageUrl: "/images/iphones/iphone-17-lavender.png" },
     ],
   },
   {
     name: "iPhone Air",
     year: 2025,
+    screen: "6.5\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Preto-espacial", hex: "#2e2c2e" },
-      { name: "Branco-nuvem", hex: "#f2f1ed" },
-      { name: "Dourado-claro", hex: "#fae7cf" },
-      { name: "Azul-céu", hex: "#87ceeb" },
-    ],
-  },
-  {
-    name: "iPhone 17e",
-    year: 2026,
-    capacities: ["256GB", "512GB"],
-    colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Rosa-pálido", hex: "#faddd7" },
-    ],
-  },
-  {
-    name: "iPhone 16 Pro Max",
-    year: 2024,
-    capacities: ["256GB", "512GB", "1TB"],
-    colors: [
-      { name: "Titânio-deserto", hex: "#c6aa91", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
-    ],
-  },
-  {
-    name: "iPhone 16 Pro",
-    year: 2024,
-    capacities: ["128GB", "256GB", "512GB", "1TB"],
-    colors: [
-      { name: "Titânio-deserto", hex: "#c6aa91", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
-    ],
-  },
-  {
-    name: "iPhone 16 Plus",
-    year: 2024,
-    capacities: ["128GB", "256GB", "512GB"],
-    colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Rosa", hex: "#faddd7" },
-      { name: "Verde-acinzentado", hex: "#8ab4ac" },
-      { name: "Ultramarino", hex: "#42506e" },
-    ],
-  },
-  {
-    name: "iPhone 16",
-    year: 2024,
-    capacities: ["128GB", "256GB", "512GB"],
-    colors: [
-      { name: "Preto", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-black?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Branco", hex: "#f7f7f7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-white?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Rosa", hex: "#faddd7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-pink?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Verde-acinzentado", hex: "#8ab4ac", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-teal?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Ultramarino", hex: "#42506e", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-ultramarine?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-air-space-black.png" },
+      { name: "Cloud White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-air-cloud-white.png" },
+      { name: "Light Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-air-light-gold.png" },
+      { name: "Sky Blue", hex: "#7eb0d5", imageUrl: "/images/iphones/iphone-air-sky-blue.png" },
     ],
   },
   {
     name: "iPhone 16e",
     year: 2025,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16e-black.png" },
+      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-16e-white.png" },
+    ],
+  },
+
+  // ===== 2024 =====
+  {
+    name: "iPhone 16 Pro Max",
+    year: 2024,
+    screen: "6.9\"",
+    capacities: ["256GB", "512GB", "1TB"],
+    colors: [
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-16-pro-max-natural-titanium.png" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-16-pro-max-black-titanium.png" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-16-pro-max-white-titanium.png" },
+      { name: "Desert Titanium", hex: "#c6aa91", imageUrl: "/images/iphones/iphone-16-pro-max-desert-titanium.png" },
     ],
   },
   {
+    name: "iPhone 16 Pro",
+    year: 2024,
+    screen: "6.3\"",
+    capacities: ["128GB", "256GB", "512GB", "1TB"],
+    colors: [
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-16-pro-natural-titanium.png" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-16-pro-black-titanium.png" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-16-pro-white-titanium.png" },
+      { name: "Desert Titanium", hex: "#c6aa91", imageUrl: "/images/iphones/iphone-16-pro-desert-titanium.png" },
+    ],
+  },
+  {
+    name: "iPhone 16 Plus",
+    year: 2024,
+    screen: "6.7\"",
+    capacities: ["128GB", "256GB", "512GB"],
+    colors: [
+      { name: "Ultramarine", hex: "#42506e", imageUrl: "/images/iphones/iphone-16-plus-ultramarine.png" },
+      { name: "Teal", hex: "#8ab4ac", imageUrl: "/images/iphones/iphone-16-plus-teal.png" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-16-plus-pink.png" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-16-plus-white.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16-plus-black.png" },
+    ],
+  },
+  {
+    name: "iPhone 16",
+    year: 2024,
+    screen: "6.1\"",
+    capacities: ["128GB", "256GB", "512GB"],
+    colors: [
+      { name: "Ultramarine", hex: "#42506e", imageUrl: "/images/iphones/iphone-16-ultramarine.png" },
+      { name: "Teal", hex: "#8ab4ac", imageUrl: "/images/iphones/iphone-16-teal.png" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-16-pink.png" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-16-white.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16-black.png" },
+    ],
+  },
+
+  // ===== 2023 =====
+  {
     name: "iPhone 15 Pro Max",
     year: 2023,
+    screen: "6.7\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio azul", hex: "#3b4453", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-bluetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-15-pro-max-natural-titanium.png" },
+      { name: "Blue Titanium", hex: "#3b4453", imageUrl: "/images/iphones/iphone-15-pro-max-blue-titanium.png" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-15-pro-max-white-titanium.png" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-15-pro-max-black-titanium.png" },
     ],
   },
   {
     name: "iPhone 15 Pro",
     year: 2023,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Titânio natural", hex: "#bebaa7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio azul", hex: "#3b4453", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-bluetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio branco", hex: "#f2f1ed", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-whitetitanium?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Titânio preto", hex: "#3c3b37", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-blacktitanium?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-15-pro-natural-titanium.png" },
+      { name: "Blue Titanium", hex: "#3b4453", imageUrl: "/images/iphones/iphone-15-pro-blue-titanium.png" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-15-pro-white-titanium.png" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-15-pro-black-titanium.png" },
     ],
   },
   {
     name: "iPhone 15 Plus",
     year: 2023,
+    screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Azul", hex: "#a7c1d9" },
-      { name: "Verde", hex: "#b4caa4" },
-      { name: "Amarelo", hex: "#f3e08c" },
-      { name: "Rosa", hex: "#faddd7" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-15-plus-pink.png" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-15-plus-yellow.png" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-15-plus-green.png" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-15-plus-blue.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-15-plus-black.png" },
     ],
   },
   {
     name: "iPhone 15",
     year: 2023,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-black?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Azul", hex: "#a7c1d9", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-blue?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Verde", hex: "#b4caa4", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-green?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Amarelo", hex: "#f3e08c", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-yellow?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Rosa", hex: "#faddd7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-pink?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-15-black.png" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-15-blue.png" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-15-green.png" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-15-yellow.png" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-15-pink.png" },
     ],
   },
+
+  // ===== 2022 =====
   {
     name: "iPhone 14 Pro Max",
     year: 2022,
+    screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Roxo-profundo", hex: "#483d8b", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-deeppurple?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Preto-espacial", hex: "#2e2c2e", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-spaceblack?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Dourado", hex: "#fae7cf", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-gold?wid=1000&hei=1000&fmt=png-alpha" },
-      { name: "Prateado", hex: "#e2e4e1", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-silver?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Deep Purple", hex: "#483d8b", imageUrl: "/images/iphones/iphone-14-pro-max-deep-purple.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-14-pro-max-gold.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-14-pro-max-silver.png" },
+      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-14-pro-max-space-black.png" },
     ],
   },
   {
     name: "iPhone 14 Pro",
     year: 2022,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Roxo-profundo", hex: "#483d8b" },
-      { name: "Preto-espacial", hex: "#2e2c2e" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Deep Purple", hex: "#483d8b", imageUrl: "/images/iphones/iphone-14-pro-deep-purple.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-14-pro-gold.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-14-pro-silver.png" },
+      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-14-pro-space-black.png" },
     ],
   },
   {
     name: "iPhone 14 Plus",
     year: 2022,
+    screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Meia-noite", hex: "#1b242d" },
-      { name: "Estelar", hex: "#f0e9d7" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
-      { name: "Azul", hex: "#a7c1d9" },
-      { name: "Roxo", hex: "#b5a7cb" },
-      { name: "Amarelo", hex: "#f3e08c" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-14-plus-blue.png" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-14-plus-purple.png" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-14-plus-yellow.png" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-14-plus-midnight.png" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-14-plus-starlight.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-14-plus-red.png" },
     ],
   },
   {
     name: "iPhone 14",
     year: 2022,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Meia-noite", hex: "#1b242d" },
-      { name: "Estelar", hex: "#f0e9d7" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
-      { name: "Azul", hex: "#a7c1d9" },
-      { name: "Roxo", hex: "#b5a7cb" },
-      { name: "Amarelo", hex: "#f3e08c" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-14-blue.png" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-14-purple.png" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-14-yellow.png" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-14-midnight.png" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-14-starlight.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-14-red.png" },
     ],
   },
   {
     name: "iPhone SE (3ª geração)",
     year: 2022,
+    screen: "4.7\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Meia-noite", hex: "#1b242d" },
-      { name: "Estelar", hex: "#f0e9d7" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-se-finish-select-202207-midnight?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-se-finish-select-202207-starlight?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-se-finish-select-202207-red?wid=1000&hei=1000&fmt=png-alpha" },
     ],
   },
+
+  // ===== 2021 =====
   {
     name: "iPhone 13 Pro Max",
     year: 2021,
+    screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Azul-Sierra", hex: "#9bb0c1" },
-      { name: "Verde-alpino", hex: "#475c4d" },
-      { name: "Grafite", hex: "#545351" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Sierra Blue", hex: "#9bb0c1", imageUrl: "/images/iphones/iphone-13-pro-max-sierra-blue.png" },
+      { name: "Alpine Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-pro-max-alpine-green.png" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-13-pro-max-graphite.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-13-pro-max-gold.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-13-pro-max-silver.png" },
     ],
   },
   {
     name: "iPhone 13 Pro",
     year: 2021,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Azul-Sierra", hex: "#9bb0c1" },
-      { name: "Verde-alpino", hex: "#475c4d" },
-      { name: "Grafite", hex: "#545351" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Sierra Blue", hex: "#9bb0c1", imageUrl: "/images/iphones/iphone-13-pro-sierra-blue.png" },
+      { name: "Alpine Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-pro-alpine-green.png" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-13-pro-graphite.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-13-pro-gold.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-13-pro-silver.png" },
     ],
   },
   {
     name: "iPhone 13",
     year: 2021,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Meia-noite", hex: "#1b242d" },
-      { name: "Estelar", hex: "#f0e9d7" },
-      { name: "Azul", hex: "#42506e" },
-      { name: "Rosa", hex: "#faddd7" },
-      { name: "Verde", hex: "#475c4d" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Blue", hex: "#42506e", imageUrl: "/images/iphones/iphone-13-blue.png" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-13-pink.png" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-13-midnight.png" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-13-starlight.png" },
+      { name: "Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-green.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-13-red.png" },
     ],
   },
   {
     name: "iPhone 13 mini",
     year: 2021,
+    screen: "5.4\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Meia-noite", hex: "#1b242d" },
-      { name: "Estelar", hex: "#f0e9d7" },
-      { name: "Azul", hex: "#42506e" },
-      { name: "Rosa", hex: "#faddd7" },
-      { name: "Verde", hex: "#475c4d" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Blue", hex: "#42506e", imageUrl: "/images/iphones/iphone-13-blue.png" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-13-pink.png" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-13-midnight.png" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-13-starlight.png" },
+      { name: "Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-green.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-13-red.png" },
     ],
   },
+
+  // ===== 2020 =====
   {
     name: "iPhone 12 Pro Max",
     year: 2020,
+    screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Azul-Pacífico", hex: "#2c4d5e" },
-      { name: "Grafite", hex: "#545351" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Pacific Blue", hex: "#2c4d5e", imageUrl: "/images/iphones/iphone-12-pro-max-pacific-blue.png" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-12-pro-max-graphite.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-12-pro-max-gold.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-12-pro-max-silver.png" },
     ],
   },
   {
     name: "iPhone 12 Pro",
     year: 2020,
+    screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Azul-Pacífico", hex: "#2c4d5e" },
-      { name: "Grafite", hex: "#545351" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Pacific Blue", hex: "#2c4d5e", imageUrl: "/images/iphones/iphone-12-pro-pacific-blue.png" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-12-pro-graphite.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-12-pro-gold.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-12-pro-silver.png" },
     ],
   },
   {
     name: "iPhone 12",
     year: 2020,
+    screen: "6.1\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Azul", hex: "#1d3557" },
-      { name: "Verde", hex: "#b4caa4" },
-      { name: "Roxo", hex: "#b5a7cb" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Blue", hex: "#1d3557", imageUrl: "/images/iphones/iphone-12-blue.png" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-12-green.png" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-12-white.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-12-black.png" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-12-purple.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-12-red.png" },
     ],
   },
   {
     name: "iPhone 12 mini",
     year: 2020,
+    screen: "5.4\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Azul", hex: "#1d3557" },
-      { name: "Verde", hex: "#b4caa4" },
-      { name: "Roxo", hex: "#b5a7cb" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Blue", hex: "#1d3557", imageUrl: "/images/iphones/iphone-12-blue.png" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-12-green.png" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-12-white.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-12-black.png" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-12-purple.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-12-red.png" },
     ],
   },
   {
+    name: "iPhone SE (2ª geração)",
+    year: 2020,
+    screen: "4.7\"",
+    capacities: ["64GB", "128GB", "256GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-se-finish-select-202207-midnight?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-se-finish-select-202207-starlight?wid=1000&hei=1000&fmt=png-alpha" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-se-finish-select-202207-red?wid=1000&hei=1000&fmt=png-alpha" },
+    ],
+  },
+
+  // ===== 2019 =====
+  {
     name: "iPhone 11 Pro Max",
     year: 2019,
+    screen: "6.5\"",
     capacities: ["64GB", "256GB", "512GB"],
     colors: [
-      { name: "Verde meia-noite", hex: "#4e5851" },
-      { name: "Cinza-espacial", hex: "#4b4a4e" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Midnight Green", hex: "#4e5851", imageUrl: "/images/iphones/iphone-11-pro-max-midnight-green.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-11-pro-max-silver.png" },
+      { name: "Space Gray", hex: "#4b4a4e", imageUrl: "/images/iphones/iphone-11-pro-max-space-grey.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-11-pro-max-gold.png" },
     ],
   },
   {
     name: "iPhone 11 Pro",
     year: 2019,
+    screen: "5.8\"",
     capacities: ["64GB", "256GB", "512GB"],
     colors: [
-      { name: "Verde meia-noite", hex: "#4e5851" },
-      { name: "Cinza-espacial", hex: "#4b4a4e" },
-      { name: "Dourado", hex: "#fae7cf" },
-      { name: "Prateado", hex: "#e2e4e1" },
+      { name: "Midnight Green", hex: "#4e5851", imageUrl: "/images/iphones/iphone-11-pro-midnight-green.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-11-pro-silver.png" },
+      { name: "Space Gray", hex: "#4b4a4e", imageUrl: "/images/iphones/iphone-11-pro-space-grey.png" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-11-pro-gold.png" },
     ],
   },
   {
     name: "iPhone 11",
     year: 2019,
+    screen: "6.1\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Roxo", hex: "#d1c4e9" },
-      { name: "Verde", hex: "#b2dfdb" },
-      { name: "Amarelo", hex: "#fff59d" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Purple", hex: "#d1c4e9", imageUrl: "/images/iphones/iphone-11-purple.png" },
+      { name: "Yellow", hex: "#fff59d", imageUrl: "/images/iphones/iphone-11-yellow.png" },
+      { name: "Green", hex: "#b2dfdb", imageUrl: "/images/iphones/iphone-11-green.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-11-black.png" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-11-white.png" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-11-red.png" },
+    ],
+  },
+
+  // ===== 2018 =====
+  {
+    name: "iPhone XS Max",
+    year: 2018,
+    screen: "6.5\"",
+    capacities: ["64GB", "256GB", "512GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+    ],
+  },
+  {
+    name: "iPhone XS",
+    year: 2018,
+    screen: "5.8\"",
+    capacities: ["64GB", "256GB", "512GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
     ],
   },
   {
     name: "iPhone XR",
     year: 2018,
+    screen: "6.1\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Preto", hex: "#1d1d1f" },
-      { name: "Branco", hex: "#f7f7f7" },
-      { name: "Azul", hex: "#42a5f5" },
-      { name: "Amarelo", hex: "#ffee58" },
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "White", hex: "#f7f7f7" },
+      { name: "Blue", hex: "#42a5f5" },
+      { name: "Yellow", hex: "#ffee58" },
       { name: "Coral", hex: "#ff7043" },
-      { name: "(PRODUCT)RED", hex: "#e30016" },
+      { name: "Product Red", hex: "#e30016" },
+    ],
+  },
+
+  // ===== 2017 =====
+  {
+    name: "iPhone X",
+    year: 2017,
+    screen: "5.8\"",
+    capacities: ["64GB", "256GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+    ],
+  },
+  {
+    name: "iPhone 8 Plus",
+    year: 2017,
+    screen: "5.5\"",
+    capacities: ["64GB", "128GB", "256GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Product Red", hex: "#e30016" },
+    ],
+  },
+  {
+    name: "iPhone 8",
+    year: 2017,
+    screen: "4.7\"",
+    capacities: ["64GB", "128GB", "256GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Product Red", hex: "#e30016" },
+    ],
+  },
+
+  // ===== 2016 =====
+  {
+    name: "iPhone 7 Plus",
+    year: 2016,
+    screen: "5.5\"",
+    capacities: ["32GB", "128GB", "256GB"],
+    colors: [
+      { name: "Matte Black", hex: "#1d1d1f" },
+      { name: "Jet Black", hex: "#0a0a0a" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Rose Gold", hex: "#e7b4b6" },
+      { name: "Product Red", hex: "#e30016" },
+    ],
+  },
+  {
+    name: "iPhone 7",
+    year: 2016,
+    screen: "4.7\"",
+    capacities: ["32GB", "128GB", "256GB"],
+    colors: [
+      { name: "Matte Black", hex: "#1d1d1f" },
+      { name: "Jet Black", hex: "#0a0a0a" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Rose Gold", hex: "#e7b4b6" },
+      { name: "Product Red", hex: "#e30016" },
+    ],
+  },
+  {
+    name: "iPhone SE (1ª geração)",
+    year: 2016,
+    screen: "4\"",
+    capacities: ["16GB", "32GB", "64GB", "128GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Rose Gold", hex: "#e7b4b6" },
+    ],
+  },
+
+  // ===== 2015 =====
+  {
+    name: "iPhone 6s Plus",
+    year: 2015,
+    screen: "5.5\"",
+    capacities: ["16GB", "32GB", "64GB", "128GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Rose Gold", hex: "#e7b4b6" },
+    ],
+  },
+  {
+    name: "iPhone 6s",
+    year: 2015,
+    screen: "4.7\"",
+    capacities: ["16GB", "32GB", "64GB", "128GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+      { name: "Rose Gold", hex: "#e7b4b6" },
+    ],
+  },
+
+  // ===== 2014 =====
+  {
+    name: "iPhone 6 Plus",
+    year: 2014,
+    screen: "5.5\"",
+    capacities: ["16GB", "64GB", "128GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+    ],
+  },
+  {
+    name: "iPhone 6",
+    year: 2014,
+    screen: "4.7\"",
+    capacities: ["16GB", "32GB", "64GB", "128GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+    ],
+  },
+
+  // ===== 2013-2007 Clássicos =====
+  {
+    name: "iPhone 5s",
+    year: 2013,
+    screen: "4\"",
+    capacities: ["16GB", "32GB", "64GB"],
+    colors: [
+      { name: "Space Gray", hex: "#4b4a4e" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Gold", hex: "#fae7cf" },
+    ],
+  },
+  {
+    name: "iPhone 5c",
+    year: 2013,
+    screen: "4\"",
+    capacities: ["8GB", "16GB", "32GB"],
+    colors: [
+      { name: "White", hex: "#f7f7f7" },
+      { name: "Blue", hex: "#42a5f5" },
+      { name: "Pink", hex: "#f06292" },
+      { name: "Green", hex: "#81c784" },
+      { name: "Yellow", hex: "#fff176" },
+    ],
+  },
+  {
+    name: "iPhone 5",
+    year: 2012,
+    screen: "4\"",
+    capacities: ["16GB", "32GB", "64GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "White", hex: "#f7f7f7" },
+    ],
+  },
+  {
+    name: "iPhone 4s",
+    year: 2011,
+    screen: "3.5\"",
+    capacities: ["8GB", "16GB", "32GB", "64GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "White", hex: "#f7f7f7" },
+    ],
+  },
+  {
+    name: "iPhone 4",
+    year: 2010,
+    screen: "3.5\"",
+    capacities: ["8GB", "16GB", "32GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "White", hex: "#f7f7f7" },
+    ],
+  },
+  {
+    name: "iPhone 3GS",
+    year: 2009,
+    screen: "3.5\"",
+    capacities: ["8GB", "16GB", "32GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "White", hex: "#f7f7f7" },
+    ],
+  },
+  {
+    name: "iPhone 3G",
+    year: 2008,
+    screen: "3.5\"",
+    capacities: ["8GB", "16GB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "White", hex: "#f7f7f7" },
+    ],
+  },
+  {
+    name: "iPhone (1ª geração)",
+    year: 2007,
+    screen: "3.5\"",
+    capacities: ["4GB", "8GB", "16GB"],
+    colors: [
+      { name: "Silver", hex: "#c0c0c0" },
+      { name: "Black", hex: "#1d1d1f" },
     ],
   },
 ];
 
-/**
- * Resolve imagens oficiais transparentes da Apple para evitar fotos genéricas de mesas ou fundos pretos
- */
+export function detectIphoneModel(query: string): IphoneModelSpec | null {
+  const raw = String(query || "").trim();
+  if (!raw) return null;
+
+  const q = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // 1. Busca exata por nome
+  for (const model of IPHONE_CATALOG) {
+    const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (q === mName || q === mName.replace(/^iphone\s*/, "")) {
+      return model;
+    }
+  }
+
+  // 2. Busca por substring decrescente para não confundir "iPhone 16 Pro Max" com "iPhone 16"
+  const sorted = [...IPHONE_CATALOG].sort((a, b) => b.name.length - a.name.length);
+  for (const model of sorted) {
+    const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const shortName = mName.replace(/^iphone\s*/, "");
+    if (q === mName || q === shortName || q.includes(mName) || q.includes(shortName)) {
+      return model;
+    }
+  }
+
+  return null;
+}
+
+export function getIphoneModelColorImage(
+  modelSpec: IphoneModelSpec | null | undefined,
+  colorName?: string,
+): string {
+  if (!modelSpec) return "";
+
+  if (colorName) {
+    const cleanColor = colorName.toLowerCase().trim();
+    const match = modelSpec.colors.find((c) => {
+      const cLower = c.name.toLowerCase().trim();
+      return cLower === cleanColor || cLower.includes(cleanColor) || cleanColor.includes(cLower);
+    });
+    if (match?.imageUrl) {
+      return resolveIphoneImageUrl(match.imageUrl);
+    }
+  }
+
+  const firstWithImage = modelSpec.colors.find((c) => c.imageUrl);
+  if (firstWithImage?.imageUrl) {
+    return resolveIphoneImageUrl(firstWithImage.imageUrl);
+  }
+
+  if (modelSpec.defaultImageUrl) {
+    return resolveIphoneImageUrl(modelSpec.defaultImageUrl);
+  }
+
+  return "";
+}
+
 export function resolveProductImage(
   name: string,
   currentImageUrl?: string | null,
   colorName?: string,
 ): string {
   const cleanUrl = (currentImageUrl ?? "").trim();
-  // Se já for uma imagem oficial Apple CDN ou PNG transparente válida, mantém
   if (
     cleanUrl &&
     !cleanUrl.includes("unsplash.com") &&
     !cleanUrl.includes("placeholder") &&
-    (cleanUrl.includes("apple.com") || cleanUrl.includes(".png") || cleanUrl.includes("png-alpha"))
+    (cleanUrl.includes("apple.com") || cleanUrl.includes(".png") || cleanUrl.includes("gestaocelular.com.br"))
   ) {
     return cleanUrl;
   }
@@ -400,96 +761,38 @@ export function resolveProductImage(
     return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MTJV3?wid=1000&hei=1000&fmt=png-alpha";
   }
 
-  // Modelos de iPhone
-  const match = IPHONE_CATALOG.find((m) => {
-    const mName = m.name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-    return cleanName.includes(mName);
-  });
-
+  const match = detectIphoneModel(cleanName);
   if (match) {
-    if (colorName) {
-      const cLower = colorName.toLowerCase();
-      const col = match.colors.find(
-        (c) =>
-          c.name.toLowerCase().includes(cLower) ||
-          cLower.includes(c.name.toLowerCase()),
-      );
-      if (col?.imageUrl) return col.imageUrl;
-    }
-    const withImg = match.colors.find((c) => c.imageUrl);
-    if (withImg?.imageUrl) return withImg.imageUrl;
+    const resolved = getIphoneModelColorImage(match, colorName);
+    if (resolved) return resolved;
   }
 
   // Fallbacks elegantes por geração
   if (cleanName.includes("16 pro")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch-deserttitanium?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-16-pro-natural-titanium.png");
   }
   if (cleanName.includes("16")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-finish-select-202409-6-1inch-white?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-16-white.png");
   }
   if (cleanName.includes("15 pro")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-15-pro-natural-titanium.png");
   }
   if (cleanName.includes("15")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-blue?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-15-blue.png");
   }
   if (cleanName.includes("14 pro")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-pro-finish-select-202209-6-1inch-deeppurple?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-14-pro-deep-purple.png");
   }
   if (cleanName.includes("14")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-14-finish-select-202209-6-1inch-starlight?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-14-starlight.png");
   }
   if (cleanName.includes("13")) {
-    return "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-13-finish-select-202207-6-1inch-midnight?wid=1000&hei=1000&fmt=png-alpha";
+    return resolveIphoneImageUrl("/images/iphones/iphone-13-midnight.png");
   }
 
   return cleanUrl || "/images/logo.png";
 }
 
-/**
- * Detecta um modelo de iPhone pelo texto digitado ou selecionado
- */
-export function detectIphoneModel(query: string): IphoneModelSpec | null {
-  const raw = String(query || "").trim();
-  if (!raw) return null;
-
-  const q = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-  // Busca exata no catálogo
-  for (const model of IPHONE_CATALOG) {
-    const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    if (q === mName || q === mName.replace(/^iphone\s*/, "")) {
-      return model;
-    }
-  }
-
-  // Ordena por comprimento decrescente para não confundir "iPhone 16 Pro Max" com "iPhone 16"
-  const sorted = [...IPHONE_CATALOG].sort((a, b) => b.name.length - a.name.length);
-  for (const model of sorted) {
-    const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    const shortName = mName.replace(/^iphone\s*/, "");
-
-    const escapedShort = shortName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
-    const escapedFull = mName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
-
-    if (
-      new RegExp(`\\b${escapedFull}\\b`, "i").test(q) ||
-      new RegExp(`\\b${escapedShort}\\b`, "i").test(q)
-    ) {
-      return model;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Modelos populares para seleção rápida por pílulas
- */
 export const POPULAR_IPHONE_MODELS = [
   "iPhone 16 Pro Max",
   "iPhone 16 Pro",
@@ -514,7 +817,7 @@ export const FALLBACK_STORAGE_OPTIONS = [
   "Não sei",
 ];
 
-export const FALLBACK_COLOR_OPTIONS = [
+export const FALLBACK_COLOR_OPTIONS: IphoneColorSpec[] = [
   { name: "Preto", hex: "#1d1d1f" },
   { name: "Branco / Prateado", hex: "#f5f5f7" },
   { name: "Azul", hex: "#2c4d5e" },
@@ -523,4 +826,3 @@ export const FALLBACK_COLOR_OPTIONS = [
   { name: "Rosa / Roxo", hex: "#b5a7cb" },
   { name: "Outra cor", hex: "#888888" },
 ];
-
