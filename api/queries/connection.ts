@@ -124,8 +124,11 @@ export async function ensureTables() {
 
 export function getDb(): MySql2Database<typeof fullSchema> {
   if (!instance) {
+    if (!env.databaseUrl) {
+      console.warn("Aviso: DATABASE_URL não configurada no servidor. O catálogo ERP continuará funcionando em modo leitura.");
+    }
     pool = mysql.createPool({
-      uri: env.databaseUrl,
+      uri: env.databaseUrl || "mysql://localhost:3306/dummy",
       waitForConnections: true,
       connectionLimit: 15,
       maxIdle: 10,

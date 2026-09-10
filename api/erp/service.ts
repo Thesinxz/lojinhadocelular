@@ -52,64 +52,77 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
     };
   }
 
-  // Faz a requisição ao ERP Gestão Celular
-  const baseUrl = (env.erpApiUrl || "https://gestaocelular.com.br").replace(/\/+$/, "");
+  // Lista de URLs candidatas em ordem de prioridade
+  const baseUrl = (env.erpApiUrl || "https://api.gestaocelular.com.br").replace(/\/+$/, "");
   const categorySlug = (env.erpCategorySlug || "aparelhos-celulares").trim();
-  const url = `${baseUrl}/api/storefront/${encodeURIComponent(storeSlug)}/catalog?category_slug=${encodeURIComponent(categorySlug)}`;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const candidateUrls = [
+    `${baseUrl}/api/storefront/${encodeURIComponent(storeSlug)}/catalog?category_slug=${encodeURIComponent(categorySlug)}`,
+    `${baseUrl}/api/trade-in/public/${encodeURIComponent(storeSlug)}/config`,
+  ];
+
+  // Se a baseUrl configurada não for o endpoint oficial de API, adiciona o endpoint oficial como fallback garantido
+  if (!baseUrl.includes("api.gestaocelular.com.br")) {
+    candidateUrls.push(
+      `https://api.gestaocelular.com.br/api/trade-in/public/${encodeURIComponent(storeSlug)}/config`
+    );
+  }
+
+  let lastStatus = 0;
+  let lastErrorMsg = "";
+  let successJson: unknown = null;
+
+  for (const url of candidateUrls) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "LojinhaDoCelular-Storefront/1.0",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+      lastStatus = res.status;
+
+      if (res.ok) {
+        successJson = await res.json();
+        break;
+      } else {
+        lastErrorMsg = `HTTP ${res.status}`;
+      }
+    } catch (err) {
+      clearTimeout(timer);
+      const msg = err instanceof Error ? err.message : String(err);
+      lastErrorMsg = msg;
+    }
+  }
+
+  if (!successJson) {
+    // Requisito 3: "Nunca exibir produto antigo como disponível se a API estiver fora do ar."
+    cache = null;
+    console.error(`[ERP] Falha na comunicação com o ERP Gestão Celular (${storeSlug}): ${lastErrorMsg || `HTTP ${lastStatus}`}`);
+    return {
+      status: "offline",
+      message: `ERP Gestão Celular indisponível (${lastErrorMsg || `HTTP ${lastStatus}`}).`,
+      products: [],
+    };
+  }
 
   try {
-    let res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "LojinhaDoCelular-Storefront/1.0",
-      },
-      signal: controller.signal,
-    });
-
-    // Resiliência: caso a rota dedicada de storefront retorne 404 ou 500, consulta o catálogo público do tenant
-    if (!res.ok && (res.status === 404 || res.status === 500)) {
-      const fallbackUrl = `${baseUrl}/api/trade-in/public/${encodeURIComponent(storeSlug)}/config`;
-      try {
-        const fallbackRes = await fetch(fallbackUrl, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "LojinhaDoCelular-Storefront/1.0",
-          },
-          signal: controller.signal,
-        });
-        if (fallbackRes.ok) {
-          res = fallbackRes;
-        }
-      } catch {
-        // Prossegue com res original
-      }
-    }
-
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      // Requisito 3: "Nunca exibir produto antigo como disponível se a API estiver fora do ar."
-      cache = null;
-      return {
-        status: "offline",
-        message: `ERP Gestão Celular retornou HTTP ${res.status}`,
-        products: [],
-      };
-    }
-
-    const json = await res.json();
-    let products = adaptErpCatalog(json);
+    let products = adaptErpCatalog(successJson);
     try {
       const overrides = await getErpOverrides();
       products = applyOverridesToProducts(products, overrides);
     } catch (err) {
-      console.error("Aviso: Falha ao carregar overrides de produtos:", err);
+      console.warn("[ERP] Aviso: Falha ao carregar overrides de produtos:", err);
     }
+
+    console.log(`[ERP] Catálogo carregado com sucesso: ${products.length} aparelhos sincronizados.`);
 
     // Salva no cache em memória
     cache = {
@@ -123,10 +136,9 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
       cachedAt: now,
     };
   } catch (err: unknown) {
-    clearTimeout(timer);
-    // Requisito 3: Se cair ou falhar, limpa cache e não serve dados desatualizados
     cache = null;
-    const msg = err instanceof Error ? err.message : "Falha na comunicação com o ERP";
+    const msg = err instanceof Error ? err.message : "Falha ao processar dados do ERP";
+    console.error("[ERP] Erro ao adaptar catálogo:", msg);
     return {
       status: "offline",
       message: msg,
@@ -134,3 +146,4 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
     };
   }
 }
+

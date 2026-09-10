@@ -92,6 +92,28 @@ app.use("/api/trpc/admin.login*", async (c, next) => {
   await next();
 });
 
+// Endpoint de Diagnóstico e Saúde do Sistema (ERP + Banco)
+app.get("/api/health", async (c) => {
+  const { getErpCatalog } = await import("./erp/service");
+  const catalog = await getErpCatalog();
+  return c.json({
+    ok: catalog.status === "ok",
+    timestamp: new Date().toISOString(),
+    erp: {
+      enabled: env.erpCatalogEnabled,
+      storeSlug: env.erpStoreSlug,
+      apiUrl: env.erpApiUrl,
+      status: catalog.status,
+      message: catalog.message,
+      productCount: catalog.products.length,
+      cachedAt: catalog.cachedAt ? new Date(catalog.cachedAt).toISOString() : null,
+    },
+    database: {
+      configured: Boolean(env.databaseUrl),
+    },
+  });
+});
+
 // SEO: robots.txt
 app.get("/robots.txt", c => {
   const origin = new URL(c.req.url).origin;

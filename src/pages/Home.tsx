@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams, Link } from "react-router";
+import { useSearchParams } from "react-router";
 import {
   Search,
   ArrowUpDown,
@@ -325,12 +325,12 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <Link
-            to="/avaliacao"
+          <a
+            href="https://trocafacil.lojinhadocelular.com"
             className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#1d1d1f] px-6 py-3 font-display text-sm font-semibold text-white transition hover:bg-neutral-800 shadow-sm"
           >
             Avaliar meu aparelho <ArrowRight className="h-4 w-4" />
-          </Link>
+          </a>
         </div>
       </section>
 

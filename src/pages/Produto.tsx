@@ -665,8 +665,8 @@ export default function Produto() {
             {/* Promo Cards (Screenshot 4: Trade-in e Brinde) */}
             <div className="mt-6 flex flex-col gap-3">
               {/* Card 1: Trade-in */}
-              <Link
-                to="/avaliacao"
+              <a
+                href="https://trocafacil.lojinhadocelular.com"
                 className="rounded-2xl border border-neutral-200/90 bg-white p-4 flex items-center gap-3.5 shadow-xs hover:border-neutral-300 transition group"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-800 group-hover:scale-105 transition">
@@ -680,7 +680,7 @@ export default function Produto() {
                     Descubra quanto vale o seu e pague só a diferença — avaliação online, sem compromisso.
                   </p>
                 </div>
-              </Link>
+              </a>
 
               {/* Card 2: Brinde */}
               <div className="rounded-2xl bg-[#eef5ff] border border-[#d2e4ff] text-[#0066cc] p-4 flex items-center gap-3.5">

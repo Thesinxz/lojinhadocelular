@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Link } from "react-router";
 import { MessageCircle, ArrowRight } from "lucide-react";
 import { useShopSettings, waLink } from "@/lib/shop";
 
@@ -91,12 +90,12 @@ export default function HeroBlk() {
             <MessageCircle className="h-4 w-4 fill-white/20" />
             <span>Falar no WhatsApp</span>
           </a>
-          <Link
-            to="/avaliacao"
+          <a
+            href="https://trocafacil.lojinhadocelular.com"
             className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-[0.98]"
           >
             Avaliar meu iPhone
-          </Link>
+          </a>
         </div>
       </div>
     </section>

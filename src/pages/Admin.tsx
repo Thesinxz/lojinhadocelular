@@ -140,6 +140,14 @@ export default function Admin() {
     },
   });
 
+  const refreshErpMutation = trpc.admin.refreshErpCatalog.useMutation({
+    onSuccess: () => {
+      utils.admin.products.invalidate();
+      utils.shop.products.invalidate();
+      utils.shop.catalogStatus.invalidate();
+    },
+  });
+
   function logout() {
     safeStorage.removeItem("admin_token");
     setToken("");

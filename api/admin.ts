@@ -326,6 +326,17 @@ export const adminRouter = createRouter({
       }
       return { ok: true };
     }),
+
+  refreshErpCatalog: publicQuery.mutation(async ({ ctx }) => {
+    requireAdmin(ctx.req);
+    clearErpCache();
+    const res = await getErpCatalog();
+    return {
+      status: res.status,
+      message: res.message,
+      count: res.products.length,
+    };
+  }),
 });
 
 

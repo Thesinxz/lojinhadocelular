@@ -155,12 +155,12 @@ export default function Footer() {
               >
                 <span>Vitrine de Aparelhos</span>
               </Link>
-              <Link
-                to="/avaliacao"
+              <a
+                href="https://trocafacil.lojinhadocelular.com"
                 className="inline-flex items-center gap-2 text-neutral-600 hover:text-black transition"
               >
                 <span>Avaliar meu iPhone (Troca)</span>
-              </Link>
+              </a>
               <Link
                 to="/#servicos"
                 className="inline-flex items-center gap-2 text-neutral-600 hover:text-black transition"
