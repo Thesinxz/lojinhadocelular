@@ -124,13 +124,13 @@ export default function Home() {
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Campo de Busca com fundo cinza claro arredondado */}
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 transition-colors" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar na loja"
-                className="w-full rounded-full border-0 bg-[#f5f5f7] py-3.5 pl-11 pr-4 text-sm text-[#1d1d1f] placeholder:text-neutral-400 outline-none transition focus:bg-white focus:ring-2 focus:ring-neutral-200"
+                className="w-full rounded-full border border-transparent bg-[#f5f5f7] py-3.5 pl-11 pr-4 text-sm text-[#1d1d1f] placeholder:text-neutral-400 outline-none transition-all duration-200 focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15"
               />
             </div>
 
@@ -140,7 +140,7 @@ export default function Home() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="rounded-full border-0 bg-[#f5f5f7] py-3.5 pl-9 pr-6 text-xs font-semibold text-neutral-800 outline-none cursor-pointer transition hover:bg-neutral-200/70 focus:bg-white focus:ring-2 focus:ring-neutral-200"
+                className="rounded-full border border-transparent bg-[#f5f5f7] py-3.5 pl-9 pr-6 text-xs font-semibold text-neutral-800 outline-none cursor-pointer transition-all duration-200 hover:bg-neutral-200/70 focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15"
               >
                 <option value="relevancia">Lançamentos / Relevância</option>
                 <option value="menor_preco">Menor Preço</option>

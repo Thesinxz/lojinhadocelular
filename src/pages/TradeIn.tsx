@@ -56,6 +56,15 @@ const INITIAL_EVALUATION: Evaluation = {
   notes: "",
 };
 
+function formatPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
 function ChoiceButton({
   label,
   selected,
@@ -69,14 +78,14 @@ function ChoiceButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-4 text-left text-sm font-semibold transition ${
+      className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-4 text-left text-sm font-semibold transition-all duration-200 ${
         selected
-          ? "border-ink bg-brand text-ink shadow-[3px_3px_0_0_#141414]"
-          : "border-[#e5e5e7] bg-[#f5f5f7] text-ink hover:border-ink hover:bg-white"
+          ? "border-[#0071e3] bg-[#0071e3]/8 text-[#0071e3] ring-2 ring-[#0071e3]/20 shadow-xs"
+          : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
       }`}
     >
-      {label}
-      {selected && <Check className="h-4 w-4 shrink-0" />}
+      <span>{label}</span>
+      {selected && <Check className="h-4 w-4 shrink-0 text-[#0071e3]" />}
     </button>
   );
 }
@@ -90,7 +99,8 @@ export default function TradeIn() {
   const [sent, setSent] = useState(false);
 
   function updateField(field: keyof Evaluation, value: string) {
-    setEvaluation(current => ({ ...current, [field]: value }));
+    const finalValue = field === "whatsapp" ? formatPhoneInput(value) : value;
+    setEvaluation(current => ({ ...current, [field]: finalValue }));
     setError("");
   }
 
@@ -140,19 +150,19 @@ export default function TradeIn() {
 
   if (sent) {
     return (
-      <main className="min-h-[100dvh] bg-[#fafafa] px-4 py-8 text-ink sm:py-12">
+      <main className="min-h-[100dvh] bg-[#fbfbfd] px-4 py-8 text-[#1d1d1f] sm:py-12">
         <SEO
           title="Avaliação de aparelho"
           description="Faça uma pré-avaliação do seu celular para vender ou trocar na Lojinha do Celular."
         />
         <div className="mx-auto flex min-h-[80dvh] w-full max-w-[560px] flex-col items-center justify-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-ink bg-brand shadow-[4px_4px_0_0_#141414]">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0071e3] text-white shadow-md">
             <Check className="h-8 w-8" />
           </div>
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-neutral-500">
+          <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-[#86868b]">
             Avaliação enviada
           </p>
-          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#1d1d1f] sm:text-4xl">
             Agora é com a nossa equipe.
           </h1>
           <p className="mt-3 max-w-md text-sm leading-6 text-neutral-600">
@@ -161,7 +171,7 @@ export default function TradeIn() {
           </p>
           <Link
             to="/"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-5 py-3 font-display font-bold text-brand"
+            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white transition shadow-sm"
           >
             Voltar para a loja <ArrowRight className="h-4 w-4" />
           </Link>
@@ -171,7 +181,7 @@ export default function TradeIn() {
   }
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#fafafa] px-4 py-6 text-ink sm:py-10">
+    <main className="min-h-[100dvh] overflow-x-hidden bg-[#fbfbfd] px-4 py-6 text-[#1d1d1f] sm:py-10">
       <SEO
         title="Troque seu aparelho"
         description="Envie os dados do seu celular e receba uma pré-avaliação rápida da Lojinha do Celular."
@@ -186,43 +196,43 @@ export default function TradeIn() {
             <img
               src="/images/logo-icon.png"
               alt="Lojinha do Celular"
-              className="h-10 w-auto object-contain"
+              className="h-9 w-auto object-contain"
             />
             <div className="leading-tight">
-              <span className="block font-display text-sm font-bold">
+              <span className="block font-display text-sm font-bold text-[#1d1d1f]">
                 Lojinha
               </span>
-              <span className="block font-display text-xs font-semibold text-neutral-500">
+              <span className="block font-display text-xs font-semibold text-[#86868b]">
                 do Celular
               </span>
             </div>
           </Link>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-500 transition hover:text-ink"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#86868b] transition hover:text-[#1d1d1f]"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar para loja
           </Link>
         </header>
 
         <section className="pt-8 text-center sm:pt-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-neutral-500">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#86868b]">
             Troca Fácil Lojinha
           </p>
-          <h1 className="mt-2 max-w-full break-words font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+          <h1 className="mt-2 max-w-full break-words font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl text-[#1d1d1f]">
             Venda ou troque seu celular{" "}
-            <span className="text-[#b7aa00]">com segurança</span>
+            <span className="text-[#0071e3]">com segurança</span>
           </h1>
-          <p className="mx-auto mt-3 max-w-[440px] text-sm leading-6 text-neutral-600">
+          <p className="mx-auto mt-3 max-w-[440px] text-sm leading-6 text-[#6e6e73]">
             Conte sobre o seu aparelho e receba uma pré-avaliação da nossa
             equipe pelo WhatsApp.
           </p>
         </section>
 
-        <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 py-3 text-xs leading-5 text-neutral-600">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#9b9000]" />
+        <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 py-3 text-xs leading-5 text-[#6e6e73]">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#0071e3]" />
           <span>
-            Esta é uma <b className="text-ink">pré-avaliação online</b>. O valor
+            Esta é uma <b className="text-[#1d1d1f]">pré-avaliação online</b>. O valor
             final é confirmado após a conferência presencial do aparelho na
             loja.
           </span>
@@ -232,25 +242,33 @@ export default function TradeIn() {
           {STEPS.map((label, index) => (
             <div key={label} className="flex flex-1 items-center gap-2">
               <div
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index <= step ? "bg-brand text-ink" : "bg-[#e5e5e7] text-neutral-500"}`}
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                  index <= step
+                    ? "bg-[#0071e3] text-white shadow-xs"
+                    : "bg-[#e5e5e7] text-neutral-500"
+                }`}
               >
                 {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
               </div>
               <span
-                className={`hidden text-[11px] font-bold uppercase tracking-wide sm:block ${index === step ? "text-ink" : "text-neutral-400"}`}
+                className={`hidden text-[11px] font-bold uppercase tracking-wide sm:block ${
+                  index === step ? "text-[#1d1d1f]" : "text-neutral-400"
+                }`}
               >
                 {label}
               </span>
               {index < STEPS.length - 1 && (
                 <div
-                  className={`h-px flex-1 ${index < step ? "bg-ink" : "bg-[#e5e5e7]"}`}
+                  className={`h-px flex-1 transition-colors ${
+                    index < step ? "bg-[#0071e3]" : "bg-[#e5e5e7]"
+                  }`}
                 />
               )}
             </div>
           ))}
         </div>
 
-        <section className="mt-4 rounded-2xl border border-[#e5e5e7] bg-white p-5 shadow-[0_18px_50px_-20px_rgba(0,0,0,0.18)] sm:p-6">
+        <section className="mt-4 rounded-2xl border border-[#e5e5e7] bg-white p-5 shadow-[0_18px_50px_-20px_rgba(0,0,0,0.08)] sm:p-6">
           {step === 0 && (
             <>
               <StepHeading
@@ -267,22 +285,29 @@ export default function TradeIn() {
                     onChange={event => updateField("name", event.target.value)}
                     placeholder="Seu nome"
                     autoComplete="name"
+                    className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
                   />
                 </Field>
-                <Field
-                  label="WhatsApp para receber a proposta"
-                  icon={<Phone className="h-4 w-4" />}
-                >
-                  <input
-                    value={evaluation.whatsapp}
-                    onChange={event =>
-                      updateField("whatsapp", event.target.value)
-                    }
-                    placeholder="(67) 99999-9999"
-                    inputMode="tel"
-                    autoComplete="tel"
-                  />
-                </Field>
+                <div>
+                  <Field
+                    label="WhatsApp para receber a proposta"
+                    icon={<Phone className="h-4 w-4" />}
+                  >
+                    <input
+                      value={evaluation.whatsapp}
+                      onChange={event =>
+                        updateField("whatsapp", event.target.value)
+                      }
+                      placeholder="(67) 99999-9999"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
+                    />
+                  </Field>
+                  <p className="mt-2.5 text-[11.5px] leading-relaxed text-[#86868b]">
+                    Usamos seu WhatsApp apenas para enviar a avaliação do seu aparelho. Não enviamos spam.
+                  </p>
+                </div>
               </div>
             </>
           )}
@@ -303,10 +328,11 @@ export default function TradeIn() {
                     onChange={event => updateField("model", event.target.value)}
                     placeholder="Ex.: iPhone 13 Pro"
                     autoComplete="off"
+                    className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
                   />
                 </Field>
                 <div>
-                  <span className="mb-2 block text-xs font-medium tracking-wide text-neutral-500">
+                  <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
                     Armazenamento
                   </span>
                   <div className="grid grid-cols-3 gap-2">
@@ -332,7 +358,7 @@ export default function TradeIn() {
               />
               <div className="mt-5 space-y-5">
                 <div>
-                  <span className="mb-2 block text-xs font-medium tracking-wide text-neutral-500">
+                  <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
                     Estado geral
                   </span>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -347,7 +373,7 @@ export default function TradeIn() {
                   </div>
                 </div>
                 <div>
-                  <span className="mb-2 block text-xs font-medium tracking-wide text-neutral-500">
+                  <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
                     Saúde da bateria
                   </span>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -360,7 +386,7 @@ export default function TradeIn() {
                       />
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-neutral-500">
+                  <p className="mt-2 text-xs text-[#86868b]">
                     No iPhone, veja em Ajustes › Bateria › Saúde da bateria.
                   </p>
                 </div>
@@ -374,12 +400,12 @@ export default function TradeIn() {
                 title="Agora as fotos"
                 description="Frente e traseira já ajudam bastante. Você poderá anexá-las na conversa do WhatsApp."
               />
-              <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#d5d5d7] bg-[#f5f5f7] px-5 py-8 text-center transition hover:border-ink hover:bg-white">
-                <Camera className="h-7 w-7 text-[#9b9000]" />
-                <span className="mt-3 text-sm font-bold">
+              <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#d5d5d7] bg-[#f5f5f7] px-5 py-8 text-center transition-all hover:border-[#0071e3] hover:bg-white">
+                <Camera className="h-7 w-7 text-[#0071e3]" />
+                <span className="mt-3 text-sm font-semibold text-[#1d1d1f]">
                   Selecionar fotos do aparelho
                 </span>
-                <span className="mt-1 text-xs text-neutral-500">
+                <span className="mt-1 text-xs text-[#86868b]">
                   Frente, traseira, laterais e tela ligada
                 </span>
                 <input
@@ -395,25 +421,26 @@ export default function TradeIn() {
                   {photos.map(photo => (
                     <div
                       key={photo}
-                      className="flex items-center gap-2 rounded-lg bg-[#f5f5f7] px-3 py-2 text-xs text-neutral-600"
+                      className="flex items-center gap-2 rounded-lg bg-[#f5f5f7] px-3 py-2 text-xs text-neutral-700"
                     >
-                      <FileImage className="h-4 w-4 text-[#9b9000]" />{" "}
+                      <FileImage className="h-4 w-4 text-[#0071e3]" />{" "}
                       <span className="truncate">{photo}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <Field
+              <TextareaField
                 label="Alguma observação? (opcional)"
                 icon={<Smartphone className="h-4 w-4" />}
               >
                 <textarea
                   value={evaluation.notes}
                   onChange={event => updateField("notes", event.target.value)}
-                  placeholder="Ex.: tenho caixa e acessórios"
+                  placeholder="Ex.: tenho caixa e acessórios originais"
                   rows={3}
+                  className="w-full bg-transparent text-sm text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none resize-none shadow-none ring-0"
                 />
-              </Field>
+              </TextareaField>
             </>
           )}
 
@@ -431,7 +458,7 @@ export default function TradeIn() {
                   setError("");
                   setStep(current => current - 1);
                 }}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#e5e5e7] px-4 text-sm font-bold text-neutral-600 transition hover:border-ink hover:text-ink"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#e5e5e7] px-5 text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-[#f5f5f7]"
               >
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </button>
@@ -439,7 +466,7 @@ export default function TradeIn() {
             <button
               type="button"
               onClick={step === STEPS.length - 1 ? submitEvaluation : nextStep}
-              className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-brand shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)] transition hover:bg-black active:scale-[0.99]"
+              className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-5 text-sm sm:text-base font-semibold text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.4)] transition-all active:scale-[0.99]"
             >
               {step === STEPS.length - 1
                 ? "Enviar para avaliação"
@@ -449,7 +476,7 @@ export default function TradeIn() {
           </div>
         </section>
 
-        <p className="mx-auto mt-5 max-w-md text-center text-[11px] leading-5 text-neutral-500">
+        <p className="mx-auto mt-5 max-w-md text-center text-[11.5px] leading-5 text-[#86868b]">
           Seus dados serão usados apenas para entrarmos em contato sobre esta
           avaliação.
         </p>
@@ -467,10 +494,10 @@ function StepHeading({
 }) {
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight text-[#1d1d1f]">
         {title}
       </h2>
-      <p className="mt-1.5 text-sm leading-6 text-neutral-500">{description}</p>
+      <p className="mt-1.5 text-sm leading-6 text-[#6e6e73]">{description}</p>
     </div>
   );
 }
@@ -486,17 +513,43 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-medium tracking-wide text-neutral-500">
+      <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
         {label}
       </span>
-      <span className="group flex items-start gap-3 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-3.5 py-3 transition-colors focus-within:border-ink focus-within:bg-white">
-        <span className="mt-1 text-neutral-400 transition-colors group-focus-within:text-[#9b9000]">
+      <div className="group flex h-12 items-center gap-3 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
+        <span className="shrink-0 text-[#86868b] transition-colors group-focus-within:text-[#0071e3]">
           {icon}
         </span>
-        <span className="flex-1 [&_input]:w-full [&_input]:bg-transparent [&_input]:text-base [&_input]:text-ink [&_input]:placeholder:text-neutral-400 [&_input]:focus:outline-none [&_textarea]:w-full [&_textarea]:resize-none [&_textarea]:bg-transparent [&_textarea]:text-sm [&_textarea]:text-ink [&_textarea]:placeholder:text-neutral-400 [&_textarea]:focus:outline-none">
+        <div className="flex-1 min-w-0 [&_input]:w-full [&_input]:bg-transparent [&_input]:text-[15px] sm:[&_input]:text-[16px] [&_input]:text-[#1d1d1f] [&_input]:placeholder:text-[#86868b] [&_input]:outline-none [&_input]:focus:outline-none [&_input]:focus:ring-0 [&_input]:border-none [&_input]:shadow-none [&_input]:ring-0">
           {children}
-        </span>
+        </div>
+      </div>
+    </label>
+  );
+}
+
+function TextareaField({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block mt-4">
+      <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
+        {label}
       </span>
+      <div className="group flex items-start gap-3 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] p-3.5 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
+        <span className="mt-0.5 shrink-0 text-[#86868b] transition-colors group-focus-within:text-[#0071e3]">
+          {icon}
+        </span>
+        <div className="flex-1 min-w-0 [&_textarea]:w-full [&_textarea]:bg-transparent [&_textarea]:text-sm [&_textarea]:text-[#1d1d1f] [&_textarea]:placeholder:text-[#86868b] [&_textarea]:outline-none [&_textarea]:focus:outline-none [&_textarea]:focus:ring-0 [&_textarea]:border-none [&_textarea]:resize-none [&_textarea]:shadow-none [&_textarea]:ring-0">
+          {children}
+        </div>
+      </div>
     </label>
   );
 }

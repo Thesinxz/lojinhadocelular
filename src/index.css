@@ -72,6 +72,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  input, textarea, select {
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none !important;
+  }
 }
 
 /* Animação do Modo TV */
