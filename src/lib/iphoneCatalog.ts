@@ -741,9 +741,12 @@ export function resolveProductImage(
   if (
     cleanUrl &&
     !cleanUrl.includes("unsplash.com") &&
-    !cleanUrl.includes("placeholder") &&
-    (cleanUrl.includes("apple.com") || cleanUrl.includes(".png") || cleanUrl.includes("gestaocelular.com.br"))
+    !cleanUrl.includes("placeholder")
   ) {
+    const match = cleanUrl.match(/\/images\/iphones\/[a-zA-Z0-9_-]+\.png/);
+    if (match) {
+      return match[0];
+    }
     return cleanUrl;
   }
 

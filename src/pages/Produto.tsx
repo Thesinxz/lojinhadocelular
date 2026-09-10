@@ -438,6 +438,7 @@ export default function Produto() {
                 fetchPriority="high"
                 decoding="async"
                 onError={(e) => {
+                  e.currentTarget.removeAttribute("srcset");
                   if (prodImage && e.currentTarget.src !== prodImage) {
                     e.currentTarget.src = prodImage;
                   }

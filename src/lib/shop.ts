@@ -87,9 +87,12 @@ export function optimizeImageUrl(
   // Imagens locais ou data URIs mantêm original
   if (trimmed.startsWith("/") || trimmed.startsWith("data:")) return trimmed;
 
-  // Se for página de visualização do ImgBB (ex: https://ibb.co/xyz ou https://pt-br.imgbb.com/xyz),
-  // e não o link direto (i.ibb.co), ainda passa pela CDN
-  if (trimmed.includes("wsrv.nl")) {
+  // Imagens do Gestão Celular ou de domínios bloqueados pelo proxy wsrv.nl (TLD .br)
+  if (
+    trimmed.includes("gestaocelular.com.br") ||
+    trimmed.includes(".br/") ||
+    trimmed.includes("wsrv.nl")
+  ) {
     return trimmed;
   }
 
@@ -113,7 +116,16 @@ export function optimizeImageUrl(
 export function getImageSrcSet(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   const trimmed = url.trim();
-  if (!trimmed || trimmed.startsWith("/") || trimmed.startsWith("data:")) return undefined;
+  if (
+    !trimmed ||
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("data:") ||
+    trimmed.includes("gestaocelular.com.br") ||
+    trimmed.includes(".br/") ||
+    trimmed.includes("wsrv.nl")
+  ) {
+    return undefined;
+  }
 
   const w320 = optimizeImageUrl(trimmed, 320, 75);
   const w480 = optimizeImageUrl(trimmed, 480, 75);
