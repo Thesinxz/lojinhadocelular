@@ -12,7 +12,7 @@ export default function HeroBlk() {
     const video = videoRef.current;
     if (!video) return;
 
-    // Atributos obrigatórios pelo iOS Safari e Android Chrome para liberar autoplay sem som
+    // Atributos obrigatórios pelo iOS WebKit (Safari e Chrome no iPhone) para liberar autoplay
     video.defaultMuted = true;
     video.muted = true;
     video.playsInline = true;
@@ -20,29 +20,30 @@ export default function HeroBlk() {
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
 
-    const triggerPlay = () => {
+    const tryPlay = () => {
       const p = video.play();
       if (p !== undefined) {
         p.then(() => {
           setIsPlaying(true);
           setAutoplayBlocked(false);
         }).catch(() => {
-          // Bloqueado pelo iOS (Modo de Pouca Energia / 11% de bateria)
+          // Bloqueado pelo iOS (ex: Modo de Pouca Energia / Bateria Fraca)
           setAutoplayBlocked(true);
         });
       }
     };
 
-    // Tenta reproduzir em múltiplos estágios do ciclo de vida da mídia
-    triggerPlay();
-    video.addEventListener("loadedmetadata", triggerPlay);
-    video.addEventListener("canplay", triggerPlay);
+    // Tenta reproduzir assim que o elemento é montado e quando os dados chegarem
+    tryPlay();
+    video.addEventListener("loadedmetadata", tryPlay);
+    video.addEventListener("canplay", tryPlay);
+    video.addEventListener("canplaythrough", tryPlay);
     video.addEventListener("playing", () => {
       setIsPlaying(true);
       setAutoplayBlocked(false);
     });
 
-    // Desbloqueia ao primeiro toque, clique ou rolagem de tela em modo de economia
+    // Desbloqueio imediato na fase de captura (capture: true) em qualquer gesto no iPhone
     const unlockOnGesture = () => {
       video.play().then(() => {
         setIsPlaying(true);
@@ -50,18 +51,19 @@ export default function HeroBlk() {
       }).catch(() => {});
     };
 
-    window.addEventListener("touchstart", unlockOnGesture, { passive: true });
-    window.addEventListener("touchend", unlockOnGesture, { passive: true });
-    window.addEventListener("scroll", unlockOnGesture, { passive: true });
-    window.addEventListener("click", unlockOnGesture, { passive: true });
+    window.addEventListener("touchstart", unlockOnGesture, { passive: true, capture: true });
+    window.addEventListener("touchend", unlockOnGesture, { passive: true, capture: true });
+    window.addEventListener("scroll", unlockOnGesture, { passive: true, capture: true });
+    window.addEventListener("click", unlockOnGesture, { passive: true, capture: true });
 
     return () => {
-      video.removeEventListener("loadedmetadata", triggerPlay);
-      video.removeEventListener("canplay", triggerPlay);
-      window.removeEventListener("touchstart", unlockOnGesture);
-      window.removeEventListener("touchend", unlockOnGesture);
-      window.removeEventListener("scroll", unlockOnGesture);
-      window.removeEventListener("click", unlockOnGesture);
+      video.removeEventListener("loadedmetadata", tryPlay);
+      video.removeEventListener("canplay", tryPlay);
+      video.removeEventListener("canplaythrough", tryPlay);
+      window.removeEventListener("touchstart", unlockOnGesture, { capture: true });
+      window.removeEventListener("touchend", unlockOnGesture, { capture: true });
+      window.removeEventListener("scroll", unlockOnGesture, { capture: true });
+      window.removeEventListener("click", unlockOnGesture, { capture: true });
     };
   }, []);
 
@@ -82,23 +84,23 @@ export default function HeroBlk() {
       {/* Camada do poster estático: visível imediatamente desde o frame 0 (sem tela preta) */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/hero-poster.jpg?v=ldc4')" }}
+        style={{ backgroundImage: "url('/hero-poster.jpg?v=ldc5')" }}
         aria-hidden="true"
       />
 
-      {/* Vídeo de fundo com src direto + streams de fallback (7MB mobile / 15MB desktop) */}
+      {/* Vídeo de fundo com src direto na tag (essencial para o iOS WebKit iniciar o autoplay sem adiar a seleção de mídia) */}
       <video
         ref={videoRef}
+        src="/hero.mp4?v=ldc5"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
-        poster="/hero-poster.jpg?v=ldc4"
+        poster="/hero-poster.jpg?v=ldc5"
         className="absolute inset-0 h-full w-full object-cover object-center"
       >
-        <source src="/hero-mobile.mp4?v=ldc4" media="(max-width: 768px)" type="video/mp4" />
-        <source src="/hero.mp4?v=ldc4" type="video/mp4" />
+        <source src="/hero.mp4?v=ldc5" type="video/mp4" />
       </video>
 
       {/* Overlay de gradiente cinematográfico para contraste perfeito e letreiro visível */}
