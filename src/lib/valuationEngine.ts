@@ -205,45 +205,90 @@ function normalizeKey(str?: string): string {
 
 function findBasePrice(modelName: string, customPrices?: Record<string, number>): number {
   const norm = normalizeKey(modelName);
+  if (!norm) return 2000;
 
-  // 1. Verifica primeiro se há preço customizado configurado pelo lojista no Admin
+  // 1. Verifica primeiro preços customizados configurados pelo lojista no Admin
   if (customPrices) {
+    // 1.1 Match exato
     for (const [key, val] of Object.entries(customPrices)) {
       const normKey = normalizeKey(key);
-      if (val > 0 && (norm.includes(normKey) || normKey.includes(norm))) {
+      if (val > 0 && norm === normKey) {
+        return val;
+      }
+    }
+    // 1.2 Substring ordenado por maior comprimento
+    const sortedCustom = Object.entries(customPrices).sort(
+      (a, b) => normalizeKey(b[0]).length - normalizeKey(a[0]).length
+    );
+    for (const [key, val] of sortedCustom) {
+      const normKey = normalizeKey(key);
+      if (val > 0 && norm.includes(normKey)) {
         return val;
       }
     }
   }
 
-  // 2. Preços tabelados padrão
+  // 2. Match exato nos preços de referência tabelados
   for (const [key, val] of Object.entries(BASE_IPHONE_VALUES)) {
-    if (norm.includes(key) || key.includes(norm)) {
+    if (norm === key) {
       return val;
     }
   }
-  // Fallback inteligente por geração caso seja um modelo não mapeado diretamente
+
+  // 3. Substring ordenado do mais específico para o mais genérico (ex: "iphone 14 pro max" antes de "iphone 14")
+  const sortedDefault = Object.entries(BASE_IPHONE_VALUES).sort(
+    (a, b) => b[0].length - a[0].length
+  );
+  for (const [key, val] of sortedDefault) {
+    if (norm.includes(key)) {
+      return val;
+    }
+  }
+
+  // Fallback inteligente por geração caso seja um modelo escrito de forma livre
   if (norm.includes("16 pro max")) return 6400;
   if (norm.includes("16 pro")) return 5400;
+  if (norm.includes("16 plus")) return 4600;
   if (norm.includes("16")) return 4100;
   if (norm.includes("15 pro max")) return 4900;
   if (norm.includes("15 pro")) return 4200;
+  if (norm.includes("15 plus")) return 3500;
   if (norm.includes("15")) return 3200;
   if (norm.includes("14 pro max")) return 3900;
   if (norm.includes("14 pro")) return 3300;
+  if (norm.includes("14 plus")) return 2700;
   if (norm.includes("14")) return 2500;
   if (norm.includes("13 pro max")) return 3000;
   if (norm.includes("13 pro")) return 2600;
+  if (norm.includes("13 mini")) return 1800;
   if (norm.includes("13")) return 2100;
+  if (norm.includes("12 pro max")) return 2300;
+  if (norm.includes("12 pro")) return 1900;
+  if (norm.includes("12 mini")) return 1300;
   if (norm.includes("12")) return 1600;
+  if (norm.includes("11 pro max")) return 1650;
+  if (norm.includes("11 pro")) return 1400;
   if (norm.includes("11")) return 1150;
   return 2000; // Valor médio default
 }
 
 function findTargetPrice(targetModelName: string): number {
   const norm = normalizeKey(targetModelName);
+  if (!norm) return 0;
+
+  // 1. Match exato
   for (const [key, val] of Object.entries(TARGET_STORE_VALUES)) {
-    if (norm.includes(key) || key.includes(norm)) {
+    if (norm === key) {
+      return val;
+    }
+  }
+
+  // 2. Ordenado por comprimento decrescente
+  const sorted = Object.entries(TARGET_STORE_VALUES).sort(
+    (a, b) => b[0].length - a[0].length
+  );
+  for (const [key, val] of sorted) {
+    if (norm.includes(key)) {
       return val;
     }
   }
