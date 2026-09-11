@@ -175,7 +175,7 @@ export default function Privacidade() {
                 <div className="rounded-xl border border-neutral-200/80 bg-white shadow-2xs p-4">
                   <span className="font-bold text-neutral-900 block">📍 Unidade Jardim / MS</span>
                   <p className="mt-1 text-neutral-600">
-                    Av. Duque de Caxias, 486 - Centro, Jardim/MS - CEP 79240-000
+                    Av. Duque de Caxias, 486 - Jardim/MS - CEP 79240-000
                   </p>
                   <p className="mt-2 font-medium text-neutral-800 font-semibold">WhatsApp: (67) 99208-6012</p>
                 </div>

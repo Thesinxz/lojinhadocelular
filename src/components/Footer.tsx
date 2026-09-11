@@ -127,13 +127,13 @@ export default function Footer() {
             {/* Redes Sociais */}
             <div className="mt-5 flex items-center gap-2 pt-2">
               <a
-                href="https://instagram.com/lojinhadocelular"
+                href="https://www.instagram.com/_lojinhadocelular"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200/80 bg-neutral-50/70 px-3 py-1.5 text-[11px] font-medium text-neutral-700 transition hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-950"
               >
                 <Instagram className="h-3.5 w-3.5 text-neutral-500" />
-                <span>Instagram</span>
+                <span>@_lojinhadocelular</span>
               </a>
               <a
                 href={waLink(whatsapp, "Olá! Vim pelo site da Lojinha do Celular.")}
@@ -164,34 +164,26 @@ export default function Footer() {
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
                 <div>
                   <p className="text-neutral-700 font-medium">
-                    {s.addressJardim || "Av. Duque de Caxias, 486 - Centro, Jardim/MS"}
+                    {s.addressJardim || "Av. Duque de Caxias, 486 - Jardim/MS"}
                   </p>
-                  {s.mapsJardim ? (
-                    <a
-                      href={s.mapsJardim}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#0066cc] hover:underline"
-                    >
-                      Como chegar (Google Maps) →
-                    </a>
-                  ) : (
-                    <a
-                      href="https://maps.google.com/?q=Av.+Duque+de+Caxias,+486,+Jardim+-+MS"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#0066cc] hover:underline"
-                    >
-                      Como chegar (Google Maps) →
-                    </a>
-                  )}
+                  <a
+                    href={
+                      s.mapsJardim ||
+                      "https://www.google.com/maps/search/?api=1&query=Av.+Duque+de+Caxias+486+Jardim+MS"
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#0066cc] hover:underline"
+                  >
+                    Como chegar (Google Maps) →
+                  </a>
                 </div>
               </li>
 
               <li className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 shrink-0 text-neutral-400" />
                 <a
-                  href={waLink(s.whatsappJardim || "5567992086012", "Olá! Gostaria de falar com a Unidade Jardim.")}
+                  href="https://wa.me/5567992086012?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20a%20Unidade%20Jardim."
                   target="_blank"
                   rel="noreferrer"
                   className="font-bold text-neutral-950 hover:text-[#0066cc] transition text-xs sm:text-sm"
@@ -203,8 +195,8 @@ export default function Footer() {
               <li className="flex items-start gap-2.5">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
                 <div className="text-[11px] text-neutral-500 leading-snug">
-                  <p>Segunda a Sexta: 07h30 às 18h</p>
-                  <p>Sábado: 07h30 às 12h</p>
+                  <p>Segunda a Sexta: 07h00 às 18h30</p>
+                  <p>Sábado: 07h00 às 13h</p>
                 </div>
               </li>
             </ul>

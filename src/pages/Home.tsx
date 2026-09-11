@@ -16,6 +16,7 @@ import {
   Award,
   ChevronDown,
   HelpCircle,
+  Clock,
 } from "lucide-react";
 import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
@@ -459,16 +460,24 @@ export default function Home() {
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {[
               {
-                city: "Jardim-MS",
+                city: "Jardim - MS",
                 address: s.addressJardim || "Av. Duque de Caxias, 486 - Jardim/MS",
-                maps: s.mapsJardim,
-                whatsapp: s.whatsappJardim || whatsapp,
+                maps:
+                  s.mapsJardim ||
+                  "https://www.google.com/maps/search/?api=1&query=Av.+Duque+de+Caxias+486+Jardim+MS",
+                waLink:
+                  "https://wa.me/5567992086012?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20a%20Unidade%20Jardim.",
+                hours: "Segunda a Sexta: 07h00 às 18h30 • Sábado: 07h00 às 13h",
               },
               {
-                city: "Guia Lopes da Laguna-MS",
+                city: "Guia Lopes da Laguna - MS",
                 address: s.addressGll || "Rua Macias Barbosa, 2185 - Guia Lopes da Laguna/MS",
-                maps: s.mapsGll,
-                whatsapp: s.whatsappGll || whatsapp,
+                maps:
+                  s.mapsGll ||
+                  "https://www.google.com/maps/search/?api=1&query=Rua+Macias+Barbosa+2185+Guia+Lopes+da+Laguna+MS",
+                waLink:
+                  "https://wa.me/5567998206533?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20a%20Unidade%20Guia%20Lopes.",
+                hours: "Segunda a Sexta: 07h30 às 18h • Sábado: 07h30 às 12h",
               },
             ].map((u) => (
               <div
@@ -483,6 +492,10 @@ export default function Home() {
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
                     <span>{u.address}</span>
                   </p>
+                  <p className="mt-1.5 flex items-center gap-2 text-xs text-neutral-500">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                    <span>{u.hours}</span>
+                  </p>
                 </div>
 
                 <div className="mt-6 flex gap-3">
@@ -493,11 +506,11 @@ export default function Home() {
                       rel="noreferrer"
                       className="flex-1 rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-center text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100"
                     >
-                      Ver no mapa
+                      Como chegar (Google Maps) →
                     </a>
                   ) : null}
                   <a
-                    href={`https://wa.me/${u.whatsapp.replace(/\D/g, "")}`}
+                    href={u.waLink}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 rounded-full bg-[#25D366] px-4 py-2.5 text-center text-xs font-semibold text-white transition hover:bg-[#20ba59] shadow-sm"
