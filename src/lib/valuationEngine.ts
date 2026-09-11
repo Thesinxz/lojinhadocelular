@@ -71,6 +71,8 @@ export const IPHONE_REFERENCE_PRICES: IphoneReferencePrice[] = [
   { model: "iPhone 13", capacity: "128GB", color: "Starlight", priceUsd: 290.0, priceBrl: 1450.0 },
   { model: "iPhone 13", capacity: "256GB", color: "Blue", priceUsd: 310.0, priceBrl: 1550.0 },
   { model: "iPhone 13", capacity: "256GB", color: "Starlight", priceUsd: 310.0, priceBrl: 1550.0 },
+  { model: "iPhone 13", capacity: "512GB", color: "Blue", priceUsd: 330.0, priceBrl: 1650.0 },
+  { model: "iPhone 13", capacity: "512GB", color: "Starlight", priceUsd: 330.0, priceBrl: 1650.0 },
   { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Graphite", priceUsd: 450.0, priceBrl: 2250.0 },
   { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Silver", priceUsd: 450.0, priceBrl: 2250.0 },
   { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Gold", priceUsd: 450.0, priceBrl: 2250.0 },
@@ -78,12 +80,27 @@ export const IPHONE_REFERENCE_PRICES: IphoneReferencePrice[] = [
   { model: "iPhone 13 Pro Max", capacity: "256GB", color: "Sierra Blue", priceUsd: 480.0, priceBrl: 2400.0 },
   { model: "iPhone 13 Pro Max", capacity: "256GB", color: "Gold", priceUsd: 480.0, priceBrl: 2400.0 },
   { model: "iPhone 13 Pro Max", capacity: "256GB", color: "Alpine Green", priceUsd: 480.0, priceBrl: 2400.0 },
+  { model: "iPhone 13 Pro Max", capacity: "512GB", color: "Sierra Blue", priceUsd: 500.0, priceBrl: 2500.0 },
+  { model: "iPhone 13 Pro Max", capacity: "512GB", color: "Gold", priceUsd: 500.0, priceBrl: 2500.0 },
+  { model: "iPhone 13 Pro Max", capacity: "512GB", color: "Alpine Green", priceUsd: 500.0, priceBrl: 2500.0 },
   { model: "iPhone 14", capacity: "128GB", color: "Yellow", priceUsd: 300.0, priceBrl: 1500.0 },
   { model: "iPhone 14", capacity: "128GB", color: "Starlight", priceUsd: 300.0, priceBrl: 1500.0 },
   { model: "iPhone 14", capacity: "128GB", color: "Purple", priceUsd: 300.0, priceBrl: 1500.0 },
   { model: "iPhone 14", capacity: "128GB", color: "Red", priceUsd: 300.0, priceBrl: 1500.0 },
   { model: "iPhone 14", capacity: "128GB", color: "Midnight", priceUsd: 300.0, priceBrl: 1500.0 },
+  { model: "iPhone 14", capacity: "256GB", color: "Yellow", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14", capacity: "256GB", color: "Starlight", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14", capacity: "256GB", color: "Purple", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14", capacity: "256GB", color: "Red", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14", capacity: "256GB", color: "Midnight", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14", capacity: "512GB", color: "Yellow", priceUsd: 340.0, priceBrl: 1700.0 },
+  { model: "iPhone 14", capacity: "512GB", color: "Starlight", priceUsd: 340.0, priceBrl: 1700.0 },
+  { model: "iPhone 14", capacity: "512GB", color: "Purple", priceUsd: 340.0, priceBrl: 1700.0 },
+  { model: "iPhone 14", capacity: "512GB", color: "Red", priceUsd: 340.0, priceBrl: 1700.0 },
+  { model: "iPhone 14", capacity: "512GB", color: "Midnight", priceUsd: 340.0, priceBrl: 1700.0 },
   { model: "iPhone 14 Plus", capacity: "128GB", color: "Purple", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14 Plus", capacity: "256GB", color: "Purple", priceUsd: 340.0, priceBrl: 1700.0 },
+  { model: "iPhone 14 Plus", capacity: "512GB", color: "Purple", priceUsd: 360.0, priceBrl: 1800.0 },
   { model: "iPhone 14 Pro", capacity: "128GB", color: "Space Black", priceUsd: 420.0, priceBrl: 2100.0 },
   { model: "iPhone 14 Pro", capacity: "128GB", color: "Deep Purple", priceUsd: 420.0, priceBrl: 2100.0 },
   { model: "iPhone 14 Pro", capacity: "128GB", color: "Silver", priceUsd: 440.0, priceBrl: 2200.0 },
@@ -98,19 +115,43 @@ export const IPHONE_REFERENCE_PRICES: IphoneReferencePrice[] = [
   { model: "iPhone 14 Pro Max", capacity: "256GB", color: "Deep Purple", priceUsd: 540.0, priceBrl: 2700.0 },
   { model: "iPhone 14 Pro Max", capacity: "512GB", color: "Silver", priceUsd: 590.0, priceBrl: 2950.0 },
   { model: "iPhone 15", capacity: "128GB", color: "Yellow", priceUsd: 410.0, priceBrl: 2050.0 },
+  { model: "iPhone 15", capacity: "256GB", color: "Yellow", priceUsd: 430.0, priceBrl: 2150.0 },
+  { model: "iPhone 15", capacity: "512GB", color: "Yellow", priceUsd: 450.0, priceBrl: 2250.0 },
   { model: "iPhone 15 Plus", capacity: "128GB", color: "Yellow", priceUsd: 430.0, priceBrl: 2150.0 },
+  { model: "iPhone 15 Plus", capacity: "256GB", color: "Yellow", priceUsd: 450.0, priceBrl: 2250.0 },
+  { model: "iPhone 15 Plus", capacity: "512GB", color: "Yellow", priceUsd: 470.0, priceBrl: 2350.0 },
   { model: "iPhone 15 Pro", capacity: "128GB", color: "Natural Titanium", priceUsd: 530.0, priceBrl: 2650.0 },
   { model: "iPhone 15 Pro", capacity: "128GB", color: "Blue Titanium", priceUsd: 520.0, priceBrl: 2600.0 },
   { model: "iPhone 15 Pro", capacity: "128GB", color: "Black Titanium", priceUsd: 520.0, priceBrl: 2600.0 },
+  { model: "iPhone 15 Pro", capacity: "256GB", color: "Natural Titanium", priceUsd: 550.0, priceBrl: 2750.0 },
+  { model: "iPhone 15 Pro", capacity: "256GB", color: "Blue Titanium", priceUsd: 540.0, priceBrl: 2700.0 },
+  { model: "iPhone 15 Pro", capacity: "256GB", color: "Black Titanium", priceUsd: 540.0, priceBrl: 2700.0 },
+  { model: "iPhone 15 Pro", capacity: "512GB", color: "Natural Titanium", priceUsd: 570.0, priceBrl: 2850.0 },
+  { model: "iPhone 15 Pro", capacity: "512GB", color: "Blue Titanium", priceUsd: 560.0, priceBrl: 2800.0 },
+  { model: "iPhone 15 Pro", capacity: "512GB", color: "Black Titanium", priceUsd: 560.0, priceBrl: 2800.0 },
   { model: "iPhone 15 Pro Max", capacity: "1TB", color: "Blue Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
   { model: "iPhone 15 Pro Max", capacity: "1TB", color: "Black Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
   { model: "iPhone 16", capacity: "128GB", color: "Teal", priceUsd: 580.0, priceBrl: 2900.0 },
   { model: "iPhone 16", capacity: "128GB", color: "Ultramarine", priceUsd: 580.0, priceBrl: 2900.0 },
   { model: "iPhone 16", capacity: "128GB", color: "Pink", priceUsd: 580.0, priceBrl: 2900.0 },
+  { model: "iPhone 16", capacity: "256GB", color: "Teal", priceUsd: 600.0, priceBrl: 3000.0 },
+  { model: "iPhone 16", capacity: "256GB", color: "Ultramarine", priceUsd: 600.0, priceBrl: 3000.0 },
+  { model: "iPhone 16", capacity: "256GB", color: "Pink", priceUsd: 600.0, priceBrl: 3000.0 },
+  { model: "iPhone 16", capacity: "512GB", color: "Teal", priceUsd: 620.0, priceBrl: 3100.0 },
+  { model: "iPhone 16", capacity: "512GB", color: "Ultramarine", priceUsd: 620.0, priceBrl: 3100.0 },
+  { model: "iPhone 16", capacity: "512GB", color: "Pink", priceUsd: 620.0, priceBrl: 3100.0 },
   { model: "iPhone 16 Pro", capacity: "128GB", color: "White Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
   { model: "iPhone 16 Pro", capacity: "128GB", color: "Desert Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
   { model: "iPhone 16 Pro", capacity: "128GB", color: "Natural Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
   { model: "iPhone 16 Pro", capacity: "128GB", color: "Black Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 16 Pro", capacity: "256GB", color: "White Titanium", priceUsd: 690.0, priceBrl: 3450.0 },
+  { model: "iPhone 16 Pro", capacity: "256GB", color: "Desert Titanium", priceUsd: 690.0, priceBrl: 3450.0 },
+  { model: "iPhone 16 Pro", capacity: "256GB", color: "Natural Titanium", priceUsd: 690.0, priceBrl: 3450.0 },
+  { model: "iPhone 16 Pro", capacity: "256GB", color: "Black Titanium", priceUsd: 690.0, priceBrl: 3450.0 },
+  { model: "iPhone 16 Pro", capacity: "512GB", color: "White Titanium", priceUsd: 710.0, priceBrl: 3550.0 },
+  { model: "iPhone 16 Pro", capacity: "512GB", color: "Desert Titanium", priceUsd: 710.0, priceBrl: 3550.0 },
+  { model: "iPhone 16 Pro", capacity: "512GB", color: "Natural Titanium", priceUsd: 710.0, priceBrl: 3550.0 },
+  { model: "iPhone 16 Pro", capacity: "512GB", color: "Black Titanium", priceUsd: 710.0, priceBrl: 3550.0 },
   { model: "iPhone 16 Pro Max", capacity: "256GB", color: "Desert Titanium", priceUsd: 820.0, priceBrl: 4100.0 },
   { model: "iPhone 16 Pro Max", capacity: "256GB", color: "White Titanium", priceUsd: 820.0, priceBrl: 4100.0 },
   { model: "iPhone 16 Pro Max", capacity: "256GB", color: "Natural Titanium", priceUsd: 820.0, priceBrl: 4100.0 },
@@ -119,9 +160,11 @@ export const IPHONE_REFERENCE_PRICES: IphoneReferencePrice[] = [
   { model: "iPhone 16 Pro Max", capacity: "512GB", color: "Natural Titanium", priceUsd: 880.0, priceBrl: 4400.0 },
   { model: "iPhone 16 Pro Max", capacity: "512GB", color: "White Titanium", priceUsd: 880.0, priceBrl: 4400.0 },
   { model: "iPhone 17", capacity: "256GB", color: "Sage", priceUsd: 740.0, priceBrl: 3700.0 },
+  { model: "iPhone 17", capacity: "512GB", color: "Sage", priceUsd: 760.0, priceBrl: 3800.0 },
   { model: "iPhone 17 Pro", capacity: "1TB", color: "Cosmic Orange", priceUsd: 1120.0, priceBrl: 5600.0 },
   { model: "iPhone Air", capacity: "512GB", color: "Cloud White", priceUsd: 780.0, priceBrl: 3900.0 },
   { model: "iPhone XS Max", capacity: "256GB", color: "Space Gray", priceUsd: 180.0, priceBrl: 900.0 },
+  { model: "iPhone XS Max", capacity: "512GB", color: "Space Gray", priceUsd: 200.0, priceBrl: 1000.0 },
 ];
 
 // Preços de referência de mercado para compra/troca técnica (valores base para capacidade padrão/inicial Grau A)
@@ -296,10 +339,28 @@ export function findReferenceDevicePrice(
   const normCap = normalizeKey(capacity);
   const normColor = normalizeKey(color);
 
-  const modelMatches = IPHONE_REFERENCE_PRICES.filter((item) => {
-    const itemModel = normalizeKey(item.model);
-    return normModel === itemModel || normModel.includes(itemModel) || itemModel.includes(normModel);
-  });
+  // 1. Tenta correspondência exata de modelo primeiro
+  let modelMatches = IPHONE_REFERENCE_PRICES.filter(
+    (item) => normalizeKey(item.model) === normModel
+  );
+
+  // 2. Se não houver correspondência exata, busca por substring ordenado pelo modelo mais longo/específico
+  // (evita que "iPhone 16 Pro Max" case falsamente com "iPhone 16 Pro" ou "iPhone 16")
+  if (modelMatches.length === 0) {
+    const sortedByLength = [...IPHONE_REFERENCE_PRICES].sort(
+      (a, b) => normalizeKey(b.model).length - normalizeKey(a.model).length
+    );
+    const bestMatch = sortedByLength.find((item) => {
+      const itemModel = normalizeKey(item.model);
+      return normModel.includes(itemModel) || itemModel.includes(normModel);
+    });
+    if (bestMatch) {
+      const matchedKey = normalizeKey(bestMatch.model);
+      modelMatches = IPHONE_REFERENCE_PRICES.filter(
+        (item) => normalizeKey(item.model) === matchedKey
+      );
+    }
+  }
 
   if (modelMatches.length === 0) return null;
 

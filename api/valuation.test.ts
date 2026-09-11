@@ -72,7 +72,7 @@ describe("valuationEngine", () => {
     });
     expect(r14pm_1tb.basePrice).toBe(3000);
 
-    // iPhone XS Max 256GB
+    // iPhone XS Max 256GB e 512GB
     const rxs = evaluateDevice({
       model: "iPhone XS Max",
       storage: "256GB",
@@ -80,6 +80,44 @@ describe("valuationEngine", () => {
       batteryPercent: 95,
     });
     expect(rxs.basePrice).toBe(900);
+
+    const rxs_512 = evaluateDevice({
+      model: "iPhone XS Max",
+      storage: "512GB",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(rxs_512.basePrice).toBe(1000);
+
+    // iPhone 13 512GB
+    const r13_512 = evaluateDevice({
+      model: "iPhone 13",
+      storage: "512GB",
+      color: "Blue",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r13_512.basePrice).toBe(1650);
+
+    // iPhone 16 Pro 512GB
+    const r16p_512 = evaluateDevice({
+      model: "iPhone 16 Pro",
+      storage: "512GB",
+      color: "Black Titanium",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r16p_512.basePrice).toBe(3550);
+
+    // iPhone 17 512GB
+    const r17_512 = evaluateDevice({
+      model: "iPhone 17",
+      storage: "512GB",
+      color: "Sage",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r17_512.basePrice).toBe(3800);
   });
 
   it("penalizes heavily damaged devices with cracked screens", () => {
