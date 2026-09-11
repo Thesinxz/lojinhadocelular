@@ -78,7 +78,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=900&q=80",
     "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=900&q=80",
   ]),
-  warranty_badge_text: "Garantia com nota fiscal e procedência verificada.",
+  warranty_badge_text: "Garantia e procedência verificada.",
   admin_password: "lojinha123",
 };
 

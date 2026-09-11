@@ -211,7 +211,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Lojinha do Celular. Todos os direitos reservados. CNPJ: 61.874.839/0001-43 • Telefone: (67) 99208-6012.
           </p>
           <p className="mx-auto mt-1 max-w-3xl text-[11px] leading-relaxed text-neutral-500">
-            Garantia de até 1 ano, nota fiscal e procedência verificada. Atendimento presencial em Jardim-MS e Guia Lopes da Laguna-MS.
+            Garantia de até 1 ano e procedência verificada. Atendimento presencial em Jardim-MS e Guia Lopes da Laguna-MS.
           </p>
 
           {/* SEO Local & Marcas em Destaque para Ranqueamento no Google */}

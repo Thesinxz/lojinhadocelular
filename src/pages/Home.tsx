@@ -34,7 +34,7 @@ const FAQ_ITEMS = [
   {
     question: "Os iPhones seminovos possuem garantia e procedência garantida?",
     answer:
-      "Sim! Todos os nossos iPhones seminovos são importados diretamente dos EUA, passam por uma rigorosa revisão técnica de mais de 30 itens e contam com até 1 ano de garantia, nota fiscal e bateria verificada com alta saúde. Nossa empresa é formalizada sob o CNPJ 61.874.839/0001-43.",
+      "Sim! Todos os nossos iPhones seminovos são importados diretamente dos EUA, passam por uma rigorosa revisão técnica de mais de 30 itens e contam com até 1 ano de garantia com procedência e bateria verificada com alta saúde. Nossa empresa é formalizada sob o CNPJ 61.874.839/0001-43.",
   },
   {
     question: "Vocês fazem conserto de celular e troca de tela na hora?",
@@ -537,7 +537,7 @@ export default function Home() {
                   Loja de iPhone (Novos &amp; Seminovos)
                 </h3>
                 <p className="mt-2 text-xs text-neutral-600 leading-relaxed">
-                  iPhones lacrados na caixa e seminovos premium dos EUA com até <b>1 ano de garantia</b>, nota fiscal e bateria verificada. Modelos do iPhone 11 ao iPhone 16 Pro Max com pronta entrega.
+                  iPhones lacrados na caixa e seminovos premium dos EUA com até <b>1 ano de garantia</b>, procedência e bateria verificada. Modelos do iPhone 11 ao iPhone 16 Pro Max com pronta entrega.
                 </p>
               </div>
               <div className="mt-4 pt-4 border-t border-neutral-200/60 text-[11px] font-semibold text-neutral-500">

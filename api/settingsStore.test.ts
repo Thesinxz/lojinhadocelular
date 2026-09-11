@@ -14,7 +14,7 @@ describe("Armazenamento Resiliente de Configurações (settingsStore)", () => {
   });
 
   it("deve salvar e carregar a mensagem de garantia com sucesso", async () => {
-    const customText = "Garantia especial de 1 ano com nota fiscal e procedência.";
+    const customText = "Garantia especial de 1 ano e procedência verificada.";
     const saveRes = await saveSettings({
       [SETTING_KEYS.warrantyBadgeText]: customText,
     });

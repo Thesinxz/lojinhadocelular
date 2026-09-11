@@ -34,7 +34,7 @@ export function useShopSettings() {
     heroImages,
     warrantyBadgeText:
       s[SETTING_KEYS.warrantyBadgeText] ||
-      "Garantia com nota fiscal e procedência verificada.",
+      "Garantia e procedência verificada.",
   };
 }
 

@@ -214,7 +214,7 @@ export default function CartDrawer() {
               <div className="space-y-2 pt-2">
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-xs text-emerald-800 font-medium">
                   <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>{s.warrantyBadgeText || "Garantia com nota fiscal e procedência."}</span>
+                  <span>{s.warrantyBadgeText || "Garantia e procedência verificada."}</span>
                 </div>
                 <div className="flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-100 p-2.5 text-xs text-blue-800 font-medium">
                   <Gift className="h-4 w-4 text-blue-600 shrink-0" />

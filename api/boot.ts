@@ -4,6 +4,8 @@ import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { cors } from "hono/cors";
 import type { HttpBindings } from "@hono/node-server";
+import fs from "fs";
+import path from "path";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
@@ -83,6 +85,41 @@ app.use(compress());
 app.use("/assets/*", async (c, next) => {
   await next();
   c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+});
+
+// Entrega direta de imagens estáticas com headers abertos para WhatsApp, Facebook e crawlers
+app.get("/images/:file", async c => {
+  const fileName = c.req.param("file");
+  const safeName = path.basename(fileName);
+  const possiblePaths = [
+    path.resolve(process.cwd(), "public/images", safeName),
+    path.resolve(process.cwd(), "dist/public/images", safeName),
+    path.resolve(import.meta.dirname, "public/images", safeName),
+    path.resolve(import.meta.dirname, "../public/images", safeName),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      const ext = path.extname(safeName).toLowerCase();
+      const contentType =
+        ext === ".jpg" || ext === ".jpeg"
+          ? "image/jpeg"
+          : ext === ".png"
+            ? "image/png"
+            : ext === ".svg"
+              ? "image/svg+xml"
+              : ext === ".webp"
+                ? "image/webp"
+                : "application/octet-stream";
+      const buffer = fs.readFileSync(p);
+      return c.body(buffer, 200, {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=86400",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Access-Control-Allow-Origin": "*",
+      });
+    }
+  }
+  return c.text("Not Found", 404);
 });
 
 // Cache de 1 dia para imagens locais (logo, favicon, og-banner) com acesso aberto para crawlers (WhatsApp, Facebook, Twitter)

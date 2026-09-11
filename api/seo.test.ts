@@ -119,7 +119,7 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("Loja de iPhone &amp; Celulares em Jardim-MS — Catálogo Lojinha do Celular");
-    expect(html).toContain("/images/og-banner.png");
+    expect(html).toContain("/images/og-preview.jpg?v=3");
   });
 
   it("deve responder 200 com OpenGraph dedicado para /privacidade e termos da LGPD", async () => {
@@ -156,12 +156,12 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
 
-    expect(html).toContain("Lojinha do Celular — Loja de Celular, Conserto, iPhones &amp; Assistência Técnica");
+    expect(html).toContain("Lojinha do Celular — iPhones, Smartphones &amp; Assistência Técnica");
     expect(html).toContain("61.874.839/0001-43");
     expect(html).toContain("(67) 99208-6012");
-    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-banner.png" />');
+    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-preview.jpg?v=3" />');
     expect(html).toContain('<meta property="og:url" content="https://lojinhadocelular.com/" />');
-    expect(html).toContain('<link rel="image_src" href="https://lojinhadocelular.com/images/og-banner.png" />');
+    expect(html).toContain('<link rel="image_src" href="https://lojinhadocelular.com/images/og-preview.jpg?v=3" />');
     expect(html).toContain('<meta property="og:image:width" content="1200" />');
     expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain('<meta property="og:type" content="website" />');
@@ -189,7 +189,7 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain('<meta property="og:url" content="https://lojinhadocelular.com/" />');
-    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-banner.png" />');
+    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-preview.jpg?v=3" />');
   });
 
   it("deve retornar 404 JSON para arquivos estáticos ausentes (.js, .css)", async () => {
@@ -228,5 +228,14 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(text).toContain("<loc>https://lojinhadocelular.com/catalogo</loc>");
     expect(text).toContain("<image:image>");
     expect(text).toContain("<image:loc>");
+  });
+
+  it("deve servir /images/og-preview.jpg com Cross-Origin-Resource-Policy aberto para WhatsApp e redes sociais", async () => {
+    const { default: app } = await import("./boot");
+    const res = await app.request("https://lojinhadocelular.com/images/og-preview.jpg");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect(res.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 });

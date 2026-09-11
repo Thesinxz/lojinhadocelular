@@ -70,6 +70,8 @@ export function replaceOrInjectMeta(
   const isProduct = tags.ogType === "product";
   const imgWidth = isProduct ? "600" : "1200";
   const imgHeight = isProduct ? "600" : "630";
+  const isJpg = tags.img.toLowerCase().includes(".jpg") || tags.img.toLowerCase().includes(".jpeg");
+  const imgType = isJpg ? "image/jpeg" : "image/png";
 
   const metaBlock = `
     <title>${safeTitle}</title>
@@ -81,7 +83,7 @@ export function replaceOrInjectMeta(
     <meta property="og:description" content="${safeDesc}" />
     <meta property="og:image" content="${safeImg}" />
     <meta property="og:image:secure_url" content="${safeImg}" />
-    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:type" content="${imgType}" />
     <meta property="og:image:width" content="${imgWidth}" />
     <meta property="og:image:height" content="${imgHeight}" />
     <meta property="og:image:alt" content="${safeTitle}" />
@@ -145,10 +147,10 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     "lojinhadocelular.com";
   const origin = `${proto}://${host}`;
 
-  let title = "Lojinha do Celular — Loja de Celular, Conserto, iPhones & Assistência Técnica";
+  let title = "Lojinha do Celular — iPhones, Smartphones & Assistência Técnica";
   let desc =
-    "Loja de celular e assistência técnica de celular em Jardim e Guia Lopes da Laguna - MS. Venda de iPhone (lacrados e seminovos com até 1 ano de garantia), Android (Xiaomi, Redmi, POCO, Samsung, Realme, iPad) e Acessórios. Conserto de celular com troca de tela e bateria na hora. CNPJ: 61.874.839/0001-43. WhatsApp: (67) 99208-6012.";
-  let img = `${origin}/images/og-banner.png`;
+    "Seu próximo smartphone com até 1 ano de garantia e procedência. Pronta entrega e assistência técnica em Jardim e Guia Lopes da Laguna - MS. CNPJ: 61.874.839/0001-43. WhatsApp: (67) 99208-6012.";
+  let img = `${origin}/images/og-preview.jpg?v=3`;
   let ogType = "website";
   const currentUrl =
     pathname === "/index.html" || pathname === "" ? `${origin}/` : `${origin}${pathname}`;
@@ -158,7 +160,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     title = "Loja de iPhone & Celulares em Jardim-MS — Catálogo Lojinha do Celular";
     desc =
       "Confira nossa loja de celular com iPhones lacrados e seminovos com até 1 ano de garantia, Xiaomi, Redmi, POCO, Samsung, Realme, iPad e acessórios com pronta entrega em Jardim e Guia Lopes da Laguna. Fale no WhatsApp (67) 99208-6012!";
-    img = `${origin}/images/og-banner.png`;
+    img = `${origin}/images/og-preview.jpg?v=3`;
   }
   // ROTA DE AVALIAÇÃO / TROCA FÁCIL
   else if (
@@ -169,7 +171,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     title = "Avaliação e Troca de Celular — Troca Fácil Lojinha do Celular";
     desc =
       "Venda ou troque seu celular e iPhone usado com segurança e melhor avaliação de mercado. Use como desconto na compra do seu novo aparelho na Lojinha do Celular em Jardim-MS. WhatsApp: (67) 99208-6012.";
-    img = `${origin}/images/og-banner.png`;
+    img = `${origin}/images/og-preview.jpg?v=3`;
   }
   // ROTA DE PRIVACIDADE, TERMOS E LGPD
   else if (
@@ -181,7 +183,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     title = "Termos de Privacidade, LGPD & Cookies — Lojinha do Celular";
     desc =
       "Transparência e segurança com seus dados. Conheça nossos termos de uso, política de privacidade e cookies em total conformidade com a LGPD (Lei nº 13.709/2018).";
-    img = `${origin}/images/og-banner.png`;
+    img = `${origin}/images/og-preview.jpg?v=3`;
   }
   // ROTA DE PRODUTO ESPECÍFICO (/produto/:id)
   else {

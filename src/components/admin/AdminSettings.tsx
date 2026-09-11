@@ -150,22 +150,22 @@ export default function AdminSettings() {
           Texto exibido no selo de garantia do carrinho de compras e no box de detalhes de cada aparelho.
         </p>
         <div className="mt-4 space-y-3">
-          <Field label="Texto de Garantia, Nota Fiscal e Procedência">
+          <Field label="Texto de Garantia e Procedência">
             <input
               value={values[SETTING_KEYS.warrantyBadgeText] ?? ""}
               onChange={set(SETTING_KEYS.warrantyBadgeText)}
               className={inputCls}
-              placeholder="Garantia de 1 ano com nota fiscal e procedência."
+              placeholder="Garantia de 1 ano e procedência verificada."
             />
           </Field>
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             <span className="text-[11px] font-semibold text-[#86868b]">Sugestões rápidas:</span>
             {[
-              "Garantia de 1 ano com nota fiscal e procedência.",
-              "Garantia com nota fiscal e procedência verificada.",
+              "Garantia de até 1 ano e procedência verificada.",
+              "Garantia e procedência verificada.",
               "1 ano para lacrados e 6 meses para seminovos.",
-              "Garantia de 6 meses com nota fiscal e procedência.",
-              "Garantia de 3 meses com nota fiscal e procedência.",
+              "Garantia de 6 meses e procedência verificada.",
+              "Garantia de 3 meses e procedência verificada.",
             ].map((preset) => (
               <button
                 key={preset}
