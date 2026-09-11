@@ -44,3 +44,4 @@ build/
 coverage/
 .nyc_output/
 docs/security-audit/.venv/
+/VIDEO LDC.mp4
