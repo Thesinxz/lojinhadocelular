@@ -140,6 +140,56 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(html).toContain("LGPD");
   });
 
+  it("deve responder 200 com OpenGraph e imagem do banner 1200x630 para a raiz (/) acessada pelo WhatsApp", async () => {
+    const app = new Hono();
+    serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
+
+    const res = await app.request("/", {
+      headers: {
+        "user-agent": "WhatsApp/2.23.23.77 i",
+        accept: "*/*",
+        host: "lojinhadocelular.com",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    const html = await res.text();
+
+    expect(html).toContain("Lojinha do Celular — iPhones Importados dos EUA &amp; Assistência");
+    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-banner.png" />');
+    expect(html).toContain('<meta property="og:url" content="https://lojinhadocelular.com/" />');
+    expect(html).toContain('<link rel="image_src" href="https://lojinhadocelular.com/images/og-banner.png" />');
+    expect(html).toContain('<meta property="og:image:width" content="1200" />');
+    expect(html).toContain('<meta property="og:image:height" content="630" />');
+    expect(html).toContain('<meta property="og:type" content="website" />');
+
+    // Confirma que as meta tags estão no início do <head> antes de qualquer tag <body>
+    const headIndex = html.indexOf("<head");
+    const ogTitleIndex = html.indexOf("og:title");
+    const bodyIndex = html.indexOf("<body");
+    expect(ogTitleIndex).toBeGreaterThan(headIndex);
+    expect(ogTitleIndex).toBeLessThan(bodyIndex);
+  });
+
+  it("deve responder 200 com OpenGraph na rota /index.html", async () => {
+    const app = new Hono();
+    serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
+
+    const res = await app.request("/index.html", {
+      headers: {
+        "user-agent": "WhatsApp/2.23.23.77 i",
+        accept: "*/*",
+        host: "lojinhadocelular.com",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('<meta property="og:url" content="https://lojinhadocelular.com/" />');
+    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-banner.png" />');
+  });
+
   it("deve retornar 404 JSON para arquivos estáticos ausentes (.js, .css)", async () => {
     const app = new Hono();
     serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);

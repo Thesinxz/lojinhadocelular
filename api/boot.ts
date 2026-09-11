@@ -18,6 +18,7 @@ app.use(
     xContentTypeOptions: "nosniff",
     referrerPolicy: "strict-origin-when-cross-origin",
     strictTransportSecurity: "max-age=31536000; includeSubDomains",
+    crossOriginResourcePolicy: "cross-origin",
   })
 );
 
@@ -84,16 +85,20 @@ app.use("/assets/*", async (c, next) => {
   c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
 });
 
-// Cache de 1 dia para imagens locais (logo, favicon)
+// Cache de 1 dia para imagens locais (logo, favicon, og-banner) com acesso aberto para crawlers (WhatsApp, Facebook, Twitter)
 app.use("/images/*", async (c, next) => {
   await next();
   c.res.headers.set("Cache-Control", "public, max-age=86400");
+  c.res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  c.res.headers.set("Access-Control-Allow-Origin", "*");
 });
 
 // Cache para mídia pesada do Hero (vídeo hero.mp4 e hero-poster.jpg)
 app.use("/hero*", async (c, next) => {
   await next();
   c.res.headers.set("Cache-Control", "public, max-age=604800");
+  c.res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  c.res.headers.set("Access-Control-Allow-Origin", "*");
 });
 
 // Limite seguro de payload JSON para evitar DoS por exaustão de memória

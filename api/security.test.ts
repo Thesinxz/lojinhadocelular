@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { isSafeHttpUrl, getVideoEmbed } from "../src/lib/videoEmbed";
-import { isAllowedOrigin } from "./boot";
+import app, { isAllowedOrigin } from "./boot";
 import { isSafeOverrideKey, saveErpOverride } from "./erp/overrides";
 import {
   sanitizePublicProduct,
@@ -170,5 +170,13 @@ describe("Proteção contra Flood / Rate Limiting em Avaliações", () => {
 
     // ip2 ainda deve poder enviar
     expect(checkEvaluationRateLimit(ip2)).toBe(true);
+  });
+});
+
+describe("Headers de Segurança e Compartilhamento de Mídia (WhatsApp / Redes Sociais)", () => {
+  it("deve incluir Cross-Origin-Resource-Policy: cross-origin na resposta de imagens", async () => {
+    const res = await app.request("/images/og-banner.png");
+    expect(res.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 });
