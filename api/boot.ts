@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { compress } from "hono/compress";
 import { secureHeaders } from "hono/secure-headers";
 import { cors } from "hono/cors";
 import type { HttpBindings } from "@hono/node-server";
 import fs from "fs";
+import { Readable } from "stream";
 import path from "path";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
@@ -78,8 +80,97 @@ app.use(
   })
 );
 
-// Compressão gzip/deflate em todas as respostas (texto, JS, CSS, JSON)
-app.use(compress());
+function resolveStaticFilePath(fileName: string): string | null {
+  const safeName = path.basename(fileName);
+  const possiblePaths = [
+    path.resolve(process.cwd(), "public", safeName),
+    path.resolve(process.cwd(), "dist/public", safeName),
+    path.resolve(import.meta.dirname, "public", safeName),
+    path.resolve(import.meta.dirname, "../public", safeName),
+    path.resolve(import.meta.dirname, "../dist/public", safeName),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function streamVideoFile(c: Context, fileName: string) {
+  const filePath = resolveStaticFilePath(fileName);
+  if (!filePath) {
+    return c.text("Video not found", 404);
+  }
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const range = c.req.header("range");
+
+  // Headers estritos essenciais para iOS Safari, Chrome no iOS e Cloudflare CDN
+  const baseHeaders: Record<string, string> = {
+    "Accept-Ranges": "bytes",
+    "Content-Type": "video/mp4",
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Access-Control-Allow-Origin": "*",
+  };
+
+  if (c.req.method === "HEAD") {
+    return c.body(null, 200, {
+      ...baseHeaders,
+      "Content-Length": fileSize.toString(),
+    });
+  }
+
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10) || 0;
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const boundedEnd = Math.min(end, fileSize - 1);
+    const chunkSize = boundedEnd - start + 1;
+
+    const nodeStream = fs.createReadStream(filePath, { start, end: boundedEnd });
+    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+
+    return c.body(webStream, 206, {
+      ...baseHeaders,
+      "Content-Range": `bytes ${start}-${boundedEnd}/${fileSize}`,
+      "Content-Length": chunkSize.toString(),
+    });
+  }
+
+  const nodeStream = fs.createReadStream(filePath);
+  const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+
+  return c.body(webStream, 200, {
+    ...baseHeaders,
+    "Content-Length": fileSize.toString(),
+  });
+}
+
+// Rotas de streaming de vídeo com suporte obrigatório a HTTP 206 Byte-Ranges para iOS Safari
+app.on(["GET", "HEAD"], "/hero.mp4", c => streamVideoFile(c, "hero.mp4"));
+app.on(["GET", "HEAD"], "/hero-mobile.mp4", c => streamVideoFile(c, "hero-mobile.mp4"));
+app.on(["GET", "HEAD"], "/hero-poster.jpg", c => {
+  const filePath = resolveStaticFilePath("hero-poster.jpg");
+  if (!filePath) return c.text("Poster not found", 404);
+  const buffer = fs.readFileSync(filePath);
+  return c.body(buffer, 200, {
+    "Content-Type": "image/jpeg",
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Access-Control-Allow-Origin": "*",
+  });
+});
+
+// Compressão gzip/deflate em respostas de texto, JS, CSS e JSON (exclui mídias binárias)
+app.use(
+  compress({
+    contentTypeFilter: type =>
+      !type.startsWith("video/") &&
+      !type.startsWith("image/") &&
+      !type.includes("octet-stream"),
+  })
+);
 
 // Cache agressivo para assets com hash (JS/CSS/fonts) — imutáveis
 app.use("/assets/*", async (c, next) => {
@@ -161,16 +252,10 @@ app.use("/images/*", async (c, next) => {
   c.res.headers.set("Access-Control-Allow-Origin", "*");
 });
 
-// Cache para mídia pesada do Hero (vídeo hero.mp4 e hero-poster.jpg)
-app.use("/hero*", async (c, next) => {
-  await next();
-  c.res.headers.set("Cache-Control", "public, max-age=604800");
-  c.res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-  c.res.headers.set("Access-Control-Allow-Origin", "*");
-});
 
-// Limite seguro de payload JSON para evitar DoS por exaustão de memória
-app.use(bodyLimit({ maxSize: 2 * 1024 * 1024 }));
+
+// Limite seguro de payload JSON para suportar fotos comprimidas de avaliação sem exaustão de memória
+app.use(bodyLimit({ maxSize: 10 * 1024 * 1024 }));
 
 // Rate Limiter em memória para proteção contra força bruta no login admin
 const loginAttempts = new Map<string, { count: number; resetTime: number }>();

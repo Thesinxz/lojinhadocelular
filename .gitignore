@@ -38,10 +38,15 @@ db/*.json
 # TypeScript cache
 *.tsbuildinfo
 # Build outputs
-dist/
+.next
+out
+.turbo
+scratch/
 build/
 # Test coverage
 coverage/
 .nyc_output/
 docs/security-audit/.venv/
 /VIDEO LDC.mp4
+scratch/
+

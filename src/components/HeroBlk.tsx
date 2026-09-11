@@ -12,7 +12,7 @@ export default function HeroBlk() {
     const video = videoRef.current;
     if (!video) return;
 
-    // Atributos obrigatórios pelo iOS WebKit (Safari e Chrome no iPhone) para liberar autoplay
+    // Atributos estritos obrigatórios pelo iOS WebKit (Safari e Chrome no iPhone) para autoplay
     video.defaultMuted = true;
     video.muted = true;
     video.playsInline = true;
@@ -26,14 +26,15 @@ export default function HeroBlk() {
         p.then(() => {
           setIsPlaying(true);
           setAutoplayBlocked(false);
-        }).catch(() => {
+        }).catch((err) => {
           // Bloqueado pelo iOS (ex: Modo de Pouca Energia / Bateria Fraca)
+          console.log("[HeroVideo] Autoplay bloqueado pelo navegador:", err);
           setAutoplayBlocked(true);
         });
       }
     };
 
-    // Tenta reproduzir assim que o elemento é montado e quando os dados chegarem
+    // Tenta reproduzir assim que o elemento é montado e nos eventos do ciclo de vida
     tryPlay();
     video.addEventListener("loadedmetadata", tryPlay);
     video.addEventListener("canplay", tryPlay);
@@ -42,9 +43,13 @@ export default function HeroBlk() {
       setIsPlaying(true);
       setAutoplayBlocked(false);
     });
+    video.addEventListener("error", () => {
+      console.warn("[HeroVideo] Erro na mídia:", video.error?.code, video.error?.message);
+    });
 
     // Desbloqueio imediato na fase de captura (capture: true) em qualquer gesto no iPhone
     const unlockOnGesture = () => {
+      video.muted = true;
       video.play().then(() => {
         setIsPlaying(true);
         setAutoplayBlocked(false);
@@ -70,10 +75,13 @@ export default function HeroBlk() {
   const handleManualPlay = () => {
     const video = videoRef.current;
     if (!video) return;
+    video.muted = true;
     video.play().then(() => {
       setIsPlaying(true);
       setAutoplayBlocked(false);
-    }).catch(() => {});
+    }).catch((err) => {
+      console.warn("[HeroVideo] Falha ao iniciar manualmente:", err);
+    });
   };
 
   return (
@@ -81,27 +89,27 @@ export default function HeroBlk() {
       onClick={handleManualPlay}
       className="relative flex min-h-[580px] sm:min-h-[640px] md:min-h-[700px] flex-col items-center justify-center overflow-hidden bg-neutral-950 px-4 py-12 sm:py-16 text-center select-none"
     >
-      {/* Camada do poster estático: visível imediatamente desde o frame 0 (sem tela preta) */}
+      {/* Camada do poster estático: visível imediatamente desde o frame 0 (sem tela preta) e esmaece suavemente */}
       <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/hero-poster.jpg?v=ldc5')" }}
+        className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
+          isPlaying ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+        style={{ backgroundImage: "url('/hero-poster.jpg?v=ldc6')" }}
         aria-hidden="true"
       />
 
-      {/* Vídeo de fundo com src direto na tag (essencial para o iOS WebKit iniciar o autoplay sem adiar a seleção de mídia) */}
+      {/* Vídeo de fundo com streaming HTTP 206 Byte-Ranges nativo */}
       <video
         ref={videoRef}
-        src="/hero.mp4?v=ldc5"
+        src="/hero.mp4?v=ldc6"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
-        poster="/hero-poster.jpg?v=ldc5"
+        poster="/hero-poster.jpg?v=ldc6"
         className="absolute inset-0 h-full w-full object-cover object-center"
-      >
-        <source src="/hero.mp4?v=ldc5" type="video/mp4" />
-      </video>
+      />
 
       {/* Overlay de gradiente cinematográfico para contraste perfeito e letreiro visível */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/35 to-black/85 pointer-events-none" />
