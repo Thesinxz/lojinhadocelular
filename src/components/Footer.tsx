@@ -335,7 +335,7 @@ export default function Footer() {
             <img
               src="/images/payment-methods.png"
               alt="Bandeiras de pagamento aceitas: Visa, Mastercard, Elo, Hipercard, American Express, Diners Club e Pix"
-              className="h-7 sm:h-8 w-auto object-contain opacity-95 hover:opacity-100 transition"
+              className="h-9 sm:h-10 w-auto object-contain opacity-95 hover:opacity-100 transition drop-shadow-2xs"
             />
           </div>
 
