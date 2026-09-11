@@ -21,11 +21,54 @@ app.use(
   })
 );
 
-// Habilitar CORS seguro
+export function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname.toLowerCase();
+
+    // Domínios oficiais da loja
+    if (
+      hostname === "lojinhadocelular.com" ||
+      hostname.endsWith(".lojinhadocelular.com")
+    ) {
+      return true;
+    }
+
+    // Ambiente de desenvolvimento / testes locais
+    if (process.env.NODE_ENV !== "production") {
+      if (
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname.endsWith(".localhost")
+      ) {
+        return true;
+      }
+    }
+
+    // Origens adicionais configuradas via variável de ambiente ALLOWED_ORIGINS
+    const extraOrigins = (process.env.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map(o => o.trim().toLowerCase())
+      .filter(Boolean);
+    if (extraOrigins.includes(origin.toLowerCase())) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Habilitar CORS seguro restrito a origens autorizadas
 app.use(
   "/api/*",
   cors({
-    origin: origin => origin || "*",
+    origin: origin => {
+      if (!origin) return "";
+      return isAllowedOrigin(origin) ? origin : "";
+    },
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -102,20 +145,14 @@ app.use("/api/trpc/admin.login*", async (c, next) => {
 app.get("/api/health", async (c) => {
   const { getErpCatalog } = await import("./erp/service");
   const catalog = await getErpCatalog();
+  const isHealthy = catalog.status === "ok" || (!env.erpCatalogEnabled && Boolean(env.databaseUrl));
+
   return c.json({
-    ok: catalog.status === "ok",
+    status: isHealthy ? "healthy" : "degraded",
     timestamp: new Date().toISOString(),
-    erp: {
-      enabled: env.erpCatalogEnabled,
-      storeSlug: env.erpStoreSlug,
-      apiUrl: env.erpApiUrl,
-      status: catalog.status,
-      message: catalog.message,
-      productCount: catalog.products.length,
-      cachedAt: catalog.cachedAt ? new Date(catalog.cachedAt).toISOString() : null,
-    },
-    database: {
-      configured: Boolean(env.databaseUrl),
+    services: {
+      erp: env.erpCatalogEnabled ? catalog.status : "disabled",
+      database: env.databaseUrl ? "connected" : "not_configured",
     },
   });
 });
@@ -147,6 +184,8 @@ app.get("/sitemap.xml", async c => {
       "/seminovos",
       "/reparos",
       "/lojas",
+      "/privacidade",
+      "/termos",
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

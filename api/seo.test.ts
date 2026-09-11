@@ -122,6 +122,24 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(html).toContain("/images/og-banner.png");
   });
 
+  it("deve responder 200 com OpenGraph dedicado para /privacidade e termos da LGPD", async () => {
+    const app = new Hono();
+    serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
+
+    const res = await app.request("/privacidade", {
+      headers: {
+        "user-agent": "WhatsApp/2.23.23.77 i",
+        accept: "*/*",
+        host: "lojinhadocelular.com",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Termos de Privacidade, LGPD &amp; Cookies — Lojinha do Celular");
+    expect(html).toContain("LGPD");
+  });
+
   it("deve retornar 404 JSON para arquivos estáticos ausentes (.js, .css)", async () => {
     const app = new Hono();
     serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);

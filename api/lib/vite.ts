@@ -163,6 +163,18 @@ export function serveStaticFiles(app: App) {
         "Venda ou troque seu iPhone com segurança. Receba uma pré-avaliação rápida da equipe Lojinha do Celular em Jardim-MS.";
       img = `${origin}/images/og-banner.png`;
     }
+    // ROTA DE PRIVACIDADE, TERMOS E LGPD
+    else if (
+      pathname.startsWith("/privacidade") ||
+      pathname.startsWith("/termos") ||
+      pathname.startsWith("/lgpd") ||
+      pathname.startsWith("/cookies")
+    ) {
+      title = "Termos de Privacidade, LGPD & Cookies — Lojinha do Celular";
+      desc =
+        "Transparência e segurança com seus dados. Conheça nossos termos de uso, política de privacidade e cookies em total conformidade com a LGPD (Lei nº 13.709/2018).";
+      img = `${origin}/images/og-banner.png`;
+    }
     // ROTA DE PRODUTO ESPECÍFICO (/produto/:id)
     else {
       const productMatch = pathname.match(/^\/produto\/([^/?#]+)/i);

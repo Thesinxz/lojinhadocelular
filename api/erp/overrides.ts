@@ -68,17 +68,34 @@ export async function getErpOverrides(): Promise<Record<string, ErpProductOverri
   return memoryOverrides;
 }
 
+const DANGEROUS_OBJECT_KEYS = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
+
+export function isSafeOverrideKey(key: string): boolean {
+  if (!key || typeof key !== "string") return false;
+  const trimmed = key.trim().toLowerCase();
+  return trimmed.length > 0 && !DANGEROUS_OBJECT_KEYS.has(trimmed);
+}
+
 export async function getErpOverride(externalId: string): Promise<ErpProductOverride | null> {
+  if (!isSafeOverrideKey(externalId)) return null;
   const all = await getErpOverrides();
-  return all[externalId] ?? null;
+  return Object.prototype.hasOwnProperty.call(all, externalId) ? all[externalId] : null;
 }
 
 export async function saveErpOverride(
   externalId: string,
   data: Partial<ErpProductOverride>,
 ): Promise<void> {
+  if (!isSafeOverrideKey(externalId)) {
+    throw new Error(`[SECURITY] Chave de override inválida ou reservada: "${externalId}"`);
+  }
+
   const all = await getErpOverrides();
-  const current = all[externalId] || {};
+  const current = Object.prototype.hasOwnProperty.call(all, externalId) ? all[externalId] : {};
 
   all[externalId] = {
     ...current,

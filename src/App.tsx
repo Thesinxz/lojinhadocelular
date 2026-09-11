@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import WelcomePopup from "./components/WelcomePopup";
 import WhatsAppFloat from "./components/WhatsAppFloat";
+import CookieBanner from "./components/CookieBanner";
 import CartDrawer from "./components/CartDrawer";
 import { CartProvider } from "./lib/cart";
 import Home from "./pages/Home";
@@ -13,6 +14,7 @@ import TradeIn from "./pages/TradeIn";
 // Carregados sob demanda (não pesam no primeiro carregamento)
 const Admin = lazy(() => import("./pages/Admin"));
 const TvMode = lazy(() => import("./pages/TvMode"));
+const Privacidade = lazy(() => import("./pages/Privacidade"));
 
 /** Rola até a âncora (#sobre, #unidades...) após a navegação */
 function ScrollToHash() {
@@ -35,11 +37,18 @@ export default function App() {
   const location = useLocation();
   const isTv = location.pathname.startsWith("/tv");
   const isAdmin = location.pathname.startsWith("/admin");
+  const isPrivacyPath =
+    location.pathname === "/privacidade" ||
+    location.pathname === "/termos" ||
+    location.pathname === "/termos-e-privacidade" ||
+    location.pathname === "/lgpd" ||
+    location.pathname === "/cookies";
   const isTrocaFacilDomain =
     typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
   const isTradeIn =
     !isAdmin &&
     !isTv &&
+    !isPrivacyPath &&
     (isTrocaFacilDomain ||
       location.pathname === "/avaliacao" ||
       location.pathname === "/troca");
@@ -89,6 +98,11 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/catalogo" element={<Navigate to="/#vitrine" replace />} />
               <Route path="/produto/:id" element={<Produto />} />
+              <Route path="/privacidade" element={<Privacidade />} />
+              <Route path="/termos" element={<Privacidade />} />
+              <Route path="/termos-e-privacidade" element={<Privacidade />} />
+              <Route path="/lgpd" element={<Privacidade />} />
+              <Route path="/cookies" element={<Privacidade />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<Home />} />
             </Routes>
@@ -97,6 +111,7 @@ export default function App() {
         <Footer />
         <WelcomePopup />
         <WhatsAppFloat />
+        <CookieBanner />
         <CartDrawer />
       </div>
     </CartProvider>

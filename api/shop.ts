@@ -68,6 +68,25 @@ function getProductGroupPriority(p: { brand?: string; name: string; category: st
   return 1;   // 3º LUGAR: Outras Marcas (Xiaomi, Realme, Tecno, Infinix, Androids, Acessórios)
 }
 
+export function sanitizePublicProduct<
+  T extends { variants?: { notes?: unknown }[] }
+>(prod: T): T {
+  if (!prod || !Array.isArray(prod.variants)) return prod;
+  return {
+    ...prod,
+    variants: prod.variants.map((v) => {
+      const { notes: _notes, ...rest } = v;
+      return rest;
+    }),
+  } as T;
+}
+
+export function sanitizePublicProducts<
+  T extends { variants?: { notes?: unknown }[] }
+>(list: T[]): T[] {
+  return list.map((p) => sanitizePublicProduct(p));
+}
+
 function sortProductsBackend<
   T extends {
     name: string;
@@ -75,10 +94,10 @@ function sortProductsBackend<
     condition: string;
     category: string;
     featured: boolean;
-    variants: { priceCash: number; available: boolean }[];
+    variants: { priceCash: number; available: boolean; notes?: string | null }[];
   },
 >(list: T[]): T[] {
-  return [...list].sort((a, b) => {
+  const sorted = [...list].sort((a, b) => {
     // 1º HIERARQUIA DE GRUPOS:
     //   - Grupo 3: iPhones Lacrados
     //   - Grupo 2: iPhones Seminovos
@@ -103,6 +122,45 @@ function sortProductsBackend<
     const priceB = pricesB.length > 0 ? Math.min(...pricesB) : 0;
     return priceB - priceA;
   });
+
+  return sanitizePublicProducts(sorted);
+}
+
+// Rate Limiter em memória para envio de avaliações por IP (máx. 5 envios por 10 minutos)
+const evaluationSubmissions = new Map<string, { count: number; resetTime: number }>();
+const MAX_EVALUATIONS_PER_WINDOW = 5;
+const EVALUATION_WINDOW_MS = 10 * 60 * 1000; // 10 minutos
+
+export function checkEvaluationRateLimit(req: Request): boolean {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("cf-connecting-ip") ||
+    "unknown-client";
+
+  const now = Date.now();
+  const record = evaluationSubmissions.get(ip);
+
+  if (record && record.resetTime > now) {
+    if (record.count >= MAX_EVALUATIONS_PER_WINDOW) {
+      return false;
+    }
+    record.count += 1;
+  } else {
+    evaluationSubmissions.set(ip, { count: 1, resetTime: now + EVALUATION_WINDOW_MS });
+  }
+
+  if (evaluationSubmissions.size > 1000) {
+    for (const [key, val] of evaluationSubmissions.entries()) {
+      if (val.resetTime < now) evaluationSubmissions.delete(key);
+    }
+  }
+
+  return true;
+}
+
+export function resetEvaluationRateLimitForTesting() {
+  evaluationSubmissions.clear();
 }
 
 export const shopRouter = createRouter({
@@ -221,7 +279,7 @@ export const shopRouter = createRouter({
             (p) => String(p.id) === idStr || p.externalId === idStr,
           );
           if (found && found.active !== false) {
-            return found;
+            return sanitizePublicProduct(found);
           }
         }
         throw new TRPCError({
@@ -229,7 +287,6 @@ export const shopRouter = createRouter({
           message: "Produto esgotado ou não encontrado no estoque.",
         });
       }
-      return null;
 
       const numId = Number(idStr);
       if (!Number.isNaN(numId) && numId > 0) {
@@ -240,7 +297,10 @@ export const shopRouter = createRouter({
             where: and(eq(products.id, numId), eq(products.active, true)),
             with: { variants: true },
           });
-          return product ?? null;
+          if (product) {
+            return sanitizePublicProduct(product);
+          }
+          return null;
         } catch (err) {
           console.error("Erro ao consultar produto por ID:", err);
           return null;
@@ -280,7 +340,15 @@ export const shopRouter = createRouter({
         photosCount: z.number().int().min(0).max(50).optional().default(0),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (!checkEvaluationRateLimit(ctx.req)) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message:
+            "Muitas propostas enviadas em um curto período. Por favor, aguarde alguns minutos antes de tentar novamente.",
+        });
+      }
+
       try {
         const db = getDb();
         await ensureTables();

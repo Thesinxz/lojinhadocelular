@@ -4,12 +4,22 @@ import { getSingleSetting } from "./services/settingsStore";
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 dias
 
-function secret(): string {
+export function secret(): string {
   const s = process.env.APP_SECRET;
-  if (!s && process.env.NODE_ENV === "production") {
-    console.warn("[WARN] APP_SECRET não definido em produção. Usando chave de sessão temporária.");
+  if (!s) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[FATAL SECURITY] APP_SECRET obrigatório em ambiente de produção com no mínimo 32 caracteres.",
+      );
+    }
+    return "lojinha-secret-key-32-chars-min-dev-only";
   }
-  return s || "lojinha-secret-key-32-chars-min-prod-safe";
+  if (process.env.NODE_ENV === "production" && s.length < 32) {
+    throw new Error(
+      "[FATAL SECURITY] APP_SECRET em produção deve conter no mínimo 32 caracteres.",
+    );
+  }
+  return s;
 }
 
 export function hashPassword(plain: string): string {
@@ -50,16 +60,12 @@ export async function checkPassword(password: string): Promise<boolean> {
   const storedStr = (stored || "").trim();
   const defaultStr = (DEFAULT_SETTINGS[SETTING_KEYS.adminPassword] || "lojinha123").trim();
 
-  // Se houver senha salva no banco e ela for válida
-  if (storedStr && verifyPasswordHash(inputStr, storedStr)) {
-    return true;
+  // Se houver senha salva no banco, valida estritamente contra ela
+  if (storedStr) {
+    return verifyPasswordHash(inputStr, storedStr);
   }
 
-  // Fallback para credenciais padrão de administração no boot ou ambiente local
-  if (inputStr === "lojinha123" || inputStr === "admin") {
-    return true;
-  }
-
+  // Primeiro boot antes de qualquer senha personalizada ser salva
   return verifyPasswordHash(inputStr, defaultStr);
 }
 

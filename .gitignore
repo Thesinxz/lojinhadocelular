@@ -43,3 +43,4 @@ build/
 # Test coverage
 coverage/
 .nyc_output/
+docs/security-audit/.venv/

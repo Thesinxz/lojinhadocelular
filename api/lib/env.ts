@@ -51,7 +51,13 @@ export const env = {
     return optional("APP_ID", "lojinha-app");
   },
   get appSecret(): string {
-    return optional("APP_SECRET", "lojinha-secret-default-key-32-chars-min");
+    const s = optional("APP_SECRET", "");
+    if (!s && process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[FATAL SECURITY] APP_SECRET obrigatório em ambiente de produção com no mínimo 32 caracteres.",
+      );
+    }
+    return s || "lojinha-secret-default-key-32-chars-min-dev-only";
   },
   get isProduction(): boolean {
     return process.env.NODE_ENV === "production";

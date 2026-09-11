@@ -167,12 +167,46 @@ export default function Footer() {
               >
                 <span>Assistência Técnica</span>
               </Link>
+              <Link
+                to="/privacidade"
+                className="inline-flex items-center gap-2 text-neutral-600 hover:text-black transition"
+              >
+                <span>Privacidade & LGPD</span>
+              </Link>
+              <Link
+                to="/privacidade#cookies"
+                className="inline-flex items-center gap-2 text-neutral-600 hover:text-black transition"
+              >
+                <span>Política de Cookies</span>
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Rodapé inferior com copyright, CNPJ e nota de transparência */}
+        {/* Rodapé inferior com copyright, CNPJ, links de transparência e LGPD */}
         <div className="mt-12 border-t border-neutral-100 pt-8 text-center text-xs text-neutral-400">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-neutral-500 mb-3">
+            <Link
+              to="/privacidade"
+              className="hover:text-black transition underline-offset-4 hover:underline"
+            >
+              Termos de Privacidade & LGPD
+            </Link>
+            <span>•</span>
+            <Link
+              to="/privacidade#cookies"
+              className="hover:text-black transition underline-offset-4 hover:underline"
+            >
+              Política de Cookies
+            </Link>
+            <span>•</span>
+            <Link
+              to="/avaliacao"
+              className="hover:text-black transition underline-offset-4 hover:underline"
+            >
+              Avaliação de iPhone (Troca Fácil)
+            </Link>
+          </div>
           <p className="font-medium text-neutral-600">
             © {new Date().getFullYear()} Lojinha do Celular. Todos os direitos reservados. CNPJ: 43.120.914/0001-45.
           </p>

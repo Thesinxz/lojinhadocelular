@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
+import { Link } from "react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -153,6 +154,7 @@ export default function TradeIn() {
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [lgpdConsent, setLgpdConsent] = useState(true);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
 
   const fileInputRefs = useRef<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>({});
@@ -253,6 +255,10 @@ export default function TradeIn() {
       }
       if (data.whatsapp.replace(/\D/g, "").length < 10) {
         setError("Digite um WhatsApp válido com DDD.");
+        return false;
+      }
+      if (!lgpdConsent) {
+        setError("É necessário concordar com os Termos de Privacidade e LGPD para continuar.");
         return false;
       }
     } else if (step === 1) {
@@ -506,10 +512,33 @@ export default function TradeIn() {
                   </Field>
                 </div>
 
-                <p className="mt-3.5 text-[11px] leading-relaxed text-[#86868b]">
-                  Usamos seu nome e WhatsApp só para te devolver a avaliação deste aparelho. Não
-                  mandamos propaganda nem repassamos para ninguém.
-                </p>
+                {/* Termos de Privacidade e LGPD */}
+                <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs text-neutral-700">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={lgpdConsent}
+                      onChange={e => setLgpdConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-[#0071e3] focus:ring-[#0071e3] accent-[#0071e3] cursor-pointer"
+                    />
+                    <span className="leading-snug text-neutral-700">
+                      Declaro que li e concordo com os{" "}
+                      <a
+                        href="/privacidade"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-[#0071e3] hover:underline"
+                      >
+                        Termos de Privacidade & LGPD
+                      </a>{" "}
+                      para envio da pré-avaliação do meu aparelho.
+                    </span>
+                  </label>
+                  <p className="mt-2 text-[11px] leading-relaxed text-neutral-500 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    Seus dados são confidenciais e protegidos pela LGPD (Lei 13.709/2018).
+                  </p>
+                </div>
 
                 {error && (
                   <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
@@ -1187,6 +1216,24 @@ export default function TradeIn() {
                 {data.openedBefore || "–"}), Caixa ({data.hasBox || "–"}).
               </div>
 
+              {/* Box de Confidencialidade e LGPD */}
+              <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-50/50 p-3 text-xs text-emerald-950 flex items-start gap-2.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span className="text-[11px] leading-relaxed text-emerald-900">
+                  <b>Avaliação 100% segura e confidencial:</b> Seus dados e fotos são tratados com sigilo
+                  conforme a <b>LGPD (Lei nº 13.709/2018)</b> exclusivamente para análise técnica e contato
+                  via WhatsApp. Consulte nossa{" "}
+                  <a
+                    href="/privacidade"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold underline text-emerald-800 hover:text-emerald-950"
+                  >
+                    Política de Privacidade
+                  </a>.
+                </span>
+              </div>
+
               <div className="mt-6 flex items-center gap-2">
                 <button
                   type="button"
@@ -1207,9 +1254,37 @@ export default function TradeIn() {
           )}
         </div>
 
-        {/* Rodapé Seguro */}
-        <footer className="pt-4 text-center text-[11px] text-[#86868b]">
-          Seus dados são confidenciais e protegidos pela LGPD. Avaliação gratuita sem compromisso.
+        {/* Rodapé Seguro com Links de Privacidade e Cookies */}
+        <footer className="pt-6 pb-2 text-center text-[11px] text-[#86868b] space-y-1">
+          <p>
+            Seus dados são confidenciais e protegidos pela LGPD. Avaliação gratuita sem compromisso.
+          </p>
+          <p className="flex items-center justify-center gap-3 text-neutral-500">
+            <a
+              href="/privacidade"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-black transition underline underline-offset-2"
+            >
+              Termos de Privacidade & LGPD
+            </a>
+            <span>•</span>
+            <a
+              href="/privacidade#cookies"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-black transition underline underline-offset-2"
+            >
+              Política de Cookies
+            </a>
+            <span>•</span>
+            <Link
+              to="/"
+              className="hover:text-black transition underline underline-offset-2"
+            >
+              Vitrine da Loja
+            </Link>
+          </p>
         </footer>
       </div>
     </main>

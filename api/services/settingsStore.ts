@@ -127,6 +127,10 @@ export async function getSingleSetting(key: string): Promise<string> {
   return all[key] ?? DEFAULT_SETTINGS[key] ?? "";
 }
 
+export async function saveSingleSetting(key: string, value: string): Promise<{ ok: boolean }> {
+  return saveSettings({ [key]: value });
+}
+
 /** Limpa cache de memória (útil em testes) */
 export function clearSettingsCache(): void {
   memorySettings = null;
