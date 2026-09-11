@@ -210,10 +210,6 @@ export default function Admin() {
           >
             {login.isPending ? "Entrando..." : "Acessar Painel"}
           </button>
-
-          <p className="mt-4 text-center text-[11.5px] text-[#86868b]">
-            Senha inicial padrão: <code className="rounded bg-[#f5f5f7] px-1.5 py-0.5 font-mono text-[#1d1d1f]">lojinha123</code> ou <code className="rounded bg-[#f5f5f7] px-1.5 py-0.5 font-mono text-[#1d1d1f]">admin</code>
-          </p>
         </form>
       </div>
     );
