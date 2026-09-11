@@ -10,7 +10,6 @@ import {
   PackageCheck,
   CreditCard,
   ChevronDown,
-  Lock,
 } from "lucide-react";
 import { useShopSettings, waLink, getMainStoreUrl } from "@/lib/shop";
 
@@ -339,13 +338,8 @@ export default function Footer() {
             />
           </div>
 
-          {/* Selos de Segurança e CNPJ */}
+          {/* CNPJ */}
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-neutral-500">
-            <div className="inline-flex items-center gap-1.5 font-medium text-neutral-700">
-              <Lock className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Ambiente 100% Seguro (SSL)</span>
-            </div>
-            <span className="text-neutral-300 hidden sm:inline">•</span>
             <span className="font-medium text-neutral-700">
               CNPJ: 61.874.839/0001-43
             </span>
