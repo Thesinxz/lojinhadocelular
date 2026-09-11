@@ -106,10 +106,13 @@ function streamVideoFile(c: Context, fileName: string) {
   const range = c.req.header("range");
 
   // Headers estritos essenciais para iOS Safari, Chrome no iOS e Cloudflare CDN
+  // s-maxage=0 e Cloudflare-CDN-Cache-Control: no-store instruem a borda do Cloudflare a repassar requisições Range para a origem sem converter 206 em 200
   const baseHeaders: Record<string, string> = {
     "Accept-Ranges": "bytes",
     "Content-Type": "video/mp4",
-    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cache-Control": "public, max-age=31536000, no-transform, s-maxage=0",
+    "Cloudflare-CDN-Cache-Control": "no-store",
+    "CDN-Cache-Control": "no-store",
     "Cross-Origin-Resource-Policy": "cross-origin",
     "Access-Control-Allow-Origin": "*",
   };
