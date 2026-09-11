@@ -25,6 +25,11 @@ import {
   FALLBACK_STORAGE_OPTIONS,
   FALLBACK_COLOR_OPTIONS,
 } from "@/lib/iphoneCatalog";
+import {
+  evaluateDevice,
+  formatBRL,
+  getGradeBadgeConfig,
+} from "@/lib/valuationEngine";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -148,6 +153,7 @@ function formatPhoneInput(value: string): string {
 
 export default function TradeIn() {
   const settings = useShopSettings();
+  const destination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
   const submitMutation = trpc.shop.submitEvaluation.useMutation();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<EvaluationData>(INITIAL_EVALUATION);
@@ -185,6 +191,32 @@ export default function TradeIn() {
     }
     return FALLBACK_COLOR_OPTIONS;
   }, [detectedModel]);
+
+  const valuation = useMemo(
+    () =>
+      evaluateDevice({
+        model: data.model,
+        storage: data.storage,
+        color: data.color,
+        purchaseLocation: data.purchaseLocation,
+        batteryPercent: data.batteryPercent,
+        batteryUnknown: data.batteryUnknown,
+        targetModel: data.targetModel,
+        visualCondition: data.visualCondition,
+        faceId: data.faceId,
+        screenOriginal: data.screenOriginal,
+        batteryOriginal: data.batteryOriginal,
+        camerasOk: data.camerasOk,
+        audioOk: data.audioOk,
+        chargingPortOk: data.chargingPortOk,
+        openedBefore: data.openedBefore,
+        hasBox: data.hasBox,
+        notes: data.notes,
+      }),
+    [data]
+  );
+
+  const gradeConfig = useMemo(() => getGradeBadgeConfig(valuation.grade), [valuation.grade]);
 
   function updateField<K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) {
     const finalValue =
@@ -296,19 +328,25 @@ export default function TradeIn() {
   }
 
   function submitEvaluation() {
-    const destination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
 
     const summaryText = [
-      "📱 *Nova Solicitação de Avaliação - Troca Fácil Lojinha do Celular*",
+      "*Solicitação de Avaliação — Lojinha do Celular*",
       "",
       `👤 *Cliente:* ${data.name.trim()}`,
-      `📞 *WhatsApp:* ${data.whatsapp.trim()}`,
-      `📲 *Aparelho atual:* ${data.model} ${data.storage ? `(${data.storage})` : ""}`,
-      `🎨 *Cor:* ${data.color || "Não especificada"}`,
+      `📱 *WhatsApp:* ${data.whatsapp.trim()}`,
+      `📦 *Aparelho:* ${data.model.trim()} ${data.storage ? `(${data.storage})` : ""}`,
+      `🎨 *Cor:* ${data.color || "Não informada"}`,
       `🏬 *Onde comprou:* ${data.purchaseLocation || "Não informado"}`,
       `🔋 *Saúde da bateria:* ${batteryText}`,
       `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
+      "",
+      `✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`,
+      `💰 *Estimativa de Avaliação:* ${formatBRL(valuation.minEstimatedValue)} a ${formatBRL(valuation.maxEstimatedValue)}`,
+      valuation.targetModelName && valuation.minTradeDelta !== undefined
+        ? `🎯 *Volta Estimada (${valuation.targetModelName}):* ${formatBRL(valuation.minTradeDelta)} a ${formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}`
+        : "",
+      valuation.loyaltyBonusApplied ? "🎁 *Bônus Fidelidade Lojinha do Celular (+5% na avaliação)*" : "",
       "",
       "🔍 *Diagnóstico Rápido:*",
       `• Face ID: ${data.faceId || "Não informado"}`,
@@ -375,24 +413,118 @@ export default function TradeIn() {
     return (
       <main className="min-h-[100dvh] bg-[#fbfbfd] px-4 py-8 text-[#1d1d1f] sm:py-16">
         <SEO
-          title="Avaliação enviada | Troca Fácil Lojinha do Celular"
-          description="Sua solicitação de pré-avaliação foi enviada com sucesso para a equipe da Lojinha do Celular."
+          title="Resultado da Avaliação | Troca Fácil Lojinha do Celular"
+          description="Confira a pré-avaliação do seu iPhone na Lojinha do Celular e combine os detalhes no WhatsApp."
         />
-        <div className="mx-auto flex min-h-[75dvh] w-full max-w-[500px] flex-col items-center justify-center text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 animate-scaleIn">
-            <Check className="h-10 w-10 stroke-[2.5]" />
+        <div className="mx-auto flex min-h-[75dvh] w-full max-w-[540px] flex-col items-center justify-center text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 animate-scaleIn">
+            <Check className="h-8 w-8 stroke-[2.5]" />
           </div>
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-[#86868b]">
+          <p className="mt-4 text-xs font-bold uppercase tracking-[0.25em] text-[#86868b]">
             TROCA FÁCIL LOJINHA DO CELULAR
           </p>
-          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#1d1d1f] sm:text-4xl">
-            Proposta enviada com sucesso!
+          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f]">
+            Pré-Avaliação Concluída!
           </h1>
-          <p className="mt-3 max-w-sm text-sm leading-6 text-[#6e6e73]">
-            O WhatsApp foi aberto com os dados do seu aparelho. Caso tenha fotos, anexe-as na conversa
-            para agilizar a sua conferência.
+          <p className="mt-2 max-w-sm text-xs sm:text-sm text-[#6e6e73]">
+            Sua proposta foi registrada no sistema e a conversa no WhatsApp foi iniciada.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+
+          {/* CARD DE RESULTADO DA PRÉ-AVALIAÇÃO */}
+          <div className="mt-6 w-full rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 text-left shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)]">
+            <div className="flex items-start gap-4">
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#fbfbfd] p-2 border border-[#e5e5e7]">
+                {previewImage ? (
+                  <img
+                    src={previewImage}
+                    alt={data.model}
+                    className="h-full w-full object-contain drop-shadow-xs"
+                  />
+                ) : (
+                  <Smartphone className="h-9 w-9 text-[#86868b]" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-display text-base sm:text-lg font-bold text-[#1d1d1f]">
+                    {data.model}
+                  </h3>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
+                  >
+                    <span>{gradeConfig.iconText}</span>
+                    <span>{gradeConfig.label}</span>
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[#6e6e73]">
+                  {data.storage || "Capacidade padrão"} • Cor: {data.color || "Padrão"}
+                </p>
+                {data.purchaseLocation && (
+                  <p className="mt-1 text-[11px] text-neutral-500">
+                    Comprado em: {data.purchaseLocation}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* FAIXA DE VALOR EM DESTAQUE */}
+            <div className="mt-5 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                💰 Faixa Estimada de Pré-Avaliação
+              </span>
+              <div className="mt-1 font-display text-2xl sm:text-3xl font-bold text-emerald-950">
+                {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
+              </div>
+              <p className="mt-1 text-[11px] text-emerald-900/80">
+                {valuation.disclaimer}
+              </p>
+            </div>
+
+            {/* SE HOUVER APARELHO DESEJADO PARA TROCA */}
+            {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
+              <div className="mt-3 rounded-2xl border border-purple-200/80 bg-purple-50/70 p-4">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
+                  🎯 Troca pelo {valuation.targetModelName}
+                </span>
+                <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-purple-950">
+                  Volta estimada de {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
+                </div>
+                <p className="mt-1 text-[11px] text-purple-900/80">
+                  Entregando seu {data.model}, essa é a estimativa da diferença a pagar.
+                </p>
+              </div>
+            )}
+
+            {/* PONTOS FORTES E BÔNUS */}
+            {valuation.highlights.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5 border-t border-neutral-100 pt-3 text-[11px]">
+                {valuation.highlights.map((hl, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center rounded-lg bg-[#f5f5f7] px-2.5 py-1 font-medium text-[#1d1d1f]"
+                  >
+                    {hl}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* BOTÕES DE AÇÃO */}
+          <div className="mt-6 flex flex-col gap-3 w-full sm:flex-row">
+            <a
+              href={waLink(
+                destination,
+                `Olá! Acabei de fazer a pré-avaliação do meu ${data.model} no site Troca Fácil da Lojinha do Celular (Estimativa: ${formatBRL(
+                  valuation.minEstimatedValue
+                )} a ${formatBRL(valuation.maxEstimatedValue)}). Gostaria de confirmar a proposta!`
+              )}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]"
+            >
+              <Phone className="h-4 w-4" /> Abrir WhatsApp novamente
+            </a>
             <button
               type="button"
               onClick={() => {
@@ -400,17 +532,15 @@ export default function TradeIn() {
                 setStep(0);
                 setData(INITIAL_EVALUATION);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-300 bg-white px-6 py-3.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-neutral-50 shadow-xs"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-300 bg-white px-5 py-3.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-neutral-50 shadow-xs"
             >
               <RotateCcw className="h-4 w-4" /> Nova avaliação
             </button>
-            <a
-              href={isTrocaFacilDomain ? "https://lojinhadocelular.com" : "/"}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-black shadow-sm"
-            >
-              Ver produtos disponíveis <ArrowRight className="h-4 w-4" />
-            </a>
           </div>
+
+          <p className="mt-4 text-[11px] text-[#86868b]">
+            Unidade Jardim/MS: Av. Duque de Caxias, 486 • Unidade Guia Lopes/MS: Rua Macias Barbosa, 2185
+          </p>
         </div>
       </main>
     );
@@ -1205,6 +1335,32 @@ export default function TradeIn() {
                 />
                 <SummaryRow label="Estado" value={data.visualCondition || "Em análise"} />
                 <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
+              </div>
+
+              {/* Destaque da Pré-Avaliação Estimada */}
+              <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                    💰 Pré-avaliação estimada
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
+                  >
+                    <span>{gradeConfig.iconText}</span>
+                    <span>{gradeConfig.label}</span>
+                  </span>
+                </div>
+                <div className="mt-1 font-display text-2xl font-bold text-emerald-950">
+                  {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
+                </div>
+                {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
+                  <p className="mt-1.5 text-xs font-medium text-purple-900">
+                    🎯 Volta estimada no {valuation.targetModelName}:{" "}
+                    <b>
+                      {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
+                    </b>
+                  </p>
+                )}
               </div>
 
               {/* Mini resumo do diagnóstico técnico */}

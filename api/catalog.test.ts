@@ -41,10 +41,9 @@ describe("Catalog Demo Data", () => {
     expect(m17?.screen).toBe('6.9"');
     expect(m17?.capacities).toContain("256GB");
 
-    // Teste de resolução de imagem por cor
+    // Teste de resolução de imagem por cor (WebP otimizado)
     const imgOrange = getIphoneModelColorImage(m17, "Cosmic Orange");
-    expect(imgOrange).toContain("iphone-17-pro-max-cosmic-orange.png");
-    expect(imgOrange).toContain("https://gestaocelular.com.br");
+    expect(imgOrange).toContain("iphone-17-pro-max-cosmic-orange.webp");
 
     // Teste de detecção flexível (sem 'iPhone' ou case insensitive)
     const m16 = detectIphoneModel("16 pro");

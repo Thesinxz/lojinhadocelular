@@ -122,6 +122,37 @@ app.get("/images/:file", async c => {
   return c.text("Not Found", 404);
 });
 
+// Entrega direta de imagens dos iPhones (WebP com fallback transparente e headers abertos)
+app.get("/images/iphones/:file", async c => {
+  const fileName = c.req.param("file");
+  const safeName = path.basename(fileName);
+  const baseName = safeName.replace(/\.(png|webp)$/i, "");
+
+  const possiblePaths = [
+    path.resolve(process.cwd(), "public/images/iphones", `${baseName}.webp`),
+    path.resolve(process.cwd(), "dist/public/images/iphones", `${baseName}.webp`),
+    path.resolve(import.meta.dirname, "public/images/iphones", `${baseName}.webp`),
+    path.resolve(import.meta.dirname, "../public/images/iphones", `${baseName}.webp`),
+    path.resolve(process.cwd(), "public/images/iphones", safeName),
+    path.resolve(process.cwd(), "dist/public/images/iphones", safeName),
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      const ext = path.extname(p).toLowerCase();
+      const contentType = ext === ".webp" ? "image/webp" : "image/png";
+      const buffer = fs.readFileSync(p);
+      return c.body(buffer, 200, {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=604800, immutable",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Access-Control-Allow-Origin": "*",
+      });
+    }
+  }
+  return c.text("Not Found", 404);
+});
+
 // Cache de 1 dia para imagens locais (logo, favicon, og-banner) com acesso aberto para crawlers (WhatsApp, Facebook, Twitter)
 app.use("/images/*", async (c, next) => {
   await next();

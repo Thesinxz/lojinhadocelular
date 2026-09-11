@@ -16,8 +16,27 @@ export type IphoneModelSpec = {
 export function resolveIphoneImageUrl(pathOrUrl?: string): string {
   if (!pathOrUrl) return "";
   if (pathOrUrl.startsWith("http")) return pathOrUrl;
-  const clean = pathOrUrl.startsWith("/") ? pathOrUrl : "/" + pathOrUrl;
-  return "https://gestaocelular.com.br" + clean;
+  let clean = pathOrUrl.startsWith("/") ? pathOrUrl : "/" + pathOrUrl;
+
+  // Usa WebP ultra-otimizado (~25KB vs ~350KB PNG)
+  if (clean.includes("/images/iphones/") && clean.endsWith(".png")) {
+    clean = clean.replace(/\.png$/, ".webp");
+  }
+
+  // 1. Suporte a Cloudflare R2 / S3 custom endpoint via variável de ambiente (Vite e Node)
+  const r2BaseUrl =
+    (typeof import.meta !== "undefined" &&
+      (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_CLOUDFLARE_R2_URL) ||
+    (typeof process !== "undefined" && process.env?.CLOUDFLARE_R2_URL) ||
+    (typeof process !== "undefined" && process.env?.VITE_CLOUDFLARE_R2_URL) ||
+    "";
+
+  if (r2BaseUrl) {
+    const baseClean = r2BaseUrl.endsWith("/") ? r2BaseUrl.slice(0, -1) : r2BaseUrl;
+    return `${baseClean}${clean}`;
+  }
+
+  return clean;
 }
 
 export const IPHONE_CATALOG: IphoneModelSpec[] = [
@@ -28,9 +47,9 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["256GB", "512GB"],
     colors: [
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-17e-black.png" },
-      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-17e-white.png" },
-      { name: "Soft Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-17e-pink.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-17e-black.webp" },
+      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-17e-white.webp" },
+      { name: "Soft Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-17e-pink.webp" },
     ],
   },
 
@@ -41,9 +60,9 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.9\"",
     capacities: ["256GB", "512GB", "1TB", "2TB"],
     colors: [
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-17-pro-max-silver.png" },
-      { name: "Cosmic Orange", hex: "#ff6f3c", imageUrl: "/images/iphones/iphone-17-pro-max-cosmic-orange.png" },
-      { name: "Deep Blue", hex: "#1a365d", imageUrl: "/images/iphones/iphone-17-pro-max-deep-blue.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-17-pro-max-silver.webp" },
+      { name: "Cosmic Orange", hex: "#ff6f3c", imageUrl: "/images/iphones/iphone-17-pro-max-cosmic-orange.webp" },
+      { name: "Deep Blue", hex: "#1a365d", imageUrl: "/images/iphones/iphone-17-pro-max-deep-blue.webp" },
     ],
   },
   {
@@ -52,9 +71,9 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.3\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-17-pro-silver.png" },
-      { name: "Cosmic Orange", hex: "#ff6f3c", imageUrl: "/images/iphones/iphone-17-pro-cosmic-orange.png" },
-      { name: "Deep Blue", hex: "#1a365d", imageUrl: "/images/iphones/iphone-17-pro-deep-blue.png" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-17-pro-silver.webp" },
+      { name: "Cosmic Orange", hex: "#ff6f3c", imageUrl: "/images/iphones/iphone-17-pro-cosmic-orange.webp" },
+      { name: "Deep Blue", hex: "#1a365d", imageUrl: "/images/iphones/iphone-17-pro-deep-blue.webp" },
     ],
   },
   {
@@ -63,11 +82,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.3\"",
     capacities: ["256GB", "512GB"],
     colors: [
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-17-black.png" },
-      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-17-white.png" },
-      { name: "Mist Blue", hex: "#9bb7d4", imageUrl: "/images/iphones/iphone-17-mist-blue.png" },
-      { name: "Sage", hex: "#9caf88", imageUrl: "/images/iphones/iphone-17-sage.png" },
-      { name: "Lavender", hex: "#b8a9c9", imageUrl: "/images/iphones/iphone-17-lavender.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-17-black.webp" },
+      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-17-white.webp" },
+      { name: "Mist Blue", hex: "#9bb7d4", imageUrl: "/images/iphones/iphone-17-mist-blue.webp" },
+      { name: "Sage", hex: "#9caf88", imageUrl: "/images/iphones/iphone-17-sage.webp" },
+      { name: "Lavender", hex: "#b8a9c9", imageUrl: "/images/iphones/iphone-17-lavender.webp" },
     ],
   },
   {
@@ -76,10 +95,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.5\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-air-space-black.png" },
-      { name: "Cloud White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-air-cloud-white.png" },
-      { name: "Light Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-air-light-gold.png" },
-      { name: "Sky Blue", hex: "#7eb0d5", imageUrl: "/images/iphones/iphone-air-sky-blue.png" },
+      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-air-space-black.webp" },
+      { name: "Cloud White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-air-cloud-white.webp" },
+      { name: "Light Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-air-light-gold.webp" },
+      { name: "Sky Blue", hex: "#7eb0d5", imageUrl: "/images/iphones/iphone-air-sky-blue.webp" },
     ],
   },
   {
@@ -88,8 +107,8 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16e-black.png" },
-      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-16e-white.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16e-black.webp" },
+      { name: "White", hex: "#f5f5f7", imageUrl: "/images/iphones/iphone-16e-white.webp" },
     ],
   },
 
@@ -100,10 +119,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.9\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-16-pro-max-natural-titanium.png" },
-      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-16-pro-max-black-titanium.png" },
-      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-16-pro-max-white-titanium.png" },
-      { name: "Desert Titanium", hex: "#c6aa91", imageUrl: "/images/iphones/iphone-16-pro-max-desert-titanium.png" },
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-16-pro-max-natural-titanium.webp" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-16-pro-max-black-titanium.webp" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-16-pro-max-white-titanium.webp" },
+      { name: "Desert Titanium", hex: "#c6aa91", imageUrl: "/images/iphones/iphone-16-pro-max-desert-titanium.webp" },
     ],
   },
   {
@@ -112,10 +131,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.3\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-16-pro-natural-titanium.png" },
-      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-16-pro-black-titanium.png" },
-      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-16-pro-white-titanium.png" },
-      { name: "Desert Titanium", hex: "#c6aa91", imageUrl: "/images/iphones/iphone-16-pro-desert-titanium.png" },
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-16-pro-natural-titanium.webp" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-16-pro-black-titanium.webp" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-16-pro-white-titanium.webp" },
+      { name: "Desert Titanium", hex: "#c6aa91", imageUrl: "/images/iphones/iphone-16-pro-desert-titanium.webp" },
     ],
   },
   {
@@ -124,11 +143,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Ultramarine", hex: "#42506e", imageUrl: "/images/iphones/iphone-16-plus-ultramarine.png" },
-      { name: "Teal", hex: "#8ab4ac", imageUrl: "/images/iphones/iphone-16-plus-teal.png" },
-      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-16-plus-pink.png" },
-      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-16-plus-white.png" },
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16-plus-black.png" },
+      { name: "Ultramarine", hex: "#42506e", imageUrl: "/images/iphones/iphone-16-plus-ultramarine.webp" },
+      { name: "Teal", hex: "#8ab4ac", imageUrl: "/images/iphones/iphone-16-plus-teal.webp" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-16-plus-pink.webp" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-16-plus-white.webp" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16-plus-black.webp" },
     ],
   },
   {
@@ -137,11 +156,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Ultramarine", hex: "#42506e", imageUrl: "/images/iphones/iphone-16-ultramarine.png" },
-      { name: "Teal", hex: "#8ab4ac", imageUrl: "/images/iphones/iphone-16-teal.png" },
-      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-16-pink.png" },
-      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-16-white.png" },
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16-black.png" },
+      { name: "Ultramarine", hex: "#42506e", imageUrl: "/images/iphones/iphone-16-ultramarine.webp" },
+      { name: "Teal", hex: "#8ab4ac", imageUrl: "/images/iphones/iphone-16-teal.webp" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-16-pink.webp" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-16-white.webp" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-16-black.webp" },
     ],
   },
 
@@ -152,10 +171,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["256GB", "512GB", "1TB"],
     colors: [
-      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-15-pro-max-natural-titanium.png" },
-      { name: "Blue Titanium", hex: "#3b4453", imageUrl: "/images/iphones/iphone-15-pro-max-blue-titanium.png" },
-      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-15-pro-max-white-titanium.png" },
-      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-15-pro-max-black-titanium.png" },
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-15-pro-max-natural-titanium.webp" },
+      { name: "Blue Titanium", hex: "#3b4453", imageUrl: "/images/iphones/iphone-15-pro-max-blue-titanium.webp" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-15-pro-max-white-titanium.webp" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-15-pro-max-black-titanium.webp" },
     ],
   },
   {
@@ -164,10 +183,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-15-pro-natural-titanium.png" },
-      { name: "Blue Titanium", hex: "#3b4453", imageUrl: "/images/iphones/iphone-15-pro-blue-titanium.png" },
-      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-15-pro-white-titanium.png" },
-      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-15-pro-black-titanium.png" },
+      { name: "Natural Titanium", hex: "#bebaa7", imageUrl: "/images/iphones/iphone-15-pro-natural-titanium.webp" },
+      { name: "Blue Titanium", hex: "#3b4453", imageUrl: "/images/iphones/iphone-15-pro-blue-titanium.webp" },
+      { name: "White Titanium", hex: "#f2f1ed", imageUrl: "/images/iphones/iphone-15-pro-white-titanium.webp" },
+      { name: "Black Titanium", hex: "#3c3b37", imageUrl: "/images/iphones/iphone-15-pro-black-titanium.webp" },
     ],
   },
   {
@@ -176,11 +195,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-15-plus-pink.png" },
-      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-15-plus-yellow.png" },
-      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-15-plus-green.png" },
-      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-15-plus-blue.png" },
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-15-plus-black.png" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-15-plus-pink.webp" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-15-plus-yellow.webp" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-15-plus-green.webp" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-15-plus-blue.webp" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-15-plus-black.webp" },
     ],
   },
   {
@@ -189,11 +208,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-15-black.png" },
-      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-15-blue.png" },
-      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-15-green.png" },
-      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-15-yellow.png" },
-      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-15-pink.png" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-15-black.webp" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-15-blue.webp" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-15-green.webp" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-15-yellow.webp" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-15-pink.webp" },
     ],
   },
 
@@ -204,10 +223,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Deep Purple", hex: "#483d8b", imageUrl: "/images/iphones/iphone-14-pro-max-deep-purple.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-14-pro-max-gold.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-14-pro-max-silver.png" },
-      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-14-pro-max-space-black.png" },
+      { name: "Deep Purple", hex: "#483d8b", imageUrl: "/images/iphones/iphone-14-pro-max-deep-purple.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-14-pro-max-gold.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-14-pro-max-silver.webp" },
+      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-14-pro-max-space-black.webp" },
     ],
   },
   {
@@ -216,10 +235,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Deep Purple", hex: "#483d8b", imageUrl: "/images/iphones/iphone-14-pro-deep-purple.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-14-pro-gold.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-14-pro-silver.png" },
-      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-14-pro-space-black.png" },
+      { name: "Deep Purple", hex: "#483d8b", imageUrl: "/images/iphones/iphone-14-pro-deep-purple.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-14-pro-gold.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-14-pro-silver.webp" },
+      { name: "Space Black", hex: "#2e2c2e", imageUrl: "/images/iphones/iphone-14-pro-space-black.webp" },
     ],
   },
   {
@@ -228,12 +247,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-14-plus-blue.png" },
-      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-14-plus-purple.png" },
-      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-14-plus-yellow.png" },
-      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-14-plus-midnight.png" },
-      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-14-plus-starlight.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-14-plus-red.png" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-14-plus-blue.webp" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-14-plus-purple.webp" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-14-plus-yellow.webp" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-14-plus-midnight.webp" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-14-plus-starlight.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-14-plus-red.webp" },
     ],
   },
   {
@@ -242,12 +261,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-14-blue.png" },
-      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-14-purple.png" },
-      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-14-yellow.png" },
-      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-14-midnight.png" },
-      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-14-starlight.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-14-red.png" },
+      { name: "Blue", hex: "#a7c1d9", imageUrl: "/images/iphones/iphone-14-blue.webp" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-14-purple.webp" },
+      { name: "Yellow", hex: "#f3e08c", imageUrl: "/images/iphones/iphone-14-yellow.webp" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-14-midnight.webp" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-14-starlight.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-14-red.webp" },
     ],
   },
   {
@@ -269,11 +288,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Sierra Blue", hex: "#9bb0c1", imageUrl: "/images/iphones/iphone-13-pro-max-sierra-blue.png" },
-      { name: "Alpine Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-pro-max-alpine-green.png" },
-      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-13-pro-max-graphite.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-13-pro-max-gold.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-13-pro-max-silver.png" },
+      { name: "Sierra Blue", hex: "#9bb0c1", imageUrl: "/images/iphones/iphone-13-pro-max-sierra-blue.webp" },
+      { name: "Alpine Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-pro-max-alpine-green.webp" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-13-pro-max-graphite.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-13-pro-max-gold.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-13-pro-max-silver.webp" },
     ],
   },
   {
@@ -282,11 +301,11 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB", "1TB"],
     colors: [
-      { name: "Sierra Blue", hex: "#9bb0c1", imageUrl: "/images/iphones/iphone-13-pro-sierra-blue.png" },
-      { name: "Alpine Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-pro-alpine-green.png" },
-      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-13-pro-graphite.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-13-pro-gold.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-13-pro-silver.png" },
+      { name: "Sierra Blue", hex: "#9bb0c1", imageUrl: "/images/iphones/iphone-13-pro-sierra-blue.webp" },
+      { name: "Alpine Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-pro-alpine-green.webp" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-13-pro-graphite.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-13-pro-gold.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-13-pro-silver.webp" },
     ],
   },
   {
@@ -295,12 +314,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Blue", hex: "#42506e", imageUrl: "/images/iphones/iphone-13-blue.png" },
-      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-13-pink.png" },
-      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-13-midnight.png" },
-      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-13-starlight.png" },
-      { name: "Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-green.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-13-red.png" },
+      { name: "Blue", hex: "#42506e", imageUrl: "/images/iphones/iphone-13-blue.webp" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-13-pink.webp" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-13-midnight.webp" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-13-starlight.webp" },
+      { name: "Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-green.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-13-red.webp" },
     ],
   },
   {
@@ -309,12 +328,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "5.4\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Blue", hex: "#42506e", imageUrl: "/images/iphones/iphone-13-blue.png" },
-      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-13-pink.png" },
-      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-13-midnight.png" },
-      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-13-starlight.png" },
-      { name: "Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-green.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-13-red.png" },
+      { name: "Blue", hex: "#42506e", imageUrl: "/images/iphones/iphone-13-blue.webp" },
+      { name: "Pink", hex: "#faddd7", imageUrl: "/images/iphones/iphone-13-pink.webp" },
+      { name: "Midnight", hex: "#1b242d", imageUrl: "/images/iphones/iphone-13-midnight.webp" },
+      { name: "Starlight", hex: "#f0e9d7", imageUrl: "/images/iphones/iphone-13-starlight.webp" },
+      { name: "Green", hex: "#475c4d", imageUrl: "/images/iphones/iphone-13-green.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-13-red.webp" },
     ],
   },
 
@@ -325,10 +344,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.7\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Pacific Blue", hex: "#2c4d5e", imageUrl: "/images/iphones/iphone-12-pro-max-pacific-blue.png" },
-      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-12-pro-max-graphite.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-12-pro-max-gold.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-12-pro-max-silver.png" },
+      { name: "Pacific Blue", hex: "#2c4d5e", imageUrl: "/images/iphones/iphone-12-pro-max-pacific-blue.webp" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-12-pro-max-graphite.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-12-pro-max-gold.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-12-pro-max-silver.webp" },
     ],
   },
   {
@@ -337,10 +356,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["128GB", "256GB", "512GB"],
     colors: [
-      { name: "Pacific Blue", hex: "#2c4d5e", imageUrl: "/images/iphones/iphone-12-pro-pacific-blue.png" },
-      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-12-pro-graphite.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-12-pro-gold.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-12-pro-silver.png" },
+      { name: "Pacific Blue", hex: "#2c4d5e", imageUrl: "/images/iphones/iphone-12-pro-pacific-blue.webp" },
+      { name: "Graphite", hex: "#545351", imageUrl: "/images/iphones/iphone-12-pro-graphite.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-12-pro-gold.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-12-pro-silver.webp" },
     ],
   },
   {
@@ -349,12 +368,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Blue", hex: "#1d3557", imageUrl: "/images/iphones/iphone-12-blue.png" },
-      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-12-green.png" },
-      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-12-white.png" },
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-12-black.png" },
-      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-12-purple.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-12-red.png" },
+      { name: "Blue", hex: "#1d3557", imageUrl: "/images/iphones/iphone-12-blue.webp" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-12-green.webp" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-12-white.webp" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-12-black.webp" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-12-purple.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-12-red.webp" },
     ],
   },
   {
@@ -363,12 +382,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "5.4\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Blue", hex: "#1d3557", imageUrl: "/images/iphones/iphone-12-blue.png" },
-      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-12-green.png" },
-      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-12-white.png" },
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-12-black.png" },
-      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-12-purple.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-12-red.png" },
+      { name: "Blue", hex: "#1d3557", imageUrl: "/images/iphones/iphone-12-blue.webp" },
+      { name: "Green", hex: "#b4caa4", imageUrl: "/images/iphones/iphone-12-green.webp" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-12-white.webp" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-12-black.webp" },
+      { name: "Purple", hex: "#b5a7cb", imageUrl: "/images/iphones/iphone-12-purple.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-12-red.webp" },
     ],
   },
   {
@@ -390,10 +409,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.5\"",
     capacities: ["64GB", "256GB", "512GB"],
     colors: [
-      { name: "Midnight Green", hex: "#4e5851", imageUrl: "/images/iphones/iphone-11-pro-max-midnight-green.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-11-pro-max-silver.png" },
-      { name: "Space Gray", hex: "#4b4a4e", imageUrl: "/images/iphones/iphone-11-pro-max-space-grey.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-11-pro-max-gold.png" },
+      { name: "Midnight Green", hex: "#4e5851", imageUrl: "/images/iphones/iphone-11-pro-max-midnight-green.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-11-pro-max-silver.webp" },
+      { name: "Space Gray", hex: "#4b4a4e", imageUrl: "/images/iphones/iphone-11-pro-max-space-grey.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-11-pro-max-gold.webp" },
     ],
   },
   {
@@ -402,10 +421,10 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "5.8\"",
     capacities: ["64GB", "256GB", "512GB"],
     colors: [
-      { name: "Midnight Green", hex: "#4e5851", imageUrl: "/images/iphones/iphone-11-pro-midnight-green.png" },
-      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-11-pro-silver.png" },
-      { name: "Space Gray", hex: "#4b4a4e", imageUrl: "/images/iphones/iphone-11-pro-space-grey.png" },
-      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-11-pro-gold.png" },
+      { name: "Midnight Green", hex: "#4e5851", imageUrl: "/images/iphones/iphone-11-pro-midnight-green.webp" },
+      { name: "Silver", hex: "#e2e4e1", imageUrl: "/images/iphones/iphone-11-pro-silver.webp" },
+      { name: "Space Gray", hex: "#4b4a4e", imageUrl: "/images/iphones/iphone-11-pro-space-grey.webp" },
+      { name: "Gold", hex: "#fae7cf", imageUrl: "/images/iphones/iphone-11-pro-gold.webp" },
     ],
   },
   {
@@ -414,12 +433,12 @@ export const IPHONE_CATALOG: IphoneModelSpec[] = [
     screen: "6.1\"",
     capacities: ["64GB", "128GB", "256GB"],
     colors: [
-      { name: "Purple", hex: "#d1c4e9", imageUrl: "/images/iphones/iphone-11-purple.png" },
-      { name: "Yellow", hex: "#fff59d", imageUrl: "/images/iphones/iphone-11-yellow.png" },
-      { name: "Green", hex: "#b2dfdb", imageUrl: "/images/iphones/iphone-11-green.png" },
-      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-11-black.png" },
-      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-11-white.png" },
-      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-11-red.png" },
+      { name: "Purple", hex: "#d1c4e9", imageUrl: "/images/iphones/iphone-11-purple.webp" },
+      { name: "Yellow", hex: "#fff59d", imageUrl: "/images/iphones/iphone-11-yellow.webp" },
+      { name: "Green", hex: "#b2dfdb", imageUrl: "/images/iphones/iphone-11-green.webp" },
+      { name: "Black", hex: "#1d1d1f", imageUrl: "/images/iphones/iphone-11-black.webp" },
+      { name: "White", hex: "#f7f7f7", imageUrl: "/images/iphones/iphone-11-white.webp" },
+      { name: "Product Red", hex: "#e30016", imageUrl: "/images/iphones/iphone-11-red.webp" },
     ],
   },
 
@@ -743,9 +762,9 @@ export function resolveProductImage(
     !cleanUrl.includes("unsplash.com") &&
     !cleanUrl.includes("placeholder")
   ) {
-    const match = cleanUrl.match(/\/images\/iphones\/[a-zA-Z0-9_-]+\.png/);
+    const match = cleanUrl.match(/\/images\/iphones\/[a-zA-Z0-9_-]+\.(png|webp)/);
     if (match) {
-      return match[0];
+      return resolveIphoneImageUrl(match[0]);
     }
     return cleanUrl;
   }
@@ -772,25 +791,25 @@ export function resolveProductImage(
 
   // Fallbacks elegantes por geração
   if (cleanName.includes("16 pro")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-16-pro-natural-titanium.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-16-pro-natural-titanium.webp");
   }
   if (cleanName.includes("16")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-16-white.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-16-white.webp");
   }
   if (cleanName.includes("15 pro")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-15-pro-natural-titanium.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-15-pro-natural-titanium.webp");
   }
   if (cleanName.includes("15")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-15-blue.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-15-blue.webp");
   }
   if (cleanName.includes("14 pro")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-14-pro-deep-purple.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-14-pro-deep-purple.webp");
   }
   if (cleanName.includes("14")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-14-starlight.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-14-starlight.webp");
   }
   if (cleanName.includes("13")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-13-midnight.png");
+    return resolveIphoneImageUrl("/images/iphones/iphone-13-midnight.webp");
   }
 
   return cleanUrl || "/images/logo.png";

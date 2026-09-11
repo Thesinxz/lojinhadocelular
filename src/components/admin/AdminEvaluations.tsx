@@ -12,6 +12,12 @@ import {
 import { trpc } from "@/providers/trpc";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { safeStorage } from "@/lib/storage";
+import {
+  evaluateDevice,
+  formatBRL,
+  getGradeBadgeConfig,
+  generateAdminWhatsAppResponse,
+} from "@/lib/valuationEngine";
 
 type EvaluationStatus = "pendente" | "atendimento" | "concluido" | "recusado";
 
@@ -165,13 +171,6 @@ export default function AdminEvaluations() {
     }
   }
 
-  function getWhatsAppContactLink(item: LocalEvaluation): string {
-    const digits = item.whatsapp.replace(/\D/g, "");
-    const fullNumber = digits.length <= 11 ? `55${digits}` : digits;
-    const msg = `Olá ${item.name}! Tudo bem? Sou da equipe da Lojinha do Celular.\n\nRecebemos sua solicitação de avaliação do seu *${item.model}* (${item.storage || "Capacidade a confirmar"}, cor ${item.color || "a confirmar"}).\n\nGostaria de dar continuidade para passarmos a pré-proposta de troca ou compra!`;
-    return `https://wa.me/${fullNumber}?text=${encodeURIComponent(msg)}`;
-  }
-
   return (
     <div className="mt-6 space-y-6">
       {/* Contadores e Métricas */}
@@ -304,6 +303,35 @@ export default function AdminEvaluations() {
             const statusStyle =
               STATUS_CONFIG[(item.status as EvaluationStatus) || "pendente"];
 
+            const batteryNum = item.battery
+              ? parseInt(item.battery.replace(/\D/g, ""), 10)
+              : undefined;
+            const valuation = evaluateDevice({
+              model: item.model,
+              storage: item.storage,
+              color: item.color,
+              purchaseLocation: item.purchaseLocation,
+              batteryPercent: isNaN(batteryNum as number) ? undefined : batteryNum,
+              targetModel: item.targetModel,
+              visualCondition: item.visualCondition || item.condition,
+              faceId: item.faceId,
+              screenOriginal: item.screenOriginal,
+              batteryOriginal: item.batteryOriginal,
+              camerasOk: item.camerasOk,
+              audioOk: item.audioOk,
+              chargingPortOk: item.chargingPortOk,
+              openedBefore: item.openedBefore,
+              hasBox: item.hasBox,
+              notes: item.notes,
+            });
+            const gradeConfig = getGradeBadgeConfig(valuation.grade);
+            const whatsAppLink = generateAdminWhatsAppResponse(
+              item.name,
+              item.whatsapp,
+              valuation,
+              item
+            );
+
             return (
               <div
                 key={item.id}
@@ -340,6 +368,13 @@ export default function AdminEvaluations() {
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
                         >
                           {statusStyle.label}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
+                          title={`Pontuação técnica de conservação: ${valuation.score}/100`}
+                        >
+                          <span>{gradeConfig.iconText}</span>
+                          <span>{gradeConfig.label}</span>
                         </span>
                       </div>
 
@@ -434,6 +469,47 @@ export default function AdminEvaluations() {
                         </div>
                       )}
 
+                      {/* Box de Resultado da Pré-Avaliação */}
+                      <div className="mt-3 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/8 to-emerald-500/3 p-3.5 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                              💰 Estimativa de Pré-Avaliação da Loja
+                            </span>
+                            <div className="mt-0.5 font-display text-xl sm:text-2xl font-bold text-emerald-950">
+                              {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
+                            </div>
+                            <p className="text-[11px] text-emerald-800/80 mt-0.5">
+                              {valuation.disclaimer}
+                            </p>
+                          </div>
+
+                          {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
+                            <div className="rounded-xl border border-purple-200/80 bg-purple-50/80 p-2.5 sm:p-3 sm:text-right">
+                              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-purple-800 block">
+                                🎯 Volta Estimada ({valuation.targetModelName})
+                              </span>
+                              <div className="mt-0.5 font-display text-lg sm:text-xl font-bold text-purple-950">
+                                {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {valuation.highlights.length > 0 && (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-emerald-500/15 pt-2 text-[11px]">
+                            {valuation.highlights.map((hl, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center rounded-md bg-white/90 px-2 py-0.5 font-medium text-emerald-950 border border-emerald-500/20 shadow-2xs"
+                              >
+                                {hl}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       {item.notes && (
                         <p className="mt-2 rounded-lg bg-[#f9f9fa] border border-[#f0f0f2] p-2 text-xs text-neutral-600 italic">
                           &ldquo;{item.notes}&rdquo;
@@ -445,7 +521,7 @@ export default function AdminEvaluations() {
                   {/* Ações Rápidas: WhatsApp + Status + Excluir */}
                   <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between gap-2.5 border-t border-[#e5e5e7] sm:border-t-0 pt-3 sm:pt-0">
                     <a
-                      href={getWhatsAppContactLink(item)}
+                      href={whatsAppLink}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition active:scale-[0.98]"

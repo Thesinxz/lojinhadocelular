@@ -20,7 +20,7 @@ export default function Footer() {
   const [isSeoOpen, setIsSeoOpen] = useState(false);
 
   return (
-    <footer className="bg-white border-t border-neutral-200/80 text-neutral-600">
+    <footer id="footer" className="bg-white border-t border-neutral-200/80 text-neutral-600">
       {/* 1. Barra Superior de Benefícios e Confiança (Trust Bar) */}
       <div className="border-b border-neutral-100 bg-[#fafafc] px-4 py-7 sm:px-8">
         <div className="mx-auto max-w-6xl">
@@ -35,7 +35,7 @@ export default function Footer() {
                   Garantia de até 1 Ano
                 </h4>
                 <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
-                  Procedência 100% testada e nota fiscal emitida.
+                  Procedência 100% testada com garantia.
                 </p>
               </div>
             </div>
