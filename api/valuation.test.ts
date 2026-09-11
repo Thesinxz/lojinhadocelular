@@ -24,12 +24,62 @@ describe("valuationEngine", () => {
     expect(result.grade).toBe("A+");
     expect(result.score).toBeGreaterThanOrEqual(90);
     expect(result.loyaltyBonusApplied).toBe(true);
-    expect(result.minEstimatedValue).toBeGreaterThanOrEqual(5800);
+    expect(result.minEstimatedValue).toBeGreaterThanOrEqual(4500);
     expect(result.maxEstimatedValue).toBeGreaterThan(result.minEstimatedValue);
     expect(result.targetModelName).toBe("iPhone 17 Pro Max");
     expect(result.minTradeDelta).toBeDefined();
     expect(result.maxTradeDelta).toBeDefined();
     expect(result.highlights).toContain("✨ Bônus Fidelidade Lojinha do Celular (+5% na avaliação)");
+  });
+
+  it("calcula com exatidão os preços da nova matriz oficial fornecida pelo lojista", () => {
+    // iPhone 13 128GB e 256GB
+    const r13_128 = evaluateDevice({
+      model: "iPhone 13",
+      storage: "128GB",
+      color: "Blue",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r13_128.basePrice).toBe(1450);
+    expect(r13_128.minEstimatedValue).toBeLessThanOrEqual(1500);
+    expect(r13_128.maxEstimatedValue).toBeGreaterThanOrEqual(1400);
+
+    const r13_256 = evaluateDevice({
+      model: "iPhone 13",
+      storage: "256GB",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r13_256.basePrice).toBe(1550);
+
+    // iPhone 16 Pro Max 256GB
+    const r16pm_256 = evaluateDevice({
+      model: "iPhone 16 Pro Max",
+      storage: "256GB",
+      color: "Desert Titanium",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r16pm_256.basePrice).toBe(4100);
+
+    // iPhone 14 Pro Max 1TB
+    const r14pm_1tb = evaluateDevice({
+      model: "iPhone 14 Pro Max",
+      storage: "1TB",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(r14pm_1tb.basePrice).toBe(3000);
+
+    // iPhone XS Max 256GB
+    const rxs = evaluateDevice({
+      model: "iPhone XS Max",
+      storage: "256GB",
+      visualCondition: "Parece novo, sem marcas",
+      batteryPercent: 95,
+    });
+    expect(rxs.basePrice).toBe(900);
   });
 
   it("penalizes heavily damaged devices with cracked screens", () => {

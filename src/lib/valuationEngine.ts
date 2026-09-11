@@ -57,51 +57,124 @@ export interface ValuationResult {
   disclaimer: string;
 }
 
-// Preços de referência de mercado para compra/troca técnica (valores base para 128GB Grau A)
+// Tabela de referência completa enviada pelo lojista (55 itens com modelo, capacidade, cor e valores em USD e BRL)
+export interface IphoneReferencePrice {
+  model: string;
+  capacity: string;
+  color: string;
+  priceUsd: number;
+  priceBrl: number;
+}
+
+export const IPHONE_REFERENCE_PRICES: IphoneReferencePrice[] = [
+  { model: "iPhone 13", capacity: "128GB", color: "Blue", priceUsd: 290.0, priceBrl: 1450.0 },
+  { model: "iPhone 13", capacity: "128GB", color: "Starlight", priceUsd: 290.0, priceBrl: 1450.0 },
+  { model: "iPhone 13", capacity: "256GB", color: "Blue", priceUsd: 310.0, priceBrl: 1550.0 },
+  { model: "iPhone 13", capacity: "256GB", color: "Starlight", priceUsd: 310.0, priceBrl: 1550.0 },
+  { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Graphite", priceUsd: 450.0, priceBrl: 2250.0 },
+  { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Silver", priceUsd: 450.0, priceBrl: 2250.0 },
+  { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Gold", priceUsd: 450.0, priceBrl: 2250.0 },
+  { model: "iPhone 13 Pro Max", capacity: "128GB", color: "Sierra Blue", priceUsd: 450.0, priceBrl: 2250.0 },
+  { model: "iPhone 13 Pro Max", capacity: "256GB", color: "Sierra Blue", priceUsd: 480.0, priceBrl: 2400.0 },
+  { model: "iPhone 13 Pro Max", capacity: "256GB", color: "Gold", priceUsd: 480.0, priceBrl: 2400.0 },
+  { model: "iPhone 13 Pro Max", capacity: "256GB", color: "Alpine Green", priceUsd: 480.0, priceBrl: 2400.0 },
+  { model: "iPhone 14", capacity: "128GB", color: "Yellow", priceUsd: 300.0, priceBrl: 1500.0 },
+  { model: "iPhone 14", capacity: "128GB", color: "Starlight", priceUsd: 300.0, priceBrl: 1500.0 },
+  { model: "iPhone 14", capacity: "128GB", color: "Purple", priceUsd: 300.0, priceBrl: 1500.0 },
+  { model: "iPhone 14", capacity: "128GB", color: "Red", priceUsd: 300.0, priceBrl: 1500.0 },
+  { model: "iPhone 14", capacity: "128GB", color: "Midnight", priceUsd: 300.0, priceBrl: 1500.0 },
+  { model: "iPhone 14 Plus", capacity: "128GB", color: "Purple", priceUsd: 320.0, priceBrl: 1600.0 },
+  { model: "iPhone 14 Pro", capacity: "128GB", color: "Space Black", priceUsd: 420.0, priceBrl: 2100.0 },
+  { model: "iPhone 14 Pro", capacity: "128GB", color: "Deep Purple", priceUsd: 420.0, priceBrl: 2100.0 },
+  { model: "iPhone 14 Pro", capacity: "128GB", color: "Silver", priceUsd: 440.0, priceBrl: 2200.0 },
+  { model: "iPhone 14 Pro", capacity: "256GB", color: "Space Black", priceUsd: 450.0, priceBrl: 2250.0 },
+  { model: "iPhone 14 Pro", capacity: "512GB", color: "Gold", priceUsd: 500.0, priceBrl: 2500.0 },
+  { model: "iPhone 14 Pro Max", capacity: "1TB", color: "Gold", priceUsd: 600.0, priceBrl: 3000.0 },
+  { model: "iPhone 14 Pro Max", capacity: "128GB", color: "Deep Purple", priceUsd: 510.0, priceBrl: 2550.0 },
+  { model: "iPhone 14 Pro Max", capacity: "128GB", color: "Gold", priceUsd: 540.0, priceBrl: 2700.0 },
+  { model: "iPhone 14 Pro Max", capacity: "128GB", color: "Silver", priceUsd: 540.0, priceBrl: 2700.0 },
+  { model: "iPhone 14 Pro Max", capacity: "256GB", color: "Silver", priceUsd: 570.0, priceBrl: 2850.0 },
+  { model: "iPhone 14 Pro Max", capacity: "256GB", color: "Gold", priceUsd: 570.0, priceBrl: 2850.0 },
+  { model: "iPhone 14 Pro Max", capacity: "256GB", color: "Deep Purple", priceUsd: 540.0, priceBrl: 2700.0 },
+  { model: "iPhone 14 Pro Max", capacity: "512GB", color: "Silver", priceUsd: 590.0, priceBrl: 2950.0 },
+  { model: "iPhone 15", capacity: "128GB", color: "Yellow", priceUsd: 410.0, priceBrl: 2050.0 },
+  { model: "iPhone 15 Plus", capacity: "128GB", color: "Yellow", priceUsd: 430.0, priceBrl: 2150.0 },
+  { model: "iPhone 15 Pro", capacity: "128GB", color: "Natural Titanium", priceUsd: 530.0, priceBrl: 2650.0 },
+  { model: "iPhone 15 Pro", capacity: "128GB", color: "Blue Titanium", priceUsd: 520.0, priceBrl: 2600.0 },
+  { model: "iPhone 15 Pro", capacity: "128GB", color: "Black Titanium", priceUsd: 520.0, priceBrl: 2600.0 },
+  { model: "iPhone 15 Pro Max", capacity: "1TB", color: "Blue Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 15 Pro Max", capacity: "1TB", color: "Black Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 16", capacity: "128GB", color: "Teal", priceUsd: 580.0, priceBrl: 2900.0 },
+  { model: "iPhone 16", capacity: "128GB", color: "Ultramarine", priceUsd: 580.0, priceBrl: 2900.0 },
+  { model: "iPhone 16", capacity: "128GB", color: "Pink", priceUsd: 580.0, priceBrl: 2900.0 },
+  { model: "iPhone 16 Pro", capacity: "128GB", color: "White Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 16 Pro", capacity: "128GB", color: "Desert Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 16 Pro", capacity: "128GB", color: "Natural Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 16 Pro", capacity: "128GB", color: "Black Titanium", priceUsd: 670.0, priceBrl: 3350.0 },
+  { model: "iPhone 16 Pro Max", capacity: "256GB", color: "Desert Titanium", priceUsd: 820.0, priceBrl: 4100.0 },
+  { model: "iPhone 16 Pro Max", capacity: "256GB", color: "White Titanium", priceUsd: 820.0, priceBrl: 4100.0 },
+  { model: "iPhone 16 Pro Max", capacity: "256GB", color: "Natural Titanium", priceUsd: 820.0, priceBrl: 4100.0 },
+  { model: "iPhone 16 Pro Max", capacity: "512GB", color: "Black Titanium", priceUsd: 860.0, priceBrl: 4300.0 },
+  { model: "iPhone 16 Pro Max", capacity: "512GB", color: "Desert Titanium", priceUsd: 880.0, priceBrl: 4400.0 },
+  { model: "iPhone 16 Pro Max", capacity: "512GB", color: "Natural Titanium", priceUsd: 880.0, priceBrl: 4400.0 },
+  { model: "iPhone 16 Pro Max", capacity: "512GB", color: "White Titanium", priceUsd: 880.0, priceBrl: 4400.0 },
+  { model: "iPhone 17", capacity: "256GB", color: "Sage", priceUsd: 740.0, priceBrl: 3700.0 },
+  { model: "iPhone 17 Pro", capacity: "1TB", color: "Cosmic Orange", priceUsd: 1120.0, priceBrl: 5600.0 },
+  { model: "iPhone Air", capacity: "512GB", color: "Cloud White", priceUsd: 780.0, priceBrl: 3900.0 },
+  { model: "iPhone XS Max", capacity: "256GB", color: "Space Gray", priceUsd: 180.0, priceBrl: 900.0 },
+];
+
+// Preços de referência de mercado para compra/troca técnica (valores base para capacidade padrão/inicial Grau A)
 export const BASE_IPHONE_VALUES: Record<string, number> = {
+  // Linha 17 / Air
+  "iphone 17 pro max": 5800,
+  "iphone 17 pro": 5000,
+  "iphone 17": 3700,
+  "iphone air": 3700,
+
   // Linha 16
-  "iphone 16 pro max": 6400,
-  "iphone 16 pro": 5400,
-  "iphone 16 plus": 4600,
-  "iphone 16": 4100,
-  "iphone 16e": 3400,
+  "iphone 16 pro max": 4100,
+  "iphone 16 pro": 3350,
+  "iphone 16 plus": 3100,
+  "iphone 16": 2900,
+  "iphone 16e": 2500,
 
   // Linha 15
-  "iphone 15 pro max": 4900,
-  "iphone 15 pro": 4200,
-  "iphone 15 plus": 3500,
-  "iphone 15": 3200,
+  "iphone 15 pro max": 3000,
+  "iphone 15 pro": 2600,
+  "iphone 15 plus": 2150,
+  "iphone 15": 2050,
 
   // Linha 14
-  "iphone 14 pro max": 3900,
-  "iphone 14 pro": 3300,
-  "iphone 14 plus": 2700,
-  "iphone 14": 2500,
+  "iphone 14 pro max": 2600,
+  "iphone 14 pro": 2100,
+  "iphone 14 plus": 1600,
+  "iphone 14": 1500,
 
   // Linha 13
-  "iphone 13 pro max": 3000,
-  "iphone 13 pro": 2600,
-  "iphone 13": 2100,
-  "iphone 13 mini": 1800,
+  "iphone 13 pro max": 2250,
+  "iphone 13 pro": 1850,
+  "iphone 13": 1450,
+  "iphone 13 mini": 1250,
 
   // Linha 12
-  "iphone 12 pro max": 2300,
-  "iphone 12 pro": 1900,
-  "iphone 12": 1550,
-  "iphone 12 mini": 1300,
+  "iphone 12 pro max": 1650,
+  "iphone 12 pro": 1400,
+  "iphone 12": 1150,
+  "iphone 12 mini": 950,
 
   // Linha 11
-  "iphone 11 pro max": 1650,
-  "iphone 11 pro": 1400,
-  "iphone 11": 1150,
+  "iphone 11 pro max": 1250,
+  "iphone 11 pro": 1050,
+  "iphone 11": 850,
 
   // Linhas Anteriores
-  "iphone xr": 850,
-  "iphone xs max": 950,
-  "iphone xs": 800,
-  "iphone x": 700,
-  "iphone se (3ª geracao)": 1200,
-  "iphone se (2ª geracao)": 800,
+  "iphone xr": 650,
+  "iphone xs max": 850,
+  "iphone xs": 650,
+  "iphone x": 550,
+  "iphone se (3ª geracao)": 900,
+  "iphone se (2ª geracao)": 600,
 };
 
 // Preços de referência de venda na loja para cálculo da volta (trade-in delta)
@@ -133,25 +206,31 @@ const TARGET_STORE_VALUES: Record<string, number> = {
 };
 
 export const POPULAR_CONFIG_IPHONES: Array<{ id: string; name: string; defaultBasePrice: number }> = [
-  { id: "iphone 16 pro max", name: "iPhone 16 Pro Max", defaultBasePrice: 6400 },
-  { id: "iphone 16 pro", name: "iPhone 16 Pro", defaultBasePrice: 5400 },
-  { id: "iphone 16 plus", name: "iPhone 16 Plus", defaultBasePrice: 4600 },
-  { id: "iphone 16", name: "iPhone 16", defaultBasePrice: 4100 },
-  { id: "iphone 16e", name: "iPhone 16e", defaultBasePrice: 3400 },
-  { id: "iphone 15 pro max", name: "iPhone 15 Pro Max", defaultBasePrice: 4900 },
-  { id: "iphone 15 pro", name: "iPhone 15 Pro", defaultBasePrice: 4200 },
-  { id: "iphone 15 plus", name: "iPhone 15 Plus", defaultBasePrice: 3500 },
-  { id: "iphone 15", name: "iPhone 15", defaultBasePrice: 3200 },
-  { id: "iphone 14 pro max", name: "iPhone 14 Pro Max", defaultBasePrice: 3900 },
-  { id: "iphone 14 pro", name: "iPhone 14 Pro", defaultBasePrice: 3300 },
-  { id: "iphone 14 plus", name: "iPhone 14 Plus", defaultBasePrice: 2700 },
-  { id: "iphone 14", name: "iPhone 14", defaultBasePrice: 2500 },
-  { id: "iphone 13 pro max", name: "iPhone 13 Pro Max", defaultBasePrice: 3000 },
-  { id: "iphone 13 pro", name: "iPhone 13 Pro", defaultBasePrice: 2600 },
-  { id: "iphone 13", name: "iPhone 13", defaultBasePrice: 2100 },
-  { id: "iphone 12 pro max", name: "iPhone 12 Pro Max", defaultBasePrice: 2300 },
-  { id: "iphone 12", name: "iPhone 12", defaultBasePrice: 1550 },
-  { id: "iphone 11", name: "iPhone 11", defaultBasePrice: 1150 },
+  { id: "iphone 17 pro max", name: "iPhone 17 Pro Max", defaultBasePrice: 5800 },
+  { id: "iphone 17 pro", name: "iPhone 17 Pro", defaultBasePrice: 5000 },
+  { id: "iphone 17", name: "iPhone 17", defaultBasePrice: 3700 },
+  { id: "iphone air", name: "iPhone Air", defaultBasePrice: 3700 },
+  { id: "iphone 16 pro max", name: "iPhone 16 Pro Max", defaultBasePrice: 4100 },
+  { id: "iphone 16 pro", name: "iPhone 16 Pro", defaultBasePrice: 3350 },
+  { id: "iphone 16 plus", name: "iPhone 16 Plus", defaultBasePrice: 3100 },
+  { id: "iphone 16", name: "iPhone 16", defaultBasePrice: 2900 },
+  { id: "iphone 16e", name: "iPhone 16e", defaultBasePrice: 2500 },
+  { id: "iphone 15 pro max", name: "iPhone 15 Pro Max", defaultBasePrice: 3000 },
+  { id: "iphone 15 pro", name: "iPhone 15 Pro", defaultBasePrice: 2600 },
+  { id: "iphone 15 plus", name: "iPhone 15 Plus", defaultBasePrice: 2150 },
+  { id: "iphone 15", name: "iPhone 15", defaultBasePrice: 2050 },
+  { id: "iphone 14 pro max", name: "iPhone 14 Pro Max", defaultBasePrice: 2600 },
+  { id: "iphone 14 pro", name: "iPhone 14 Pro", defaultBasePrice: 2100 },
+  { id: "iphone 14 plus", name: "iPhone 14 Plus", defaultBasePrice: 1600 },
+  { id: "iphone 14", name: "iPhone 14", defaultBasePrice: 1500 },
+  { id: "iphone 13 pro max", name: "iPhone 13 Pro Max", defaultBasePrice: 2250 },
+  { id: "iphone 13 pro", name: "iPhone 13 Pro", defaultBasePrice: 1850 },
+  { id: "iphone 13", name: "iPhone 13", defaultBasePrice: 1450 },
+  { id: "iphone 12 pro max", name: "iPhone 12 Pro Max", defaultBasePrice: 1650 },
+  { id: "iphone 12", name: "iPhone 12", defaultBasePrice: 1150 },
+  { id: "iphone 11 pro max", name: "iPhone 11 Pro Max", defaultBasePrice: 1250 },
+  { id: "iphone 11", name: "iPhone 11", defaultBasePrice: 850 },
+  { id: "iphone xs max", name: "iPhone XS Max", defaultBasePrice: 850 },
 ];
 
 export function parseValuationConfig(json?: string | ValuationConfig | null): ValuationConfig {
@@ -203,30 +282,80 @@ function normalizeKey(str?: string): string {
     .trim();
 }
 
-function findBasePrice(modelName: string, customPrices?: Record<string, number>): number {
-  const norm = normalizeKey(modelName);
-  if (!norm) return 2000;
+/**
+ * Busca valor exato na tabela de referência da Lojinha por modelo, capacidade e cor
+ */
+export function findReferenceDevicePrice(
+  modelName: string,
+  capacity?: string,
+  color?: string
+): IphoneReferencePrice | null {
+  const normModel = normalizeKey(modelName);
+  if (!normModel) return null;
 
-  // 1. Verifica primeiro preços customizados configurados pelo lojista no Admin
-  if (customPrices) {
-    // 1.1 Match exato
-    for (const [key, val] of Object.entries(customPrices)) {
-      const normKey = normalizeKey(key);
-      if (val > 0 && norm === normKey) {
-        return val;
+  const normCap = normalizeKey(capacity);
+  const normColor = normalizeKey(color);
+
+  const modelMatches = IPHONE_REFERENCE_PRICES.filter((item) => {
+    const itemModel = normalizeKey(item.model);
+    return normModel === itemModel || normModel.includes(itemModel) || itemModel.includes(normModel);
+  });
+
+  if (modelMatches.length === 0) return null;
+
+  if (normCap) {
+    const capMatches = modelMatches.filter((item) => {
+      const itemCap = normalizeKey(item.capacity);
+      return normCap === itemCap || normCap.includes(itemCap) || itemCap.includes(normCap);
+    });
+
+    if (capMatches.length > 0) {
+      if (normColor) {
+        const colorMatch = capMatches.find((item) => {
+          const itemColor = normalizeKey(item.color);
+          return normColor === itemColor || normColor.includes(itemColor) || itemColor.includes(normColor);
+        });
+        if (colorMatch) return colorMatch;
       }
-    }
-    // 1.2 Substring ordenado por maior comprimento
-    const sortedCustom = Object.entries(customPrices).sort(
-      (a, b) => normalizeKey(b[0]).length - normalizeKey(a[0]).length
-    );
-    for (const [key, val] of sortedCustom) {
-      const normKey = normalizeKey(key);
-      if (val > 0 && norm.includes(normKey)) {
-        return val;
-      }
+      return capMatches[0];
     }
   }
+
+  return null;
+}
+
+function getCustomBasePrice(modelName: string, customPrices?: Record<string, number>): number | null {
+  if (!customPrices) return null;
+  const norm = normalizeKey(modelName);
+  if (!norm) return null;
+
+  for (const [key, val] of Object.entries(customPrices)) {
+    const normKey = normalizeKey(key);
+    if (val > 0 && norm === normKey) {
+      return val;
+    }
+  }
+
+  const sortedCustom = Object.entries(customPrices).sort(
+    (a, b) => normalizeKey(b[0]).length - normalizeKey(a[0]).length
+  );
+  for (const [key, val] of sortedCustom) {
+    const normKey = normalizeKey(key);
+    if (val > 0 && norm.includes(normKey)) {
+      return val;
+    }
+  }
+
+  return null;
+}
+
+export function findBasePrice(modelName: string, customPrices?: Record<string, number>): number {
+  const norm = normalizeKey(modelName);
+  if (!norm) return 1500;
+
+  // 1. Verifica primeiro preços customizados configurados pelo lojista no Admin
+  const custom = getCustomBasePrice(modelName, customPrices);
+  if (custom !== null) return custom;
 
   // 2. Match exato nos preços de referência tabelados
   for (const [key, val] of Object.entries(BASE_IPHONE_VALUES)) {
@@ -246,44 +375,48 @@ function findBasePrice(modelName: string, customPrices?: Record<string, number>)
   }
 
   // Fallback inteligente por geração caso seja um modelo escrito de forma livre
-  if (norm.includes("16 pro max")) return 6400;
-  if (norm.includes("16 pro")) return 5400;
-  if (norm.includes("16 plus")) return 4600;
-  if (norm.includes("16")) return 4100;
-  if (norm.includes("15 pro max")) return 4900;
-  if (norm.includes("15 pro")) return 4200;
-  if (norm.includes("15 plus")) return 3500;
-  if (norm.includes("15")) return 3200;
-  if (norm.includes("14 pro max")) return 3900;
-  if (norm.includes("14 pro")) return 3300;
-  if (norm.includes("14 plus")) return 2700;
-  if (norm.includes("14")) return 2500;
-  if (norm.includes("13 pro max")) return 3000;
-  if (norm.includes("13 pro")) return 2600;
-  if (norm.includes("13 mini")) return 1800;
-  if (norm.includes("13")) return 2100;
-  if (norm.includes("12 pro max")) return 2300;
-  if (norm.includes("12 pro")) return 1900;
-  if (norm.includes("12 mini")) return 1300;
-  if (norm.includes("12")) return 1600;
-  if (norm.includes("11 pro max")) return 1650;
-  if (norm.includes("11 pro")) return 1400;
-  if (norm.includes("11")) return 1150;
-  return 2000; // Valor médio default
+  if (norm.includes("17 pro max")) return 5800;
+  if (norm.includes("17 pro")) return 5000;
+  if (norm.includes("17")) return 3700;
+  if (norm.includes("air")) return 3700;
+  if (norm.includes("16 pro max")) return 4100;
+  if (norm.includes("16 pro")) return 3350;
+  if (norm.includes("16 plus")) return 3100;
+  if (norm.includes("16")) return 2900;
+  if (norm.includes("16e")) return 2500;
+  if (norm.includes("15 pro max")) return 3000;
+  if (norm.includes("15 pro")) return 2600;
+  if (norm.includes("15 plus")) return 2150;
+  if (norm.includes("15")) return 2050;
+  if (norm.includes("14 pro max")) return 2600;
+  if (norm.includes("14 pro")) return 2100;
+  if (norm.includes("14 plus")) return 1600;
+  if (norm.includes("14")) return 1500;
+  if (norm.includes("13 pro max")) return 2250;
+  if (norm.includes("13 pro")) return 1850;
+  if (norm.includes("13 mini")) return 1250;
+  if (norm.includes("13")) return 1450;
+  if (norm.includes("12 pro max")) return 1650;
+  if (norm.includes("12 pro")) return 1400;
+  if (norm.includes("12 mini")) return 950;
+  if (norm.includes("12")) return 1150;
+  if (norm.includes("11 pro max")) return 1250;
+  if (norm.includes("11 pro")) return 1050;
+  if (norm.includes("11")) return 850;
+  if (norm.includes("xs max")) return 850;
+  return 1500;
 }
 
 function findTargetPrice(targetModelName: string): number {
   const norm = normalizeKey(targetModelName);
   if (!norm) return 0;
 
-  // 1. Match exato
   for (const [key, val] of Object.entries(TARGET_STORE_VALUES)) {
     if (norm === key) {
       return val;
     }
   }
 
-  // 2. Ordenado por comprimento decrescente
   const sorted = Object.entries(TARGET_STORE_VALUES).sort(
     (a, b) => b[0].length - a[0].length
   );
@@ -297,25 +430,57 @@ function findTargetPrice(targetModelName: string): number {
 
 export function evaluateDevice(input: ValuationInput, config?: ValuationConfig): ValuationResult {
   const cfg = config || DEFAULT_VALUATION_CONFIG;
-  const base = findBasePrice(input.model, cfg.customBasePrices);
   let multiplier = cfg.globalMultiplier ?? 1.0;
   let score = 95;
   const highlights: string[] = [];
 
-  // 1. Armazenamento
-  const storageNorm = (input.storage || "").toLowerCase();
+  // Determinação do valor base e capacidade:
+  // Se o lojista configurou preço customizado no Admin, ele tem prioridade máxima.
+  const customOverride = getCustomBasePrice(input.model, cfg.customBasePrices);
+  const refDevice = !customOverride
+    ? findReferenceDevicePrice(input.model, input.storage, input.color)
+    : null;
+
+  let base: number;
   let storageBonus = 0;
-  if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
-    storageBonus = Math.max(700, Math.round(base * 0.16));
-    highlights.push("Capacidade alta de 1TB (+ valor)");
-  } else if (storageNorm.includes("512")) {
-    storageBonus = Math.max(450, Math.round(base * 0.11));
-    highlights.push("Capacidade 512GB (+ valor)");
-  } else if (storageNorm.includes("256")) {
-    storageBonus = Math.max(200, Math.round(base * 0.05));
-    highlights.push("Capacidade 256GB");
-  } else if (storageNorm.includes("64")) {
-    storageBonus = -Math.round(base * 0.06);
+
+  if (customOverride) {
+    base = customOverride;
+    const storageNorm = (input.storage || "").toLowerCase();
+    if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
+      storageBonus = Math.max(500, Math.round(base * 0.18));
+      highlights.push("Capacidade alta de 1TB (+ valor)");
+    } else if (storageNorm.includes("512")) {
+      storageBonus = Math.max(300, Math.round(base * 0.12));
+      highlights.push("Capacidade 512GB (+ valor)");
+    } else if (storageNorm.includes("256")) {
+      storageBonus = Math.max(100, Math.round(base * 0.06));
+      highlights.push("Capacidade 256GB");
+    } else if (storageNorm.includes("64")) {
+      storageBonus = -Math.max(80, Math.round(base * 0.06));
+    }
+  } else if (refDevice) {
+    // Aparelho bate diretamente com a tabela oficial de compra da loja!
+    base = refDevice.priceBrl;
+    storageBonus = 0;
+    if (refDevice.capacity) {
+      highlights.push(`Capacidade ${refDevice.capacity} (tabela oficial)`);
+    }
+  } else {
+    base = findBasePrice(input.model);
+    const storageNorm = (input.storage || "").toLowerCase();
+    if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
+      storageBonus = Math.max(500, Math.round(base * 0.18));
+      highlights.push("Capacidade alta de 1TB (+ valor)");
+    } else if (storageNorm.includes("512")) {
+      storageBonus = Math.max(300, Math.round(base * 0.12));
+      highlights.push("Capacidade 512GB (+ valor)");
+    } else if (storageNorm.includes("256")) {
+      storageBonus = Math.max(100, Math.round(base * 0.06));
+      highlights.push("Capacidade 256GB");
+    } else if (storageNorm.includes("64")) {
+      storageBonus = -Math.max(80, Math.round(base * 0.06));
+    }
   }
 
   // 2. Condição visual
