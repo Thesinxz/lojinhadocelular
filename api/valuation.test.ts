@@ -59,4 +59,35 @@ describe("valuationEngine", () => {
     expect(getGradeBadgeConfig("B").label).toContain("B");
     expect(getGradeBadgeConfig("C").label).toContain("C");
   });
+
+  it("respects custom valuation configuration and price overrides", () => {
+    const config = {
+      globalMultiplier: 1.1, // +10%
+      loyaltyBonusPercent: 8, // +8%
+      boxBonusReais: 150,
+      minBatteryThreshold: 80,
+      batteryPenaltyUnder80: 25,
+      customBasePrices: {
+        "iphone 15 pro": 5000, // Sobrescreve de 4200 para 5000
+      },
+      disclaimerText: "Aviso customizado para teste",
+    };
+
+    const result = evaluateDevice(
+      {
+        model: "iPhone 15 Pro",
+        storage: "128GB",
+        batteryPercent: 90,
+        purchaseLocation: "Lojinha do Celular",
+        hasBox: "Sim",
+      },
+      config
+    );
+
+    expect(result.basePrice).toBe(5000);
+    expect(result.loyaltyBonusApplied).toBe(true);
+    expect(result.highlights).toContain("✨ Bônus Fidelidade Lojinha do Celular (+8% na avaliação)");
+    expect(result.highlights.some(h => h.includes("Acompanha caixa original"))).toBe(true);
+    expect(result.disclaimer).toBe("Aviso customizado para teste");
+  });
 });

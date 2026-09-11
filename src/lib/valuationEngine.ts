@@ -12,6 +12,11 @@
  * - Diferença (volta estimada) para o iPhone desejado
  */
 
+import {
+  type ValuationConfig,
+  DEFAULT_VALUATION_CONFIG,
+} from "@contracts/types";
+
 export type ValuationGrade = "A+" | "A" | "B" | "C";
 
 export interface ValuationInput {
@@ -53,7 +58,7 @@ export interface ValuationResult {
 }
 
 // Preços de referência de mercado para compra/troca técnica (valores base para 128GB Grau A)
-const BASE_IPHONE_VALUES: Record<string, number> = {
+export const BASE_IPHONE_VALUES: Record<string, number> = {
   // Linha 16
   "iphone 16 pro max": 6400,
   "iphone 16 pro": 5400,
@@ -127,6 +132,67 @@ const TARGET_STORE_VALUES: Record<string, number> = {
   "iphone 11": 1500,
 };
 
+export const POPULAR_CONFIG_IPHONES: Array<{ id: string; name: string; defaultBasePrice: number }> = [
+  { id: "iphone 16 pro max", name: "iPhone 16 Pro Max", defaultBasePrice: 6400 },
+  { id: "iphone 16 pro", name: "iPhone 16 Pro", defaultBasePrice: 5400 },
+  { id: "iphone 16 plus", name: "iPhone 16 Plus", defaultBasePrice: 4600 },
+  { id: "iphone 16", name: "iPhone 16", defaultBasePrice: 4100 },
+  { id: "iphone 16e", name: "iPhone 16e", defaultBasePrice: 3400 },
+  { id: "iphone 15 pro max", name: "iPhone 15 Pro Max", defaultBasePrice: 4900 },
+  { id: "iphone 15 pro", name: "iPhone 15 Pro", defaultBasePrice: 4200 },
+  { id: "iphone 15 plus", name: "iPhone 15 Plus", defaultBasePrice: 3500 },
+  { id: "iphone 15", name: "iPhone 15", defaultBasePrice: 3200 },
+  { id: "iphone 14 pro max", name: "iPhone 14 Pro Max", defaultBasePrice: 3900 },
+  { id: "iphone 14 pro", name: "iPhone 14 Pro", defaultBasePrice: 3300 },
+  { id: "iphone 14 plus", name: "iPhone 14 Plus", defaultBasePrice: 2700 },
+  { id: "iphone 14", name: "iPhone 14", defaultBasePrice: 2500 },
+  { id: "iphone 13 pro max", name: "iPhone 13 Pro Max", defaultBasePrice: 3000 },
+  { id: "iphone 13 pro", name: "iPhone 13 Pro", defaultBasePrice: 2600 },
+  { id: "iphone 13", name: "iPhone 13", defaultBasePrice: 2100 },
+  { id: "iphone 12 pro max", name: "iPhone 12 Pro Max", defaultBasePrice: 2300 },
+  { id: "iphone 12", name: "iPhone 12", defaultBasePrice: 1550 },
+  { id: "iphone 11", name: "iPhone 11", defaultBasePrice: 1150 },
+];
+
+export function parseValuationConfig(json?: string | ValuationConfig | null): ValuationConfig {
+  if (!json) return DEFAULT_VALUATION_CONFIG;
+  try {
+    const parsed = typeof json === "string" ? JSON.parse(json) : json;
+    return {
+      globalMultiplier:
+        typeof parsed.globalMultiplier === "number" && !isNaN(parsed.globalMultiplier)
+          ? parsed.globalMultiplier
+          : DEFAULT_VALUATION_CONFIG.globalMultiplier,
+      loyaltyBonusPercent:
+        typeof parsed.loyaltyBonusPercent === "number" && !isNaN(parsed.loyaltyBonusPercent)
+          ? parsed.loyaltyBonusPercent
+          : DEFAULT_VALUATION_CONFIG.loyaltyBonusPercent,
+      boxBonusReais:
+        typeof parsed.boxBonusReais === "number" && !isNaN(parsed.boxBonusReais)
+          ? parsed.boxBonusReais
+          : DEFAULT_VALUATION_CONFIG.boxBonusReais,
+      minBatteryThreshold:
+        typeof parsed.minBatteryThreshold === "number" && !isNaN(parsed.minBatteryThreshold)
+          ? parsed.minBatteryThreshold
+          : DEFAULT_VALUATION_CONFIG.minBatteryThreshold,
+      batteryPenaltyUnder80:
+        typeof parsed.batteryPenaltyUnder80 === "number" && !isNaN(parsed.batteryPenaltyUnder80)
+          ? parsed.batteryPenaltyUnder80
+          : DEFAULT_VALUATION_CONFIG.batteryPenaltyUnder80,
+      customBasePrices:
+        typeof parsed.customBasePrices === "object" && parsed.customBasePrices
+          ? parsed.customBasePrices
+          : {},
+      disclaimerText:
+        typeof parsed.disclaimerText === "string" && parsed.disclaimerText.trim()
+          ? parsed.disclaimerText
+          : DEFAULT_VALUATION_CONFIG.disclaimerText,
+    };
+  } catch {
+    return DEFAULT_VALUATION_CONFIG;
+  }
+}
+
 function normalizeKey(str?: string): string {
   if (!str) return "";
   return str
@@ -137,8 +203,20 @@ function normalizeKey(str?: string): string {
     .trim();
 }
 
-function findBasePrice(modelName: string): number {
+function findBasePrice(modelName: string, customPrices?: Record<string, number>): number {
   const norm = normalizeKey(modelName);
+
+  // 1. Verifica primeiro se há preço customizado configurado pelo lojista no Admin
+  if (customPrices) {
+    for (const [key, val] of Object.entries(customPrices)) {
+      const normKey = normalizeKey(key);
+      if (val > 0 && (norm.includes(normKey) || normKey.includes(norm))) {
+        return val;
+      }
+    }
+  }
+
+  // 2. Preços tabelados padrão
   for (const [key, val] of Object.entries(BASE_IPHONE_VALUES)) {
     if (norm.includes(key) || key.includes(norm)) {
       return val;
@@ -172,9 +250,10 @@ function findTargetPrice(targetModelName: string): number {
   return 0;
 }
 
-export function evaluateDevice(input: ValuationInput): ValuationResult {
-  const base = findBasePrice(input.model);
-  let multiplier = 1.0;
+export function evaluateDevice(input: ValuationInput, config?: ValuationConfig): ValuationResult {
+  const cfg = config || DEFAULT_VALUATION_CONFIG;
+  const base = findBasePrice(input.model, cfg.customBasePrices);
+  let multiplier = cfg.globalMultiplier ?? 1.0;
   let score = 95;
   const highlights: string[] = [];
 
@@ -215,6 +294,9 @@ export function evaluateDevice(input: ValuationInput): ValuationResult {
   }
 
   // 3. Bateria
+  const batteryThreshold = cfg.minBatteryThreshold ?? 80;
+  const penalty = (cfg.batteryPenaltyUnder80 ?? 18) / 100;
+
   if (input.batteryUnknown) {
     multiplier *= 0.94;
     score -= 5;
@@ -227,13 +309,13 @@ export function evaluateDevice(input: ValuationInput): ValuationResult {
       multiplier *= 0.96;
       score -= 3;
       highlights.push(`Bateria boa (${bat}%)`);
-    } else if (bat >= 80) {
+    } else if (bat >= batteryThreshold) {
       multiplier *= 0.91;
       score -= 8;
     } else {
-      multiplier *= 0.82;
+      multiplier *= Math.max(0.4, 1.0 - penalty);
       score -= 18;
-      highlights.push(`Bateria abaixo de 80% (${bat}%) — requer substituição`);
+      highlights.push(`Bateria abaixo de ${batteryThreshold}% (${bat}%) — requer substituição`);
     }
   }
 
@@ -271,19 +353,23 @@ export function evaluateDevice(input: ValuationInput): ValuationResult {
 
   // 5. Acessórios
   if (input.hasBox === "Sim") {
-    storageBonus += 80;
+    const boxBonus = cfg.boxBonusReais ?? 80;
+    storageBonus += boxBonus;
     score += 3;
-    highlights.push("Acompanha caixa original");
+    highlights.push(`Acompanha caixa original (+${formatBRL(boxBonus)})`);
   }
 
   // 6. Bônus de Fidelidade Lojinha do Celular
   let loyaltyBonusApplied = false;
   const origin = (input.purchaseLocation || "").toLowerCase();
   if (origin.includes("lojinha do celular") || origin.includes("comprado com a nossa equipe")) {
-    multiplier *= 1.05; // +5% bônus de fidelidade na troca
+    const loyaltyMultiplier = 1 + (cfg.loyaltyBonusPercent ?? 5) / 100;
+    multiplier *= loyaltyMultiplier;
     score += 5;
     loyaltyBonusApplied = true;
-    highlights.push("✨ Bônus Fidelidade Lojinha do Celular (+5% na avaliação)");
+    highlights.push(
+      `✨ Bônus Fidelidade Lojinha do Celular (+${cfg.loyaltyBonusPercent ?? 5}% na avaliação)`
+    );
   }
 
   // Limita o score entre 20 e 100
@@ -348,6 +434,8 @@ export function evaluateDevice(input: ValuationInput): ValuationResult {
     loyaltyBonusApplied,
     highlights,
     disclaimer:
+      cfg.disclaimerText ||
+      DEFAULT_VALUATION_CONFIG.disclaimerText ||
       "Pré-avaliação online estimada. O valor exato é confirmado após a conferência física e testes rápidos na Lojinha do Celular.",
   };
 }
@@ -414,7 +502,8 @@ export function generateAdminWhatsAppResponse(
     model: string;
     storage?: string;
     color?: string;
-  }
+  },
+  loyaltyBonusPercent: number = 5
 ): string {
   const digits = whatsapp.replace(/\D/g, "");
   const fullNumber = digits.length <= 11 ? `55${digits}` : digits;
@@ -427,7 +516,7 @@ export function generateAdminWhatsAppResponse(
       : "";
 
   const loyaltyText = valuation.loyaltyBonusApplied
-    ? `\n🎁 *Bônus Fidelidade:* +5% adicional por ser cliente Lojinha do Celular!`
+    ? `\n🎁 *Bônus Fidelidade:* +${loyaltyBonusPercent}% adicional por ser cliente Lojinha do Celular!`
     : "";
 
   const message =

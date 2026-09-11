@@ -1,7 +1,26 @@
 import { useEffect, useState } from "react";
-import { Save, KeyRound, CreditCard, ShieldCheck, Check, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Save,
+  KeyRound,
+  CreditCard,
+  ShieldCheck,
+  Check,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import { trpc } from "@/providers/trpc";
-import { SETTING_KEYS, parseFees } from "@contracts/types";
+import {
+  SETTING_KEYS,
+  parseFees,
+  type ValuationConfig,
+  DEFAULT_VALUATION_CONFIG,
+} from "@contracts/types";
+import {
+  parseValuationConfig,
+  POPULAR_CONFIG_IPHONES,
+  formatBRL,
+} from "@/lib/valuationEngine";
 
 export default function AdminSettings() {
   const utils = trpc.useUtils();
@@ -9,6 +28,10 @@ export default function AdminSettings() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [fees, setFees] = useState<Record<string, string>>({});
   const [heroText, setHeroText] = useState("");
+  const [valuationConfig, setValuationConfig] = useState<ValuationConfig>(
+    DEFAULT_VALUATION_CONFIG
+  );
+  const [modelFilter, setModelFilter] = useState("");
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -45,6 +68,9 @@ export default function AdminSettings() {
           Object.entries(parsed).map(([k, v]) => [k, String(v).replace(".", ",")]),
         ),
       );
+      if (query.data[SETTING_KEYS.valuationConfig]) {
+        setValuationConfig(parseValuationConfig(query.data[SETTING_KEYS.valuationConfig]));
+      }
       try {
         const imgs = JSON.parse(query.data[SETTING_KEYS.heroImages] ?? "[]");
         setHeroText(Array.isArray(imgs) ? imgs.join("\n") : "");
@@ -86,6 +112,254 @@ export default function AdminSettings() {
           <Field label="Link Google Maps Guia Lopes">
             <input value={values[SETTING_KEYS.mapsGll] ?? ""} onChange={set(SETTING_KEYS.mapsGll)} className={inputCls} />
           </Field>
+        </div>
+      </section>
+
+      {/* Motor de Avaliação Inteligente */}
+      <section id="avaliacao" className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e5e7] pb-4">
+          <div>
+            <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[#1d1d1f]">
+              <Sparkles className="h-5 w-5 text-[#0071e3]" /> Motor de Avaliação Inteligente (Troca Fácil)
+            </h3>
+            <p className="mt-1 text-xs text-[#86868b]">
+              Configure o algoritmo de pré-avaliação de iPhones aceitos para compra e troca. Ajuste margens, bônus e preços base.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-500/25">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Algoritmo Ativo
+          </span>
+        </div>
+
+        {/* Parâmetros Globais */}
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Multiplicador Global */}
+          <div className="rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
+            <span className="block text-xs font-semibold text-[#6e6e73]">Multiplicador Geral</span>
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                type="number"
+                step="1"
+                min="50"
+                max="150"
+                value={Math.round((valuationConfig.globalMultiplier ?? 1.0) * 100)}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setValuationConfig((prev) => ({
+                    ...prev,
+                    globalMultiplier: isNaN(val) ? 1.0 : Number((val / 100).toFixed(2)),
+                  }));
+                }}
+                className={inputCls}
+              />
+              <span className="font-bold text-sm text-[#1d1d1f]">%</span>
+            </div>
+            <p className="mt-1.5 text-[11px] text-[#86868b]">
+              100% = padrão. 95% = mais margem para a loja. 105% = avaliação mais alta.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {[90, 95, 100, 105].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() =>
+                    setValuationConfig((prev) => ({
+                      ...prev,
+                      globalMultiplier: pct / 100,
+                    }))
+                  }
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
+                    Math.round(valuationConfig.globalMultiplier * 100) === pct
+                      ? "bg-[#1d1d1f] text-white"
+                      : "bg-[#e5e5e7] text-[#1d1d1f] hover:bg-[#d5d5d7]"
+                  }`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bônus Fidelidade */}
+          <div className="rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
+            <span className="block text-xs font-semibold text-[#6e6e73]">Bônus Fidelidade Lojinha</span>
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="30"
+                value={valuationConfig.loyaltyBonusPercent ?? 5}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setValuationConfig((prev) => ({
+                    ...prev,
+                    loyaltyBonusPercent: isNaN(val) ? 5 : val,
+                  }));
+                }}
+                className={inputCls}
+              />
+              <span className="font-bold text-sm text-[#1d1d1f]">%</span>
+            </div>
+            <p className="mt-1.5 text-[11px] text-[#86868b]">
+              Bônus extra concedido a quem comprou anteriormente na Lojinha do Celular.
+            </p>
+          </div>
+
+          {/* Bônus Caixa Original */}
+          <div className="rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
+            <span className="block text-xs font-semibold text-[#6e6e73]">Bônus por Caixa Original</span>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="font-bold text-sm text-[#6e6e73]">R$</span>
+              <input
+                type="number"
+                step="10"
+                min="0"
+                max="500"
+                value={valuationConfig.boxBonusReais ?? 80}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setValuationConfig((prev) => ({
+                    ...prev,
+                    boxBonusReais: isNaN(val) ? 80 : val,
+                  }));
+                }}
+                className={inputCls}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-[#86868b]">
+              Adicional pago caso o cliente entregue a caixa original do aparelho.
+            </p>
+          </div>
+
+          {/* Desconto de Bateria Degradada */}
+          <div className="rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
+            <span className="block text-xs font-semibold text-[#6e6e73]">Deságio Bateria &lt; 80%</span>
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="50"
+                value={valuationConfig.batteryPenaltyUnder80 ?? 18}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setValuationConfig((prev) => ({
+                    ...prev,
+                    batteryPenaltyUnder80: isNaN(val) ? 18 : val,
+                  }));
+                }}
+                className={inputCls}
+              />
+              <span className="font-bold text-sm text-[#1d1d1f]">%</span>
+            </div>
+            <p className="mt-1.5 text-[11px] text-[#86868b]">
+              Desconto proporcional pelo custo de troca técnica da bateria degradada.
+            </p>
+          </div>
+        </div>
+
+        {/* Disclaimer / Aviso no site */}
+        <div className="mt-4">
+          <Field label="Aviso Legal / Disclaimer exibido ao cliente">
+            <textarea
+              rows={2}
+              value={valuationConfig.disclaimerText ?? ""}
+              onChange={(e) =>
+                setValuationConfig((prev) => ({ ...prev, disclaimerText: e.target.value }))
+              }
+              placeholder="Pré-avaliação online estimada. O valor exato é confirmado após a conferência física e testes rápidos na Lojinha do Celular."
+              className={`${inputCls} resize-none`}
+            />
+          </Field>
+        </div>
+
+        {/* Preços Base dos Modelos Mais Populares */}
+        <div className="mt-6 border-t border-[#e5e5e7] pt-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div>
+              <h4 className="font-display text-sm font-bold text-[#1d1d1f]">
+                Tabela de Preços Base por Modelo (iPhone)
+              </h4>
+              <p className="text-xs text-[#86868b]">
+                Personalize o valor base (128GB Grau A) de cada modelo. Se deixar zerado ou vazio, o valor padrão de mercado é usado.
+              </p>
+            </div>
+            <input
+              type="text"
+              placeholder="Filtrar modelo (ex: 15 Pro)..."
+              value={modelFilter}
+              onChange={(e) => setModelFilter(e.target.value)}
+              className="max-w-xs rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-3 py-1.5 text-xs outline-none focus:border-[#0071e3] focus:bg-white"
+            />
+          </div>
+
+          <div className="max-h-[360px] overflow-y-auto rounded-xl border border-[#e5e5e7] bg-white divide-y divide-[#f0f0f2]">
+            {POPULAR_CONFIG_IPHONES.filter((m) =>
+              m.name.toLowerCase().includes(modelFilter.toLowerCase().trim())
+            ).map((m) => {
+              const currentCustom = valuationConfig.customBasePrices?.[m.id];
+              const hasCustom = typeof currentCustom === "number" && currentCustom > 0;
+              return (
+                <div
+                  key={m.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 hover:bg-[#f9f9fb] transition"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-[#1d1d1f] block">{m.name}</span>
+                    <span className="text-[11px] text-[#86868b]">
+                      Padrão de referência: <strong>{formatBRL(m.defaultBasePrice)}</strong>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-semibold text-[#86868b]">R$</span>
+                      <input
+                        type="number"
+                        step="50"
+                        placeholder={String(m.defaultBasePrice)}
+                        value={hasCustom ? currentCustom : ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          setValuationConfig((prev) => {
+                            const nextPrices = { ...(prev.customBasePrices || {}) };
+                            if (val <= 0 || isNaN(val)) {
+                              delete nextPrices[m.id];
+                            } else {
+                              nextPrices[m.id] = val;
+                            }
+                            return { ...prev, customBasePrices: nextPrices };
+                          });
+                        }}
+                        className={`w-28 rounded-lg border px-2.5 py-1 text-xs font-semibold text-right outline-none transition ${
+                          hasCustom
+                            ? "border-[#0071e3] bg-blue-50/50 text-[#0071e3]"
+                            : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] focus:border-[#0071e3] focus:bg-white"
+                        }`}
+                      />
+                    </div>
+                    {hasCustom && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValuationConfig((prev) => {
+                            const nextPrices = { ...(prev.customBasePrices || {}) };
+                            delete nextPrices[m.id];
+                            return { ...prev, customBasePrices: nextPrices };
+                          })
+                        }
+                        title="Restaurar preço padrão"
+                        className="rounded-lg border border-[#e5e5e7] bg-[#f5f5f7] hover:bg-[#e5e5e7] px-2 py-1 text-[10px] font-medium text-[#6e6e73] transition cursor-pointer"
+                      >
+                        Resetar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -245,6 +519,7 @@ export default function AdminSettings() {
               [SETTING_KEYS.heroImages]: JSON.stringify(
                 heroText.split("\n").map((u) => u.trim()).filter(Boolean),
               ),
+              [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
             },
           });
         }}

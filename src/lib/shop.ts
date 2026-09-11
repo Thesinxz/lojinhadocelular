@@ -35,6 +35,7 @@ export function useShopSettings() {
     warrantyBadgeText:
       s[SETTING_KEYS.warrantyBadgeText] ||
       "Garantia e procedência verificada.",
+    valuationConfig: s[SETTING_KEYS.valuationConfig],
   };
 }
 
@@ -249,3 +250,25 @@ export function sortProducts(
     return priceB - priceA;
   });
 }
+
+/**
+ * Retorna a URL canônica para a vitrine da loja principal.
+ * Se o usuário estiver no subdomínio do Troca Fácil (ex: trocafacil.lojinhadocelular.com),
+ * aponta para o domínio principal (ex: https://lojinhadocelular.com/#vitrine).
+ */
+export function getMainStoreUrl(path: string = "/#vitrine"): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (typeof window === "undefined") {
+    return `https://lojinhadocelular.com${cleanPath}`;
+  }
+  const hostname = window.location.hostname;
+  if (hostname.includes("trocafacil.")) {
+    const mainHost = hostname.replace(/^trocafacil\./, "");
+    return `${window.location.protocol}//${mainHost}${window.location.port ? `:${window.location.port}` : ""}${cleanPath}`;
+  }
+  if (hostname.includes("trocafacil")) {
+    return `https://lojinhadocelular.com${cleanPath}`;
+  }
+  return cleanPath;
+}
+

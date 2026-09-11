@@ -12,7 +12,7 @@ import {
   ChevronDown,
   Lock,
 } from "lucide-react";
-import { useShopSettings, waLink } from "@/lib/shop";
+import { useShopSettings, waLink, getMainStoreUrl } from "@/lib/shop";
 
 export default function Footer() {
   const s = useShopSettings();
@@ -280,12 +280,12 @@ export default function Footer() {
               Departamentos
             </h4>
             <div className="flex flex-col gap-2.5 text-xs">
-              <Link
-                to="/#vitrine"
+              <a
+                href={getMainStoreUrl("/#vitrine")}
                 className="text-neutral-600 hover:text-neutral-950 transition font-medium"
               >
                 Vitrine de Aparelhos
-              </Link>
+              </a>
               <a
                 href="https://trocafacil.lojinhadocelular.com"
                 className="inline-flex items-center gap-1.5 text-neutral-900 font-semibold hover:text-[#0066cc] transition"
@@ -295,12 +295,12 @@ export default function Footer() {
                   Troca Fácil
                 </span>
               </a>
-              <Link
-                to="/#servicos"
+              <a
+                href={getMainStoreUrl("/#servicos")}
                 className="text-neutral-600 hover:text-neutral-950 transition font-medium"
               >
                 Assistência Especializada
-              </Link>
+              </a>
               <Link
                 to="/privacidade"
                 className="text-neutral-500 hover:text-neutral-950 transition"

@@ -317,7 +317,7 @@ export default function Admin() {
       {tab === "config" ? (
         <AdminSettings />
       ) : tab === "avaliacoes" ? (
-        <AdminEvaluations />
+        <AdminEvaluations onOpenConfig={() => setTab("config")} />
       ) : (
         <div className="mt-6">
           {catalogStatusQuery.data?.erpEnabled && (

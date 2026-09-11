@@ -4,18 +4,22 @@ import { Menu, X, ShoppingBag } from "lucide-react";
 import { openWhatsAppModal } from "@/lib/whatsappModal";
 import { WhatsAppIcon } from "./WhatsAppModal";
 import { useCart } from "@/lib/cart";
-
-const NAV = [
-  { to: "/#vitrine", label: "Vitrine" },
-  { to: "https://trocafacil.lojinhadocelular.com", label: "Avaliar Aparelho" },
-  { to: "/#servicos", label: "Assistência" },
-  { to: "/#unidades", label: "Unidades" },
-];
+import { getMainStoreUrl } from "@/lib/shop";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { totalItems, openCart } = useCart();
+
+  const isTrocaFacilDomain =
+    typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
+
+  const navItems = [
+    { to: getMainStoreUrl("/#vitrine"), label: "Vitrine" },
+    { to: "https://trocafacil.lojinhadocelular.com", label: "Avaliar Aparelho" },
+    { to: getMainStoreUrl("/#servicos"), label: "Assistência" },
+    { to: getMainStoreUrl("/#unidades"), label: "Unidades" },
+  ];
 
   const handleNavClick = (to: string) => {
     setOpen(false);
@@ -33,30 +37,52 @@ export default function Header() {
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo & Nome */}
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 transition hover:opacity-90"
-            aria-label="Lojinha do Celular - Início"
-          >
-            <img
-              src="/images/logo-icon.png"
-              alt="Logo Lojinha do Celular"
-              className="h-9 w-auto object-contain"
-            />
-            <div className="leading-tight">
-              <span className="block font-display text-base font-bold text-neutral-900 tracking-tight">
-                Lojinha do Celular
-              </span>
-              <span className="block font-display text-[11px] font-semibold text-neutral-400">
-                iPhones & Smartphones
-              </span>
-            </div>
-          </Link>
+          {isTrocaFacilDomain ? (
+            <a
+              href={getMainStoreUrl("/")}
+              className="flex items-center gap-2.5 transition hover:opacity-90"
+              aria-label="Lojinha do Celular - Início"
+            >
+              <img
+                src="/images/logo-icon.png"
+                alt="Logo Lojinha do Celular"
+                className="h-9 w-auto object-contain"
+              />
+              <div className="leading-tight">
+                <span className="block font-display text-base font-bold text-neutral-900 tracking-tight">
+                  Lojinha do Celular
+                </span>
+                <span className="block font-display text-[11px] font-semibold text-neutral-400">
+                  iPhones & Smartphones
+                </span>
+              </div>
+            </a>
+          ) : (
+            <Link
+              to="/"
+              className="flex items-center gap-2.5 transition hover:opacity-90"
+              aria-label="Lojinha do Celular - Início"
+            >
+              <img
+                src="/images/logo-icon.png"
+                alt="Logo Lojinha do Celular"
+                className="h-9 w-auto object-contain"
+              />
+              <div className="leading-tight">
+                <span className="block font-display text-base font-bold text-neutral-900 tracking-tight">
+                  Lojinha do Celular
+                </span>
+                <span className="block font-display text-[11px] font-semibold text-neutral-400">
+                  iPhones & Smartphones
+                </span>
+              </div>
+            </Link>
+          )}
 
           {/* Desktop Navigation & WhatsApp CTA */}
           <div className="hidden items-center gap-6 md:flex">
             <nav className="flex items-center gap-6">
-              {NAV.map(item =>
+              {navItems.map(item =>
                 item.to.startsWith("http") ? (
                   <a
                     key={item.label}
@@ -146,7 +172,7 @@ export default function Header() {
       {open && (
         <nav className="border-t border-neutral-100 bg-white px-4 py-4 md:hidden shadow-lg animate-in slide-in-from-top-2">
           <div className="flex flex-col gap-1">
-            {NAV.map(item =>
+            {navItems.map(item =>
               item.to.startsWith("http") ? (
                 <a
                   key={item.label}

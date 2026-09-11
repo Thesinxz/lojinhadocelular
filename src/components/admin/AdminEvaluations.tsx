@@ -8,15 +8,18 @@ import {
   Battery,
   ShieldCheck,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { safeStorage } from "@/lib/storage";
+import { SETTING_KEYS } from "@contracts/types";
 import {
   evaluateDevice,
   formatBRL,
   getGradeBadgeConfig,
   generateAdminWhatsAppResponse,
+  parseValuationConfig,
 } from "@/lib/valuationEngine";
 
 type EvaluationStatus = "pendente" | "atendimento" | "concluido" | "recusado";
@@ -94,10 +97,20 @@ function formatDate(val?: string | Date | null): string {
   }
 }
 
-export default function AdminEvaluations() {
+interface AdminEvaluationsProps {
+  onOpenConfig?: () => void;
+}
+
+export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps = {}) {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [search, setSearch] = useState("");
   const utils = trpc.useUtils();
+
+  const settingsQuery = trpc.admin.getSettings.useQuery();
+  const valuationConfig = useMemo(
+    () => parseValuationConfig(settingsQuery.data?.[SETTING_KEYS.valuationConfig]),
+    [settingsQuery.data]
+  );
 
   const query = trpc.admin.evaluations.useQuery(undefined, {
     retry: 1,
@@ -173,6 +186,34 @@ export default function AdminEvaluations() {
 
   return (
     <div className="mt-6 space-y-6">
+      {/* Banner de Status do Motor de Avaliação */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50/90 to-indigo-50/50 p-4 rounded-2xl border border-blue-100 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0071e3] text-white shadow-xs shrink-0">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-display text-sm sm:text-base font-bold text-[#1d1d1f] flex items-center gap-2">
+              Motor de Avaliação Inteligente
+              <span className="rounded-full bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                Ativo
+              </span>
+            </h2>
+            <p className="text-xs text-[#6e6e73]">
+              Multiplicador: <strong>{Math.round((valuationConfig.globalMultiplier ?? 1) * 100)}%</strong> • Bônus Lojinha: <strong>+{valuationConfig.loyaltyBonusPercent}%</strong> • Caixa original: <strong>+{formatBRL(valuationConfig.boxBonusReais)}</strong>
+            </p>
+          </div>
+        </div>
+        {onOpenConfig && (
+          <button
+            onClick={onOpenConfig}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white hover:bg-neutral-50 px-3.5 py-2 text-xs font-semibold text-[#1d1d1f] border border-[#e5e5e7] shadow-2xs transition active:scale-[0.98] cursor-pointer shrink-0"
+          >
+            ⚙️ Configurar Regras
+          </button>
+        )}
+      </div>
+
       {/* Contadores e Métricas */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-[#e5e5e7] bg-white p-4 shadow-2xs">
@@ -306,30 +347,34 @@ export default function AdminEvaluations() {
             const batteryNum = item.battery
               ? parseInt(item.battery.replace(/\D/g, ""), 10)
               : undefined;
-            const valuation = evaluateDevice({
-              model: item.model,
-              storage: item.storage,
-              color: item.color,
-              purchaseLocation: item.purchaseLocation,
-              batteryPercent: isNaN(batteryNum as number) ? undefined : batteryNum,
-              targetModel: item.targetModel,
-              visualCondition: item.visualCondition || item.condition,
-              faceId: item.faceId,
-              screenOriginal: item.screenOriginal,
-              batteryOriginal: item.batteryOriginal,
-              camerasOk: item.camerasOk,
-              audioOk: item.audioOk,
-              chargingPortOk: item.chargingPortOk,
-              openedBefore: item.openedBefore,
-              hasBox: item.hasBox,
-              notes: item.notes,
-            });
+            const valuation = evaluateDevice(
+              {
+                model: item.model,
+                storage: item.storage,
+                color: item.color,
+                purchaseLocation: item.purchaseLocation,
+                batteryPercent: isNaN(batteryNum as number) ? undefined : batteryNum,
+                targetModel: item.targetModel,
+                visualCondition: item.visualCondition || item.condition,
+                faceId: item.faceId,
+                screenOriginal: item.screenOriginal,
+                batteryOriginal: item.batteryOriginal,
+                camerasOk: item.camerasOk,
+                audioOk: item.audioOk,
+                chargingPortOk: item.chargingPortOk,
+                openedBefore: item.openedBefore,
+                hasBox: item.hasBox,
+                notes: item.notes,
+              },
+              valuationConfig
+            );
             const gradeConfig = getGradeBadgeConfig(valuation.grade);
             const whatsAppLink = generateAdminWhatsAppResponse(
               item.name,
               item.whatsapp,
               valuation,
-              item
+              item,
+              valuationConfig.loyaltyBonusPercent ?? 5
             );
 
             return (

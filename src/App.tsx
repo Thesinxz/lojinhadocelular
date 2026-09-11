@@ -9,6 +9,7 @@ import { CartProvider } from "./lib/cart";
 import Home from "./pages/Home";
 import Produto from "./pages/Produto";
 import TradeIn from "./pages/TradeIn";
+import { getMainStoreUrl } from "./lib/shop";
 
 // Carregados sob demanda (não pesam no primeiro carregamento)
 const Admin = lazy(() => import("./pages/Admin"));
@@ -44,6 +45,27 @@ export default function App() {
     location.pathname === "/cookies";
   const isTrocaFacilDomain =
     typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
+
+  // Se estiver no subdomínio do Troca Fácil e tentar acessar vitrine, catálogo ou produto, redireciona para a loja principal
+  useEffect(() => {
+    if (!isTrocaFacilDomain) return;
+
+    const isVitrineIntent =
+      location.hash === "#vitrine" ||
+      location.pathname === "/catalogo" ||
+      location.pathname === "/vitrine" ||
+      location.pathname === "/loja" ||
+      location.pathname.startsWith("/produto/");
+
+    if (isVitrineIntent) {
+      const targetPath =
+        location.pathname === "/catalogo" || location.pathname === "/vitrine" || location.pathname === "/loja"
+          ? "/#vitrine"
+          : `${location.pathname}${location.search}${location.hash}`;
+      window.location.href = getMainStoreUrl(targetPath);
+    }
+  }, [isTrocaFacilDomain, location.pathname, location.hash, location.search]);
+
   const isTradeIn =
     !isAdmin &&
     !isTv &&

@@ -33,6 +33,7 @@ export const SETTING_KEYS = {
   popupEnabled: "popup_enabled", // "1" | "0"
   heroImages: "hero_images", // JSON array de URLs para o carrossel da página inicial
   warrantyBadgeText: "warranty_badge_text", // Mensagem de garantia e procedência na página do produto
+  valuationConfig: "valuation_config", // JSON: Configuração do motor de avaliação inteligente
   adminPassword: "admin_password", // nunca exposta publicamente
 } as const;
 
@@ -61,6 +62,27 @@ export const DEFAULT_FEES: Record<string, number> = {
   "21": 21.79,
 };
 
+export interface ValuationConfig {
+  globalMultiplier: number; // ex: 1.0 = 100%, 0.95 = 95%, 1.05 = 105%
+  loyaltyBonusPercent: number; // ex: 5 = +5%
+  boxBonusReais: number; // ex: 80 = +R$ 80
+  minBatteryThreshold: number; // ex: 80 = 80%
+  batteryPenaltyUnder80: number; // ex: 18 = -18%
+  customBasePrices: Record<string, number>; // ex: {"iphone 16 pro max": 6500, ...}
+  disclaimerText?: string;
+}
+
+export const DEFAULT_VALUATION_CONFIG: ValuationConfig = {
+  globalMultiplier: 1.0,
+  loyaltyBonusPercent: 5,
+  boxBonusReais: 80,
+  minBatteryThreshold: 80,
+  batteryPenaltyUnder80: 18,
+  customBasePrices: {},
+  disclaimerText:
+    "Pré-avaliação online estimada. O valor exato é confirmado após a conferência física e testes rápidos na Lojinha do Celular.",
+};
+
 export const DEFAULT_SETTINGS: Record<string, string> = {
   whatsapp_jardim: "5567992086012",
   whatsapp_gll: "5567998206533",
@@ -79,6 +101,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=900&q=80",
   ]),
   warranty_badge_text: "Garantia e procedência verificada.",
+  valuation_config: JSON.stringify(DEFAULT_VALUATION_CONFIG),
   admin_password: "lojinha123",
 };
 

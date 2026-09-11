@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
-import { Link } from "react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,7 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import SEO from "@/components/SEO";
-import { useShopSettings, waLink } from "@/lib/shop";
+import { useShopSettings, waLink, getMainStoreUrl } from "@/lib/shop";
 import { trpc } from "@/providers/trpc";
 import { safeStorage } from "@/lib/storage";
 import {
@@ -29,7 +28,9 @@ import {
   evaluateDevice,
   formatBRL,
   getGradeBadgeConfig,
+  parseValuationConfig,
 } from "@/lib/valuationEngine";
+import { compressImage, formatFileSize } from "@/lib/imageCompressor";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -88,6 +89,10 @@ interface PhotoSlot {
   required: boolean;
   file?: File;
   previewUrl?: string;
+  originalSize?: number;
+  compressedSize?: number;
+  savingsPercent?: number;
+  isCompressing?: boolean;
 }
 
 const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
@@ -165,8 +170,7 @@ export default function TradeIn() {
 
   const fileInputRefs = useRef<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>({});
 
-  const isTrocaFacilDomain =
-    typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
+  const mainStoreUrl = getMainStoreUrl("/#vitrine");
 
   const detectedModel = useMemo(() => detectIphoneModel(data.model), [data.model]);
 
@@ -192,28 +196,36 @@ export default function TradeIn() {
     return FALLBACK_COLOR_OPTIONS;
   }, [detectedModel]);
 
+  const valuationConfig = useMemo(
+    () => parseValuationConfig(settings.valuationConfig),
+    [settings.valuationConfig]
+  );
+
   const valuation = useMemo(
     () =>
-      evaluateDevice({
-        model: data.model,
-        storage: data.storage,
-        color: data.color,
-        purchaseLocation: data.purchaseLocation,
-        batteryPercent: data.batteryPercent,
-        batteryUnknown: data.batteryUnknown,
-        targetModel: data.targetModel,
-        visualCondition: data.visualCondition,
-        faceId: data.faceId,
-        screenOriginal: data.screenOriginal,
-        batteryOriginal: data.batteryOriginal,
-        camerasOk: data.camerasOk,
-        audioOk: data.audioOk,
-        chargingPortOk: data.chargingPortOk,
-        openedBefore: data.openedBefore,
-        hasBox: data.hasBox,
-        notes: data.notes,
-      }),
-    [data]
+      evaluateDevice(
+        {
+          model: data.model,
+          storage: data.storage,
+          color: data.color,
+          purchaseLocation: data.purchaseLocation,
+          batteryPercent: data.batteryPercent,
+          batteryUnknown: data.batteryUnknown,
+          targetModel: data.targetModel,
+          visualCondition: data.visualCondition,
+          faceId: data.faceId,
+          screenOriginal: data.screenOriginal,
+          batteryOriginal: data.batteryOriginal,
+          camerasOk: data.camerasOk,
+          audioOk: data.audioOk,
+          chargingPortOk: data.chargingPortOk,
+          openedBefore: data.openedBefore,
+          hasBox: data.hasBox,
+          notes: data.notes,
+        },
+        valuationConfig
+      ),
+    [data, valuationConfig]
   );
 
   const gradeConfig = useMemo(() => getGradeBadgeConfig(valuation.grade), [valuation.grade]);
@@ -251,13 +263,66 @@ export default function TradeIn() {
     }, 180);
   }
 
-  function handlePhotoUpload(key: PhotoSlotKey, e: ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoUpload(key: PhotoSlotKey, e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const previewUrl = URL.createObjectURL(file);
+
+    // Reseta o input para permitir selecionar novamente o mesmo arquivo se o usuário quiser
+    e.target.value = "";
+
+    // Marca slot como comprimindo
     setPhotoSlots(prev =>
-      prev.map(slot => (slot.key === key ? { ...slot, file, previewUrl } : slot))
+      prev.map(slot => (slot.key === key ? { ...slot, isCompressing: true } : slot))
     );
+
+    try {
+      const result = await compressImage(file, {
+        maxWidth: 1440,
+        maxHeight: 1440,
+        quality: 0.82,
+        mimeType: "image/webp",
+      });
+
+      setPhotoSlots(prev =>
+        prev.map(slot => {
+          if (slot.key === key) {
+            if (slot.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+            return {
+              ...slot,
+              file: result.file,
+              previewUrl: result.previewUrl,
+              originalSize: result.originalSize,
+              compressedSize: result.compressedSize,
+              savingsPercent: result.savingsPercent,
+              isCompressing: false,
+            };
+          }
+          return slot;
+        })
+      );
+      setError("");
+    } catch (err) {
+      console.error("Falha ao comprimir imagem, usando original:", err);
+      const previewUrl = URL.createObjectURL(file);
+      setPhotoSlots(prev =>
+        prev.map(slot => {
+          if (slot.key === key) {
+            if (slot.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+            return {
+              ...slot,
+              file,
+              previewUrl,
+              originalSize: file.size,
+              compressedSize: file.size,
+              savingsPercent: 0,
+              isCompressing: false,
+            };
+          }
+          return slot;
+        })
+      );
+      setError("");
+    }
   }
 
   function removePhoto(key: PhotoSlotKey) {
@@ -265,7 +330,15 @@ export default function TradeIn() {
       prev.map(slot => {
         if (slot.key === key) {
           if (slot.previewUrl) URL.revokeObjectURL(slot.previewUrl);
-          return { ...slot, file: undefined, previewUrl: undefined };
+          return {
+            ...slot,
+            file: undefined,
+            previewUrl: undefined,
+            originalSize: undefined,
+            compressedSize: undefined,
+            savingsPercent: undefined,
+            isCompressing: false,
+          };
         }
         return slot;
       })
@@ -309,7 +382,14 @@ export default function TradeIn() {
         return false;
       }
     } else if (step === 14) {
-      // Fotos: recomenda frente e traseira, mas permite avançar
+      const frontSlot = photoSlots.find(s => s.key === "front");
+      const backSlot = photoSlots.find(s => s.key === "back");
+      if (!frontSlot?.file || !backSlot?.file) {
+        setError(
+          "As fotos da Frente e da Traseira do seu aparelho são obrigatórias para realizar a pré-avaliação."
+        );
+        return false;
+      }
     }
     return true;
   }
@@ -532,10 +612,16 @@ export default function TradeIn() {
                 setStep(0);
                 setData(INITIAL_EVALUATION);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-300 bg-white px-5 py-3.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-neutral-50 shadow-xs"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-300 bg-white px-5 py-3.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-neutral-50 shadow-xs cursor-pointer"
             >
               <RotateCcw className="h-4 w-4" /> Nova avaliação
             </button>
+            <a
+              href={mainStoreUrl}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-black shadow-sm"
+            >
+              Vitrine da Loja <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
 
           <p className="mt-4 text-[11px] text-[#86868b]">
@@ -579,7 +665,7 @@ export default function TradeIn() {
             </span>
           </div>
           <a
-            href={isTrocaFacilDomain ? "https://lojinhadocelular.com" : "/"}
+            href={mainStoreUrl}
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#86868b] transition hover:text-[#1d1d1f]"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar para loja
@@ -1230,10 +1316,12 @@ export default function TradeIn() {
           {step === 14 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Agora as fotos
+                Fotos do seu aparelho
               </h2>
               <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                Com a frente e a traseira você já pode enviar — as outras aceleram sua pré-avaliação.
+                As fotos da <strong className="text-[#1d1d1f]">Frente</strong> e da{" "}
+                <strong className="text-[#1d1d1f]">Traseira</strong> são obrigatórias para a
+                avaliação. As fotos são otimizadas automaticamente no seu navegador.
               </p>
 
               <div className="mt-5 grid grid-cols-2 gap-2.5">
@@ -1434,12 +1522,12 @@ export default function TradeIn() {
               Política de Cookies
             </a>
             <span>•</span>
-            <Link
-              to="/"
-              className="hover:text-black transition underline underline-offset-2"
+            <a
+              href={mainStoreUrl}
+              className="hover:text-black transition underline underline-offset-2 font-medium"
             >
               Vitrine da Loja
-            </Link>
+            </a>
           </p>
         </footer>
       </div>
@@ -1522,17 +1610,30 @@ function PhotoSlotCard({
       className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all ${
         slot.previewUrl
           ? "border-emerald-500/50 bg-emerald-50/20"
+          : slot.required
+          ? "border-neutral-300 bg-[#fbfbfd] hover:border-[#1d1d1f] hover:bg-white"
           : "border-[#d5d5d7] bg-[#f5f5f7] hover:border-[#1d1d1f] hover:bg-white"
-      } ${fullWidth ? "h-28" : "h-32"} p-2 text-center cursor-pointer`}
+      } ${fullWidth ? "min-h-[116px]" : "min-h-[136px]"} p-2 text-center cursor-pointer`}
       onClick={onTrigger}
     >
-      {slot.previewUrl ? (
-        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl">
+      {slot.isCompressing ? (
+        <div className="flex flex-col items-center justify-center p-3 text-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0071e3] border-t-transparent mb-2" />
+          <span className="text-[11px] font-semibold text-[#1d1d1f]">Otimizando foto...</span>
+          <span className="text-[10px] text-[#86868b]">Reduzindo tamanho</span>
+        </div>
+      ) : slot.previewUrl ? (
+        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl group">
           <img
             src={slot.previewUrl}
             alt={slot.label}
             className="h-full w-full object-cover rounded-xl"
           />
+          {slot.compressedSize && slot.originalSize && slot.originalSize > slot.compressedSize && (
+            <div className="absolute bottom-1 left-1 right-1 bg-black/75 backdrop-blur-xs rounded-md px-1.5 py-0.5 text-[9px] font-medium text-emerald-400 text-center">
+              ✓ Otimizada ({formatFileSize(slot.compressedSize)})
+            </div>
+          )}
           <button
             type="button"
             onClick={e => {
@@ -1552,8 +1653,12 @@ function PhotoSlotCard({
           <span className="mt-2 text-[11px] font-semibold text-[#1d1d1f] leading-tight px-1">
             {slot.label}
           </span>
-          {slot.required && (
-            <span className="text-[10px] font-bold text-[#0071e3] mt-0.5">Essencial</span>
+          {slot.required ? (
+            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded-md mt-1">
+              Obrigatória
+            </span>
+          ) : (
+            <span className="text-[10px] font-medium text-[#86868b] mt-1">Opcional</span>
           )}
         </>
       )}

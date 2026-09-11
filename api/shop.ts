@@ -22,6 +22,7 @@ const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.popupEnabled,
   SETTING_KEYS.heroImages,
   SETTING_KEYS.warrantyBadgeText,
+  SETTING_KEYS.valuationConfig,
 ] as const;
 
 function getProductModelRank(name: string): number {
