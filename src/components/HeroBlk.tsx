@@ -94,20 +94,20 @@ export default function HeroBlk() {
         className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
           isPlaying ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
-        style={{ backgroundImage: "url('/hero-poster.jpg?v=ldc7')" }}
+        style={{ backgroundImage: "url('/hero-poster.jpg?v=ldc8')" }}
         aria-hidden="true"
       />
 
       {/* Vídeo de fundo com streaming HTTP 206 Byte-Ranges nativo */}
       <video
         ref={videoRef}
-        src="/hero.mp4?v=ldc7"
+        src="/hero.mp4?v=ldc8"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
-        poster="/hero-poster.jpg?v=ldc7"
+        poster="/hero-poster.jpg?v=ldc8"
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
 
