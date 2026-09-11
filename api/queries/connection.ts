@@ -96,6 +96,7 @@ export async function ensureTables() {
         battery VARCHAR(60) NOT NULL,
         notes TEXT,
         photos_count INT NOT NULL DEFAULT 0,
+        photos MEDIUMTEXT,
         status ENUM('pendente', 'atendimento', 'concluido', 'recusado') NOT NULL DEFAULT 'pendente',
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_evaluations_status (status),
@@ -103,6 +104,7 @@ export async function ensureTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS photos MEDIUMTEXT`).catch(() => {});
     await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS purchase_location VARCHAR(100) DEFAULT ''`).catch(() => {});
     await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS target_model VARCHAR(120) DEFAULT ''`).catch(() => {});
     await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS face_id VARCHAR(30) DEFAULT ''`).catch(() => {});

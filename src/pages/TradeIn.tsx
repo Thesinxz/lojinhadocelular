@@ -30,7 +30,7 @@ import {
   getGradeBadgeConfig,
   parseValuationConfig,
 } from "@/lib/valuationEngine";
-import { compressImage, formatFileSize } from "@/lib/imageCompressor";
+import { compressImage, fileToDataUrl, formatFileSize } from "@/lib/imageCompressor";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -89,6 +89,7 @@ interface PhotoSlot {
   required: boolean;
   file?: File;
   previewUrl?: string;
+  dataUrl?: string;
   originalSize?: number;
   compressedSize?: number;
   savingsPercent?: number;
@@ -291,6 +292,7 @@ export default function TradeIn() {
               ...slot,
               file: result.file,
               previewUrl: result.previewUrl,
+              dataUrl: result.dataUrl,
               originalSize: result.originalSize,
               compressedSize: result.compressedSize,
               savingsPercent: result.savingsPercent,
@@ -304,6 +306,11 @@ export default function TradeIn() {
     } catch (err) {
       console.error("Falha ao comprimir imagem, usando original:", err);
       const previewUrl = URL.createObjectURL(file);
+      let fallbackDataUrl: string | undefined;
+      try {
+        fallbackDataUrl = await fileToDataUrl(file);
+      } catch {}
+
       setPhotoSlots(prev =>
         prev.map(slot => {
           if (slot.key === key) {
@@ -312,6 +319,7 @@ export default function TradeIn() {
               ...slot,
               file,
               previewUrl,
+              dataUrl: fallbackDataUrl,
               originalSize: file.size,
               compressedSize: file.size,
               savingsPercent: 0,
@@ -334,6 +342,7 @@ export default function TradeIn() {
             ...slot,
             file: undefined,
             previewUrl: undefined,
+            dataUrl: undefined,
             originalSize: undefined,
             compressedSize: undefined,
             savingsPercent: undefined,
@@ -407,8 +416,32 @@ export default function TradeIn() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function submitEvaluation() {
+  async function submitEvaluation() {
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
+
+    // Processa fotos anexadas para envio e armazenamento
+    const photosPayload: { key: string; label: string; url: string; name?: string; size?: number }[] = [];
+    for (const slot of photoSlots) {
+      if (slot.file || slot.dataUrl) {
+        let url = slot.dataUrl;
+        if (!url && slot.file) {
+          try {
+            url = await fileToDataUrl(slot.file);
+          } catch (e) {
+            console.error("Erro ao converter foto:", e);
+          }
+        }
+        if (url) {
+          photosPayload.push({
+            key: slot.key,
+            label: slot.label,
+            url,
+            name: slot.file?.name,
+            size: slot.compressedSize || slot.file?.size,
+          });
+        }
+      }
+    }
 
     const summaryText = [
       "*Solicitação de Avaliação — Lojinha do Celular*",
@@ -439,7 +472,7 @@ export default function TradeIn() {
       `• Possui caixa: ${data.hasBox || "Não informado"}`,
       `• Conservação visual: ${data.visualCondition || "Não informado"}`,
       "",
-      `📸 *Fotos anexadas:* ${filledPhotosCount} de 5 selecionadas`,
+      `📸 *Fotos anexadas:* ${photosPayload.length || filledPhotosCount} de 5 selecionadas`,
       data.notes ? `📝 *Obs:* ${data.notes}` : "",
       "",
       "Enviado pelo site https://lojinhadocelular.com",
@@ -447,7 +480,7 @@ export default function TradeIn() {
       .filter(Boolean)
       .join("\n");
 
-    // 1. Salva no banco de dados via tRPC
+    // 1. Salva no banco de dados via tRPC com fotos
     submitMutation.mutate({
       name: data.name.trim(),
       whatsapp: data.whatsapp.trim(),
@@ -468,19 +501,29 @@ export default function TradeIn() {
       condition: data.visualCondition || "Em análise",
       battery: batteryText,
       notes: data.notes.trim() || undefined,
-      photosCount: filledPhotosCount,
+      photosCount: photosPayload.length || filledPhotosCount,
+      photos: photosPayload,
     });
 
-    // 2. Histórico local de segurança
+    // 2. Histórico local de segurança (preserva fotos para os registros mais recentes)
     try {
       const history = JSON.parse(safeStorage.getItem("lojinha_evaluations_history") || "[]");
-      safeStorage.setItem(
-        "lojinha_evaluations_history",
-        JSON.stringify([
-          { ...data, battery: batteryText, photosCount: filledPhotosCount, date: new Date().toISOString() },
-          ...history.slice(0, 19),
-        ])
-      );
+      const newEntry = {
+        ...data,
+        battery: batteryText,
+        photosCount: photosPayload.length || filledPhotosCount,
+        photos: photosPayload,
+        date: new Date().toISOString(),
+      };
+      // Limita fotos nos registros mais antigos para não estourar a cota de 5MB do localStorage
+      const sanitizedHistory = [newEntry, ...history.slice(0, 9)].map((entry: any, idx: number) => {
+        if (idx >= 3 && entry.photos) {
+          const { photos, ...rest } = entry;
+          return rest;
+        }
+        return entry;
+      });
+      safeStorage.setItem("lojinha_evaluations_history", JSON.stringify(sanitizedHistory));
     } catch {}
 
     // 3. Abre conversa com o atendente

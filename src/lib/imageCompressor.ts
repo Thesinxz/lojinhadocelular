@@ -17,9 +17,19 @@ export interface CompressionOptions {
 export interface CompressionResult {
   file: File;
   previewUrl: string;
+  dataUrl?: string;
   originalSize: number;
   compressedSize: number;
   savingsPercent: number;
+}
+
+export function fileToDataUrl(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function compressImage(
@@ -36,9 +46,14 @@ export async function compressImage(
   // Se o arquivo já for minúsculo (< 60KB), retorna direto
   if (file.size < 60 * 1024) {
     const previewUrl = URL.createObjectURL(file);
+    let dataUrl: string | undefined;
+    try {
+      dataUrl = await fileToDataUrl(file);
+    } catch {}
     return {
       file,
       previewUrl,
+      dataUrl,
       originalSize: file.size,
       compressedSize: file.size,
       savingsPercent: 0,
@@ -73,13 +88,26 @@ export async function compressImage(
       if (!ctx) {
         // Fallback caso canvas 2D falhe
         const fallbackUrl = URL.createObjectURL(file);
-        resolve({
-          file,
-          previewUrl: fallbackUrl,
-          originalSize: file.size,
-          compressedSize: file.size,
-          savingsPercent: 0,
-        });
+        fileToDataUrl(file)
+          .then((dataUrl) => {
+            resolve({
+              file,
+              previewUrl: fallbackUrl,
+              dataUrl,
+              originalSize: file.size,
+              compressedSize: file.size,
+              savingsPercent: 0,
+            });
+          })
+          .catch(() => {
+            resolve({
+              file,
+              previewUrl: fallbackUrl,
+              originalSize: file.size,
+              compressedSize: file.size,
+              savingsPercent: 0,
+            });
+          });
         return;
       }
 
@@ -98,13 +126,26 @@ export async function compressImage(
               (jpegBlob) => {
                 if (!jpegBlob) {
                   const fallbackUrl = URL.createObjectURL(file);
-                  resolve({
-                    file,
-                    previewUrl: fallbackUrl,
-                    originalSize: file.size,
-                    compressedSize: file.size,
-                    savingsPercent: 0,
-                  });
+                  fileToDataUrl(file)
+                    .then((dataUrl) => {
+                      resolve({
+                        file,
+                        previewUrl: fallbackUrl,
+                        dataUrl,
+                        originalSize: file.size,
+                        compressedSize: file.size,
+                        savingsPercent: 0,
+                      });
+                    })
+                    .catch(() => {
+                      resolve({
+                        file,
+                        previewUrl: fallbackUrl,
+                        originalSize: file.size,
+                        compressedSize: file.size,
+                        savingsPercent: 0,
+                      });
+                    });
                   return;
                 }
                 finish(jpegBlob, "image/jpeg", ".jpg");
@@ -129,6 +170,11 @@ export async function compressImage(
         });
 
         const previewUrl = URL.createObjectURL(compressedFile);
+        let dataUrl: string | undefined;
+        try {
+          dataUrl = canvas.toDataURL(type, quality);
+        } catch {}
+
         const originalSize = file.size;
         const compressedSize = compressedFile.size;
         const savingsPercent = Math.max(
@@ -139,6 +185,7 @@ export async function compressImage(
         resolve({
           file: compressedFile,
           previewUrl,
+          dataUrl,
           originalSize,
           compressedSize,
           savingsPercent,

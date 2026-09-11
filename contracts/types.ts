@@ -198,3 +198,11 @@ export function parseFees(json: string | undefined): FeeTable {
   }
   return DEFAULT_FEES;
 }
+
+export interface EvaluationPhotoItem {
+  key: string;
+  label: string;
+  url: string;
+  name?: string;
+  size?: number;
+}

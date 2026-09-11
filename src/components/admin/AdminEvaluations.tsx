@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Smartphone,
   MessageCircle,
@@ -9,11 +9,19 @@ import {
   ShieldCheck,
   CheckCircle2,
   Sparkles,
+  Camera,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { safeStorage } from "@/lib/storage";
-import { SETTING_KEYS } from "@contracts/types";
+import { SETTING_KEYS, type EvaluationPhotoItem } from "@contracts/types";
 import {
   evaluateDevice,
   formatBRL,
@@ -46,8 +54,23 @@ interface LocalEvaluation {
   battery: string;
   notes?: string;
   photosCount?: number;
+  photos?: string | EvaluationPhotoItem[] | null;
   status?: EvaluationStatus;
   createdAt?: string | Date;
+}
+
+function parseEvaluationPhotos(photos: unknown): EvaluationPhotoItem[] {
+  if (!photos) return [];
+  if (Array.isArray(photos)) return photos as EvaluationPhotoItem[];
+  if (typeof photos === "string") {
+    try {
+      const parsed = JSON.parse(photos);
+      if (Array.isArray(parsed)) return parsed as EvaluationPhotoItem[];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 const STATUS_CONFIG: Record<
@@ -123,6 +146,49 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
   const deleteMutation = trpc.admin.deleteEvaluation.useMutation({
     onSuccess: () => utils.admin.evaluations.invalidate(),
   });
+
+  // Estado do Modal Lightbox para visualização e zoom de fotos reais
+  const [activeLightbox, setActiveLightbox] = useState<{
+    photos: EvaluationPhotoItem[];
+    currentIndex: number;
+    modelName: string;
+    clientName: string;
+  } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+
+  const handlePrevPhoto = useCallback(() => {
+    setActiveLightbox((prev) => {
+      if (!prev || prev.photos.length === 0) return null;
+      const nextIdx = (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length;
+      return { ...prev, currentIndex: nextIdx };
+    });
+    setZoomLevel(1);
+  }, []);
+
+  const handleNextPhoto = useCallback(() => {
+    setActiveLightbox((prev) => {
+      if (!prev || prev.photos.length === 0) return null;
+      const nextIdx = (prev.currentIndex + 1) % prev.photos.length;
+      return { ...prev, currentIndex: nextIdx };
+    });
+    setZoomLevel(1);
+  }, []);
+
+  // Atalhos de teclado no lightbox (ESC para fechar, setas para navegar)
+  useEffect(() => {
+    if (!activeLightbox) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setActiveLightbox(null);
+      } else if (e.key === "ArrowLeft") {
+        handlePrevPhoto();
+      } else if (e.key === "ArrowRight") {
+        handleNextPhoto();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeLightbox, handlePrevPhoto, handleNextPhoto]);
 
   // Mescla banco com backup local caso nao haja conexao com MySQL
   const evaluationsList: LocalEvaluation[] = useMemo(() => {
@@ -377,6 +443,9 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
               valuationConfig.loyaltyBonusPercent ?? 5
             );
 
+            const photos = parseEvaluationPhotos(item.photos);
+            const effectivePhotosCount = photos.length || item.photosCount || 0;
+
             return (
               <div
                 key={item.id}
@@ -458,9 +527,10 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                           <ShieldCheck className="h-3.5 w-3.5 text-[#0071e3]" />
                           Estado: <b>{item.visualCondition || item.condition}</b>
                         </span>
-                        {item.photosCount !== undefined && item.photosCount > 0 && (
-                          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">
-                            📸 {item.photosCount} fotos anexadas
+                        {effectivePhotosCount > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">
+                            <Camera className="h-3.5 w-3.5" />
+                            {effectivePhotosCount} fotos {photos.length > 0 ? "anexadas" : "no WhatsApp"}
                           </span>
                         )}
                         <span className="text-[11px] text-[#86868b]">
@@ -512,6 +582,75 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                             </span>
                           )}
                         </div>
+                      )}
+
+                      {/* Galeria de Fotos Reais do Aparelho */}
+                      {photos.length > 0 ? (
+                        <div className="mt-3 rounded-2xl border border-neutral-200/80 bg-[#fbfbfd] p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-[#1d1d1f]">
+                              <Camera className="h-3.5 w-3.5 text-[#0071e3]" />
+                              Fotos do Aparelho ({photos.length})
+                            </span>
+                            <span className="text-[11px] text-[#86868b]">
+                              Clique na foto para ampliar
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                            {photos.map((photo, pIdx) => (
+                              <button
+                                key={pIdx}
+                                type="button"
+                                onClick={() => {
+                                  setActiveLightbox({
+                                    photos,
+                                    currentIndex: pIdx,
+                                    modelName: `${item.model} ${item.storage || ""}`.trim(),
+                                    clientName: item.name,
+                                  });
+                                  setZoomLevel(1);
+                                }}
+                                className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-[#e5e5e7] bg-white shadow-2xs hover:border-[#0071e3] transition-all hover:shadow-md cursor-pointer text-left"
+                                title={`Clique para ampliar: ${photo.label || `Foto ${pIdx + 1}`}`}
+                              >
+                                <img
+                                  src={photo.url}
+                                  alt={photo.label || `Foto ${pIdx + 1}`}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-[#1d1d1f] opacity-0 group-hover:opacity-100 transition-all shadow-sm scale-90 group-hover:scale-100">
+                                    <Eye className="h-4 w-4" />
+                                  </div>
+                                </div>
+                                <span className="absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs text-center shadow-xs">
+                                  {photo.label || `Foto ${pIdx + 1}`}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        effectivePhotosCount > 0 && (
+                          <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 p-2.5 text-xs text-amber-900">
+                            <div className="flex items-center gap-2">
+                              <Camera className="h-4 w-4 text-amber-600 shrink-0" />
+                              <span>
+                                📸 <b>{effectivePhotosCount} fotos</b> foram anexadas pelo cliente nesta proposta (enviadas na conversa do WhatsApp).
+                              </span>
+                            </div>
+                            <a
+                              href={whatsAppLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition w-fit"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              Ver no WhatsApp
+                            </a>
+                          </div>
+                        )
                       )}
 
                       {/* Box de Resultado da Pré-Avaliação */}
@@ -604,6 +743,149 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal Lightbox para Inspeção e Zoom das Fotos Reais do Aparelho */}
+      {activeLightbox && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white animate-fadeIn backdrop-blur-md select-none"
+        >
+          {/* Barra Superior do Visualizador */}
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6 bg-black/40">
+            <div className="flex flex-col min-w-0 pr-4">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-neutral-300 truncate">
+                  {activeLightbox.clientName}
+                </span>
+                <span className="text-neutral-500">•</span>
+                <span className="font-medium text-emerald-400 truncate">
+                  {activeLightbox.modelName}
+                </span>
+              </div>
+              <h3 className="font-display text-sm sm:text-base font-bold text-white truncate">
+                {activeLightbox.photos[activeLightbox.currentIndex]?.label || `Foto ${activeLightbox.currentIndex + 1}`}
+                <span className="ml-2 text-xs font-normal text-neutral-400">
+                  ({activeLightbox.currentIndex + 1} de {activeLightbox.photos.length})
+                </span>
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Controle de Zoom */}
+              <button
+                type="button"
+                onClick={() => setZoomLevel((prev) => (prev >= 2.5 ? 1 : prev + 0.5))}
+                className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition cursor-pointer"
+                title="Ampliar / Reduzir detalhes"
+              >
+                {zoomLevel > 1 ? (
+                  <>
+                    <ZoomOut className="h-3.5 w-3.5" />
+                    <span>{zoomLevel.toFixed(1)}x</span>
+                  </>
+                ) : (
+                  <>
+                    <ZoomIn className="h-3.5 w-3.5" />
+                    <span>Zoom</span>
+                  </>
+                )}
+              </button>
+
+              {/* Abrir original em nova aba */}
+              {activeLightbox.photos[activeLightbox.currentIndex]?.url && (
+                <a
+                  href={activeLightbox.photos[activeLightbox.currentIndex]?.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition cursor-pointer"
+                  title="Abrir foto em alta definição em nova aba"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Nova Aba</span>
+                </a>
+              )}
+
+              {/* Fechar */}
+              <button
+                type="button"
+                onClick={() => setActiveLightbox(null)}
+                className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white hover:bg-red-500/30 hover:border-red-500/50 hover:text-red-200 transition cursor-pointer"
+                title="Fechar visualizador (ESC)"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Área Principal de Exibição da Foto com Navegação */}
+          <div className="relative flex-1 flex items-center justify-center overflow-hidden p-3 sm:p-6">
+            {activeLightbox.photos.length > 1 && (
+              <button
+                type="button"
+                onClick={handlePrevPhoto}
+                className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/60 text-white border border-white/20 hover:bg-black/85 hover:scale-105 transition cursor-pointer backdrop-blur-xs shadow-lg"
+                title="Foto anterior (Seta esquerda)"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+
+            <div
+              className="relative max-h-full max-w-full overflow-auto flex items-center justify-center transition-transform duration-200"
+              style={{ transform: `scale(${zoomLevel})` }}
+            >
+              <img
+                src={activeLightbox.photos[activeLightbox.currentIndex]?.url}
+                alt={activeLightbox.photos[activeLightbox.currentIndex]?.label}
+                className="max-h-[68vh] sm:max-h-[72vh] max-w-full object-contain rounded-xl shadow-2xl border border-white/10"
+              />
+            </div>
+
+            {activeLightbox.photos.length > 1 && (
+              <button
+                type="button"
+                onClick={handleNextPhoto}
+                className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/60 text-white border border-white/20 hover:bg-black/85 hover:scale-105 transition cursor-pointer backdrop-blur-xs shadow-lg"
+                title="Próxima foto (Seta direita)"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Faixa de Miniaturas no Rodapé */}
+          {activeLightbox.photos.length > 1 && (
+            <div className="flex items-center justify-center gap-2.5 border-t border-white/10 bg-black/50 px-4 py-3 overflow-x-auto">
+              {activeLightbox.photos.map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setActiveLightbox((prev) => (prev ? { ...prev, currentIndex: idx } : null));
+                    setZoomLevel(1);
+                  }}
+                  className={`group relative h-12 w-14 sm:h-14 sm:w-16 shrink-0 overflow-hidden rounded-lg border-2 transition cursor-pointer ${
+                    idx === activeLightbox.currentIndex
+                      ? "border-[#0071e3] ring-2 ring-[#0071e3]/50 scale-105"
+                      : "border-white/20 opacity-50 hover:opacity-100"
+                  }`}
+                  title={p.label || `Foto ${idx + 1}`}
+                >
+                  <img
+                    src={p.url}
+                    alt={p.label}
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute bottom-0 inset-x-0 truncate bg-black/75 px-0.5 text-[8px] font-medium text-white text-center">
+                    {p.label.replace("Foto da ", "").replace("Foto do ", "").slice(0, 10)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

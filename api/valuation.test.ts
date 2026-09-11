@@ -90,4 +90,61 @@ describe("valuationEngine", () => {
     expect(result.highlights.some(h => h.includes("Acompanha caixa original"))).toBe(true);
     expect(result.disclaimer).toBe("Aviso customizado para teste");
   });
+
+  it("permite envio de fotos anexadas no endpoint submitEvaluation", async () => {
+    const { appRouter } = await import("./router");
+    const caller = appRouter.createCaller({
+      req: new Request("https://lojinhadocelular.com", {
+        headers: { "x-forwarded-for": "10.0.0.99" },
+      }),
+      resHeaders: new Headers(),
+    });
+
+    const mockPhotos = [
+      {
+        key: "front",
+        label: "Foto da frente",
+        url: "data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAADwAQCdASoBAAEAAQAcJaACdLoB+AA/v39/f39/f39/f39/f39/f39/f39/f39/f39/f38A",
+        name: "frente.webp",
+        size: 1024,
+      },
+      {
+        key: "back",
+        label: "Foto da traseira",
+        url: "data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAADwAQCdASoBAAEAAQAcJaACdLoB+AA/v39/f39/f39/f39/f39/f39/f39/f39/f39/f38A",
+        name: "traseira.webp",
+        size: 1024,
+      },
+      {
+        key: "battery",
+        label: "Foto da saúde da bateria",
+        url: "data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAADwAQCdASoBAAEAAQAcJaACdLoB+AA/v39/f39/f39/f39/f39/f39/f39/f39/f39/f38A",
+        name: "bateria.webp",
+        size: 1024,
+      },
+      {
+        key: "screen",
+        label: "Foto da tela ligada",
+        url: "data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAADwAQCdASoBAAEAAQAcJaACdLoB+AA/v39/f39/f39/f39/f39/f39/f39/f39/f39/f38A",
+        name: "tela.webp",
+        size: 1024,
+      },
+    ];
+
+    const res = await caller.shop.submitEvaluation({
+      name: "Cliente Teste Fotos",
+      whatsapp: "67992086012",
+      model: "iPhone 14",
+      storage: "128GB",
+      color: "Azul",
+      purchaseLocation: "Lojinha do Celular",
+      condition: "Pouquíssimas marcas de uso",
+      battery: "88%",
+      photos: mockPhotos,
+      photosCount: 4,
+    });
+
+    expect(res.ok).toBe(true);
+  });
 });
+

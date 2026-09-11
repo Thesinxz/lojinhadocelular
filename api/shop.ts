@@ -339,6 +339,18 @@ export const shopRouter = createRouter({
         battery: z.string().min(1).max(60),
         notes: z.string().max(1000).optional().default(""),
         photosCount: z.number().int().min(0).max(50).optional().default(0),
+        photos: z
+          .array(
+            z.object({
+              key: z.string().max(40),
+              label: z.string().max(80),
+              url: z.string().max(10_000_000),
+              name: z.string().max(120).optional(),
+              size: z.number().optional(),
+            }),
+          )
+          .optional()
+          .default([]),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -353,6 +365,15 @@ export const shopRouter = createRouter({
       try {
         const db = getDb();
         await ensureTables();
+        const photosCount =
+          input.photos && input.photos.length > 0
+            ? input.photos.length
+            : (input.photosCount ?? 0);
+        const photosJson =
+          input.photos && input.photos.length > 0
+            ? JSON.stringify(input.photos)
+            : null;
+
         const res = await db.insert(evaluations).values({
           name: input.name.trim(),
           whatsapp: input.whatsapp.trim(),
@@ -373,7 +394,8 @@ export const shopRouter = createRouter({
           condition: input.condition.trim(),
           battery: input.battery.trim(),
           notes: (input.notes || "").trim() || null,
-          photosCount: input.photosCount ?? 0,
+          photosCount,
+          photos: photosJson,
           status: "pendente",
         });
         return { ok: true, id: Number(res[0]?.insertId ?? 0) };
