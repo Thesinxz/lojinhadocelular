@@ -61,9 +61,10 @@ O componente principal a ser modificado é:
     - Política de Cookies (`/privacidade#cookies`)
 
 ### 2.3 Barra de Pagamentos & Segurança
-- **Container:** `border-t border-neutral-100 bg-[#fafafc] px-4 py-4`
+- **Container:** `border-t border-neutral-100 bg-[#fafafc] px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4`
 - **Elementos:**
-  - Pílulas minimalistas de pagamento: PIX à vista, Cartão até 12x, Visa, Mastercard, Elo;
+  - Imagem oficial com fundo transparente das bandeiras e Pix: `/images/payment-methods.png` (Visa, Mastercard, Elo, Hipercard, Amex, Diners, Pix);
+  - Texto complementar de facilidade: "Até 12x no cartão de crédito ou desconto no Pix à vista";
   - Selo de segurança: SSL 256-bit Seguro com indicador verde;
   - CNPJ oficial: `61.874.839/0001-43`.
 
