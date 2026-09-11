@@ -118,7 +118,7 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
 
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Catálogo de iPhones &amp; Celulares — Lojinha do Celular");
+    expect(html).toContain("Loja de iPhone &amp; Celulares em Jardim-MS — Catálogo Lojinha do Celular");
     expect(html).toContain("/images/og-banner.png");
   });
 
@@ -156,7 +156,9 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
 
-    expect(html).toContain("Lojinha do Celular — iPhones Importados dos EUA &amp; Assistência");
+    expect(html).toContain("Lojinha do Celular — Loja de Celular, Conserto, iPhones &amp; Assistência Técnica");
+    expect(html).toContain("61.874.839/0001-43");
+    expect(html).toContain("(67) 99208-6012");
     expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-banner.png" />');
     expect(html).toContain('<meta property="og:url" content="https://lojinhadocelular.com/" />');
     expect(html).toContain('<link rel="image_src" href="https://lojinhadocelular.com/images/og-banner.png" />');

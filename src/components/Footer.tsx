@@ -207,12 +207,26 @@ export default function Footer() {
               Avaliação de iPhone (Troca Fácil)
             </Link>
           </div>
-          <p className="font-medium text-neutral-600">
-            © {new Date().getFullYear()} Lojinha do Celular. Todos os direitos reservados. CNPJ: 43.120.914/0001-45.
+          <p className="font-semibold text-neutral-700">
+            © {new Date().getFullYear()} Lojinha do Celular. Todos os direitos reservados. CNPJ: 61.874.839/0001-43 • Telefone: (67) 99208-6012.
           </p>
-          <p className="mx-auto mt-2 max-w-3xl text-[11px] leading-relaxed text-neutral-400">
-            Garantia, nota fiscal e procedência verificada. Entrega rápida em Jardim-MS, Guia Lopes da Laguna e região.
+          <p className="mx-auto mt-1 max-w-3xl text-[11px] leading-relaxed text-neutral-500">
+            Garantia de até 1 ano, nota fiscal e procedência verificada. Atendimento presencial em Jardim-MS e Guia Lopes da Laguna-MS.
           </p>
+
+          {/* SEO Local & Marcas em Destaque para Ranqueamento no Google */}
+          <div className="mx-auto mt-4 max-w-4xl border-t border-neutral-100/80 pt-4 text-[11px] leading-relaxed text-neutral-400">
+            <p className="font-semibold text-neutral-600 mb-1">
+              Loja de Celular, Loja de Conserto e Assistência Técnica Especializada em Jardim e Região
+            </p>
+            <p className="text-neutral-400">
+              <b>Aparelhos:</b> iPhone Lacrado, iPhone Seminovo, Celulares Xiaomi, Redmi, POCO, Samsung Galaxy, Realme, iPad e Apple Watch.
+              <br />
+              <b>Loja de Conserto & Assistência Técnica:</b> Troca de tela na hora, troca de bateria, reparo em placa, conector de carga e manutenção de celulares.
+              <br />
+              <b>Acessórios de Celular:</b> Carregador original, cabos USB-C e Lightning homologados, películas 3D e capas de alta proteção.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

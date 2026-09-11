@@ -145,9 +145,9 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     "lojinhadocelular.com";
   const origin = `${proto}://${host}`;
 
-  let title = "Lojinha do Celular — iPhones Importados dos EUA & Assistência";
+  let title = "Lojinha do Celular — Loja de Celular, Conserto, iPhones & Assistência Técnica";
   let desc =
-    "iPhones lacrados e seminovos com até 1 ano de garantia. As melhores ofertas em celulares e assistência técnica especializada em Jardim-MS e Guia Lopes da Laguna.";
+    "Loja de celular e assistência técnica de celular em Jardim e Guia Lopes da Laguna - MS. Venda de iPhone (lacrados e seminovos com até 1 ano de garantia), Android (Xiaomi, Redmi, POCO, Samsung, Realme, iPad) e Acessórios. Conserto de celular com troca de tela e bateria na hora. CNPJ: 61.874.839/0001-43. WhatsApp: (67) 99208-6012.";
   let img = `${origin}/images/og-banner.png`;
   let ogType = "website";
   const currentUrl =
@@ -155,9 +155,9 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
 
   // ROTA DO CATÁLOGO (/catalogo)
   if (pathname.startsWith("/catalogo")) {
-    title = "Catálogo de iPhones & Celulares — Lojinha do Celular";
+    title = "Loja de iPhone & Celulares em Jardim-MS — Catálogo Lojinha do Celular";
     desc =
-      "Confira iPhones lacrados e seminovos dos EUA com até 1 ano de garantia, bateria revisada e pronta entrega em Jardim e Guia Lopes da Laguna. Compre direto pelo WhatsApp!";
+      "Confira nossa loja de celular com iPhones lacrados e seminovos com até 1 ano de garantia, Xiaomi, Redmi, POCO, Samsung, Realme, iPad e acessórios com pronta entrega em Jardim e Guia Lopes da Laguna. Fale no WhatsApp (67) 99208-6012!";
     img = `${origin}/images/og-banner.png`;
   }
   // ROTA DE AVALIAÇÃO / TROCA FÁCIL
@@ -166,9 +166,9 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     pathname.startsWith("/troca") ||
     host.includes("trocafacil")
   ) {
-    title = "Troca Fácil de iPhone — Lojinha do Celular";
+    title = "Avaliação e Troca de Celular — Troca Fácil Lojinha do Celular";
     desc =
-      "Venda ou troque seu iPhone com segurança. Receba uma pré-avaliação rápida da equipe Lojinha do Celular em Jardim-MS.";
+      "Venda ou troque seu celular e iPhone usado com segurança e melhor avaliação de mercado. Use como desconto na compra do seu novo aparelho na Lojinha do Celular em Jardim-MS. WhatsApp: (67) 99208-6012.";
     img = `${origin}/images/og-banner.png`;
   }
   // ROTA DE PRIVACIDADE, TERMOS E LGPD

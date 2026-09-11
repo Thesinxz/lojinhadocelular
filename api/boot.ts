@@ -175,42 +175,59 @@ Sitemap: ${origin}/sitemap.xml
 app.get("/sitemap.xml", async c => {
   const origin = new URL(c.req.url).origin;
   try {
-    const { getDb } = await import("./queries/connection");
-    const db = getDb();
-    const allProducts = await db.query.products.findMany({
-      where: (p, { eq }) => eq(p.active, true),
-    });
-
     const staticPaths = [
-      "",
-      "/catalogo",
-      "/avaliacao",
-      "/lacrados",
-      "/seminovos",
-      "/reparos",
-      "/lojas",
-      "/privacidade",
-      "/termos",
+      { path: "", priority: "1.0", freq: "daily" },
+      { path: "/catalogo", priority: "0.9", freq: "daily" },
+      { path: "/avaliacao", priority: "0.9", freq: "weekly" },
+      { path: "/privacidade", priority: "0.5", freq: "monthly" },
+      { path: "/termos", priority: "0.5", freq: "monthly" },
     ];
+
+    let productUrls: { loc: string; lastmod?: string }[] = [];
+
+    if (env.erpCatalogEnabled) {
+      const { getErpCatalog } = await import("./erp/service");
+      const catalog = await getErpCatalog();
+      if (catalog.status === "ok") {
+        productUrls = catalog.products
+          .filter(p => p.active !== false)
+          .map(p => ({
+            loc: `${origin}/produto/${p.id || p.externalId}`,
+            lastmod: new Date().toISOString().split("T")[0],
+          }));
+      }
+    }
+
+    if (productUrls.length === 0) {
+      const { getDb } = await import("./queries/connection");
+      const db = getDb();
+      const allProducts = await db.query.products.findMany({
+        where: (p, { eq }) => eq(p.active, true),
+      });
+      productUrls = allProducts.map(p => ({
+        loc: `${origin}/produto/${p.id}`,
+        lastmod: new Date(p.createdAt).toISOString().split("T")[0],
+      }));
+    }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${staticPaths
   .map(
     p => `  <url>
-    <loc>${origin}${p}</loc>
-    <changefreq>daily</changefreq>
-    <priority>${p === "" ? "1.0" : "0.8"}</priority>
+    <loc>${origin}${p.path}</loc>
+    <changefreq>${p.freq}</changefreq>
+    <priority>${p.priority}</priority>
   </url>`
   )
   .join("\n")}
-${allProducts
+${productUrls
   .map(
     p => `  <url>
-    <loc>${origin}/produto/${p.id}</loc>
-    <lastmod>${new Date(p.createdAt).toISOString().split("T")[0]}</lastmod>
+    <loc>${p.loc}</loc>
+    ${p.lastmod ? `<lastmod>${p.lastmod}</lastmod>` : ""}
     <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.8</priority>
   </url>`
   )
   .join("\n")}

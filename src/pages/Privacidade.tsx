@@ -168,7 +168,7 @@ export default function Privacidade() {
               </div>
               <p className="text-sm">
                 O presente documento regula os serviços prestados pela <b>Lojinha do Celular</b>, pessoa
-                jurídica de direito privado, inscrita sob o CNPJ <b>43.120.914/0001-45</b>, com unidades
+                jurídica de direito privado, inscrita sob o CNPJ <b>61.874.839/0001-43</b>, com unidades
                 físicas de atendimento situadas em:
               </p>
               <div className="grid sm:grid-cols-2 gap-3 text-xs">

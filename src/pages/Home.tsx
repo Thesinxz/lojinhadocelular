@@ -11,6 +11,9 @@ import {
   WifiOff,
   AlertCircle,
   PackageOpen,
+  ShieldCheck,
+  Zap,
+  Award,
 } from "lucide-react";
 import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
@@ -109,8 +112,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#fbfbfd] text-[#1d1d1f]">
       <SEO
-        title="Lojinha do Celular — Vitrine de iPhones e Celulares em Jardim-MS"
-        description="iPhones lacrados e seminovos com 1 ano de garantia, pronta entrega e assistência técnica especializada em Jardim e Guia Lopes da Laguna."
+        title="Loja de Celular, Conserto, iPhones & Assistência Técnica"
+        description="Loja de celular e assistência técnica especializada em Jardim e Guia Lopes da Laguna - MS. Venda de iPhone (lacrados e seminovos com até 1 ano de garantia), Android (Xiaomi, Redmi, POCO, Samsung, Realme, iPad) e Acessórios. Conserto de celular com troca de tela e bateria na hora. CNPJ: 61.874.839/0001-43. WhatsApp: (67) 99208-6012."
       />
 
       {/* 1. HERO COM VÍDEO E PROVA SOCIAL */}
@@ -451,6 +454,97 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. GUIA LOCAL DE AUTORIDADE & SEO (GOOGLE #1) */}
+      <section className="border-t border-neutral-200/80 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <div className="text-center md:text-left max-w-3xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold text-[#0066cc]">
+              <Award className="h-3.5 w-3.5" /> Referência Regional no Mato Grosso do Sul
+            </span>
+            <h2 className="mt-2.5 font-display text-2xl font-black text-neutral-900 sm:text-3xl tracking-tight">
+              Sua Loja de Celular, Conserto &amp; Assistência Técnica de Confiança
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
+              Atendimento presencial em <b>Jardim-MS</b> e <b>Guia Lopes da Laguna-MS</b>, atendendo também clientes de Bonito, Nioaque, Porto Murtinho e toda a região sudoeste do estado.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Card 1: Loja de iPhone */}
+            <div className="rounded-3xl border border-neutral-200/80 bg-neutral-50/50 p-6 flex flex-col justify-between hover:border-neutral-300 transition shadow-sm">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-neutral-900 text-white mb-4">
+                  <Smartphone className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-neutral-900">
+                  Loja de iPhone (Novos &amp; Seminovos)
+                </h3>
+                <p className="mt-2 text-xs text-neutral-600 leading-relaxed">
+                  iPhones lacrados na caixa e seminovos premium dos EUA com até <b>1 ano de garantia</b>, nota fiscal e bateria verificada. Modelos do iPhone 11 ao iPhone 16 Pro Max com pronta entrega.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-neutral-200/60 text-[11px] font-semibold text-neutral-500">
+                Garantia • Procedência • Troca Fácil
+              </div>
+            </div>
+
+            {/* Card 2: Celulares Android */}
+            <div className="rounded-3xl border border-neutral-200/80 bg-neutral-50/50 p-6 flex flex-col justify-between hover:border-neutral-300 transition shadow-sm">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-neutral-900 text-white mb-4">
+                  <Zap className="h-5 w-5 text-amber-400" />
+                </div>
+                <h3 className="font-display text-base font-bold text-neutral-900">
+                  Android, Xiaomi, Samsung &amp; Realme
+                </h3>
+                <p className="mt-2 text-xs text-neutral-600 leading-relaxed">
+                  Aparelhos novos com o melhor custo-benefício do mercado: <b>Xiaomi</b>, <b>Redmi Note</b>, linha gamer <b>POCO</b>, <b>Samsung Galaxy</b>, <b>Realme</b> e tablets <b>iPad</b> para trabalho e estudo.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-neutral-200/60 text-[11px] font-semibold text-neutral-500">
+                Xiaomi • Samsung • Realme • iPad
+              </div>
+            </div>
+
+            {/* Card 3: Assistência Técnica & Conserto */}
+            <div className="rounded-3xl border border-neutral-200/80 bg-neutral-50/50 p-6 flex flex-col justify-between hover:border-neutral-300 transition shadow-sm">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0066cc] text-white mb-4">
+                  <Wrench className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-neutral-900">
+                  Loja de Conserto &amp; Assistência Técnica
+                </h3>
+                <p className="mt-2 text-xs text-neutral-600 leading-relaxed">
+                  Bancada técnica completa com peças de primeira linha: <b>troca de tela na hora</b>, <b>troca de bateria</b> com selo de saúde, reparo em placa-mãe, conector de carga e restauração de Face ID.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-neutral-200/60 text-[11px] font-semibold text-neutral-500">
+                Reparo na Hora • Peças com Garantia
+              </div>
+            </div>
+
+            {/* Card 4: Acessórios Originais & CNPJ */}
+            <div className="rounded-3xl border border-neutral-200/80 bg-neutral-50/50 p-6 flex flex-col justify-between hover:border-neutral-300 transition shadow-sm">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white mb-4">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-bold text-neutral-900">
+                  Acessórios de Celular &amp; Segurança
+                </h3>
+                <p className="mt-2 text-xs text-neutral-600 leading-relaxed">
+                  Carregadores originais homologados Anatel, cabos USB-C e Lightning reforçados, películas 3D, capinhas anti-impacto e caixas JBL. Empresa formalizada: <b>CNPJ: 61.874.839/0001-43</b>.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-neutral-200/60 text-[11px] font-semibold text-neutral-500">
+                WhatsApp: (67) 99208-6012
+              </div>
+            </div>
           </div>
         </div>
       </section>
