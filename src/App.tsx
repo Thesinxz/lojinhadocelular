@@ -11,9 +11,10 @@ import Produto from "./pages/Produto";
 import TradeIn from "./pages/TradeIn";
 import { getMainStoreUrl } from "./lib/shop";
 
+import TvMode from "./pages/TvMode";
+
 // Carregados sob demanda (não pesam no primeiro carregamento)
 const Admin = lazy(() => import("./pages/Admin"));
-const TvMode = lazy(() => import("./pages/TvMode"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
 
 /** Rola até a âncora (#sobre, #unidades...) após a navegação */
@@ -76,18 +77,10 @@ export default function App() {
 
   if (isTv) {
     return (
-      <Suspense
-        fallback={
-          <div className="flex min-h-[100dvh] items-center justify-center bg-brand font-display text-2xl font-bold text-ink">
-            Carregando...
-          </div>
-        }
-      >
-        <Routes>
-          <Route path="/tv" element={<TvMode />} />
-          <Route path="/tv/*" element={<TvMode />} />
-        </Routes>
-      </Suspense>
+      <Routes>
+        <Route path="/tv" element={<TvMode />} />
+        <Route path="/tv/*" element={<TvMode />} />
+      </Routes>
     );
   }
 
