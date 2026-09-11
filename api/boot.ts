@@ -167,11 +167,26 @@ app.get("/robots.txt", c => {
   const origin = new URL(c.req.url).origin;
   return c.text(`User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/trpc/admin.
+Disallow: /tv
+Disallow: /tv/
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /mockups/
+Allow: /hero
+Allow: /
+
 Sitemap: ${origin}/sitemap.xml
 `);
 });
 
-// SEO: sitemap.xml dinâmico
+// SEO: sitemap.xml dinâmico com suporte a Google Images
 app.get("/sitemap.xml", async c => {
   const origin = new URL(c.req.url).origin;
   try {
@@ -183,7 +198,7 @@ app.get("/sitemap.xml", async c => {
       { path: "/termos", priority: "0.5", freq: "monthly" },
     ];
 
-    let productUrls: { loc: string; lastmod?: string }[] = [];
+    let productUrls: { loc: string; lastmod?: string; title?: string; image?: string }[] = [];
 
     if (env.erpCatalogEnabled) {
       const { getErpCatalog } = await import("./erp/service");
@@ -191,10 +206,18 @@ app.get("/sitemap.xml", async c => {
       if (catalog.status === "ok") {
         productUrls = catalog.products
           .filter(p => p.active !== false)
-          .map(p => ({
-            loc: `${origin}/produto/${p.id || p.externalId}`,
-            lastmod: new Date().toISOString().split("T")[0],
-          }));
+          .map(p => {
+            const rawImg = p.imageUrl || (p.variants && p.variants[0]?.imageUrl);
+            const absoluteImg = rawImg
+              ? (rawImg.startsWith("http") ? rawImg : `${origin}${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
+              : undefined;
+            return {
+              loc: `${origin}/produto/${p.id || p.externalId}`,
+              lastmod: new Date().toISOString().split("T")[0],
+              title: p.name,
+              image: absoluteImg,
+            };
+          });
       }
     }
 
@@ -204,14 +227,34 @@ app.get("/sitemap.xml", async c => {
       const allProducts = await db.query.products.findMany({
         where: (p, { eq }) => eq(p.active, true),
       });
-      productUrls = allProducts.map(p => ({
-        loc: `${origin}/produto/${p.id}`,
-        lastmod: new Date(p.createdAt).toISOString().split("T")[0],
-      }));
+      productUrls = allProducts.map(p => {
+        const rawImg = p.imageUrl;
+        const absoluteImg = rawImg
+          ? (rawImg.startsWith("http") ? rawImg : `${origin}${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
+          : undefined;
+        return {
+          loc: `${origin}/produto/${p.id}`,
+          lastmod: new Date(p.createdAt).toISOString().split("T")[0],
+          title: p.name,
+          image: absoluteImg,
+        };
+      });
     }
 
+    const escapeXml = (unsafe: string) =>
+      unsafe.replace(/[<>&'"]/g, char => {
+        switch (char) {
+          case "<": return "&lt;";
+          case ">": return "&gt;";
+          case "&": return "&amp;";
+          case "'": return "&apos;";
+          case '"': return "&quot;";
+          default: return char;
+        }
+      });
+
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${staticPaths
   .map(
     p => `  <url>
@@ -227,7 +270,13 @@ ${productUrls
     <loc>${p.loc}</loc>
     ${p.lastmod ? `<lastmod>${p.lastmod}</lastmod>` : ""}
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.8</priority>${
+      p.image
+        ? `\n    <image:image>\n      <image:loc>${escapeXml(p.image)}</image:loc>${
+            p.title ? `\n      <image:title>${escapeXml(p.title)} - Lojinha do Celular Jardim MS</image:title>` : ""
+          }\n    </image:image>`
+        : ""
+    }
   </url>`
   )
   .join("\n")}

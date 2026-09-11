@@ -206,4 +206,27 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     const body = await res.json();
     expect(body).toEqual({ error: "Not Found" });
   });
+
+  it("deve retornar robots.txt com regras seguras e sitemap", async () => {
+    const { default: app } = await import("./boot");
+    const res = await app.request("https://lojinhadocelular.com/robots.txt");
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("User-agent: *");
+    expect(text).toContain("Disallow: /admin");
+    expect(text).toContain("User-agent: Googlebot-Image");
+    expect(text).toContain("Sitemap: https://lojinhadocelular.com/sitemap.xml");
+  });
+
+  it("deve retornar sitemap.xml com namespace de imagem e URLs válidas", async () => {
+    const { default: app } = await import("./boot");
+    const res = await app.request("https://lojinhadocelular.com/sitemap.xml");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/xml");
+    const text = await res.text();
+    expect(text).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    expect(text).toContain("<loc>https://lojinhadocelular.com/catalogo</loc>");
+    expect(text).toContain("<image:image>");
+    expect(text).toContain("<image:loc>");
+  });
 });

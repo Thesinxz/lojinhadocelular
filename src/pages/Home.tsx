@@ -89,6 +89,23 @@ export default function Home() {
   );
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("relevancia");
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  const faqJsonLd = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: FAQ_ITEMS.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    }),
+    [],
+  );
 
   const productsQuery = trpc.shop.products.useQuery(undefined, {
     staleTime: 1000 * 30,
@@ -149,6 +166,7 @@ export default function Home() {
       <SEO
         title="Loja de Celular, Conserto, iPhones & Assistência Técnica"
         description="Loja de celular e assistência técnica especializada em Jardim e Guia Lopes da Laguna - MS. Venda de iPhone (lacrados e seminovos com até 1 ano de garantia), Android (Xiaomi, Redmi, POCO, Samsung, Realme, iPad) e Acessórios. Conserto de celular com troca de tela e bateria na hora. CNPJ: 61.874.839/0001-43. WhatsApp: (67) 99208-6012."
+        jsonLd={faqJsonLd}
       />
 
       {/* 1. HERO COM VÍDEO E PROVA SOCIAL */}
@@ -580,6 +598,70 @@ export default function Home() {
                 WhatsApp: (67) 99208-6012
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. PERGUNTAS FREQUENTES (FAQ) & RICH SNIPPETS GOOGLE */}
+      <section className="border-t border-white/10 bg-[#0a0a0a]">
+        <div className="mx-auto max-w-4xl px-4 py-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
+              <HelpCircle className="h-3.5 w-3.5 text-neutral-400" /> Tira-Dúvidas
+            </span>
+            <h2 className="mt-3 font-display text-2xl font-bold text-white sm:text-3xl tracking-tight">
+              Perguntas Frequentes
+            </h2>
+            <p className="mt-2 text-sm text-neutral-400">
+              Tudo o que você precisa saber sobre compra, garantia, conserto e troca na Lojinha do Celular.
+            </p>
+          </div>
+
+          <div className="mt-10 space-y-3">
+            {FAQ_ITEMS.map((item, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-white/10 bg-[#141414] hover:border-white/20 transition-all duration-200 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                    className="flex w-full items-center justify-between p-5 text-left transition hover:bg-white/5 cursor-pointer"
+                    aria-expanded={isOpen}
+                  >
+                    <span className="font-display text-sm sm:text-base font-semibold text-white pr-4">
+                      {item.question}
+                    </span>
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 text-neutral-400 transition-transform duration-200 ${
+                        isOpen ? "rotate-180 text-white" : ""
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-neutral-300 leading-relaxed border-t border-white/10 animate-in fade-in">
+                      {item.answer}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-xs text-neutral-400">
+              Ainda tem alguma dúvida? Fale direto com a nossa equipe no WhatsApp:{" "}
+              <a
+                href={waLink(whatsapp, "Olá! Tenho uma dúvida sobre os aparelhos e serviços da Lojinha do Celular.")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
+              >
+                (67) 99208-6012
+              </a>
+            </p>
           </div>
         </div>
       </section>

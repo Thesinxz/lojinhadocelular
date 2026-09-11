@@ -282,10 +282,9 @@ export default function Produto() {
             itemCondition: isLacrado
               ? "https://schema.org/NewCondition"
               : "https://schema.org/UsedCondition",
-            availability:
-              (selected?.stock ?? product.stock ?? 1) > 0
-                ? "https://schema.org/InStock"
-                : "https://schema.org/OutOfStock",
+            availability: isAvailable
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
             seller: {
               "@type": "LocalBusiness",
               name: "Lojinha do Celular",
