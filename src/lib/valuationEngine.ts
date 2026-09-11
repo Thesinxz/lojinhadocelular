@@ -167,6 +167,40 @@ export const IPHONE_REFERENCE_PRICES: IphoneReferencePrice[] = [
   { model: "iPhone XS Max", capacity: "512GB", color: "Space Gray", priceUsd: 200.0, priceBrl: 1000.0 },
 ];
 
+export const COLOR_SWATCHES: Record<string, string> = {
+  "blue": "#42506e",
+  "starlight": "#f0e9d7",
+  "graphite": "#545351",
+  "silver": "#e2e4e1",
+  "gold": "#fae7cf",
+  "sierra blue": "#9bb7d4",
+  "alpine green": "#475c4d",
+  "yellow": "#f9e58b",
+  "purple": "#b5a7cb",
+  "red": "#e30016",
+  "midnight": "#1b242d",
+  "space black": "#2e2c2e",
+  "deep purple": "#43384d",
+  "natural titanium": "#9c9689",
+  "blue titanium": "#3b444b",
+  "black titanium": "#232426",
+  "white titanium": "#e8e8ea",
+  "desert titanium": "#be9e82",
+  "teal": "#338085",
+  "ultramarine": "#4b68a4",
+  "pink": "#faddd7",
+  "sage": "#9caf88",
+  "cosmic orange": "#ff6f3c",
+  "cloud white": "#f7f7f7",
+  "space gray": "#545351",
+};
+
+export function getDeviceColorHex(colorName?: string): string {
+  if (!colorName) return "#9ca3af";
+  const norm = colorName.toLowerCase().trim();
+  return COLOR_SWATCHES[norm] || "#9ca3af";
+}
+
 // Preços de referência de mercado para compra/troca técnica (valores base para capacidade padrão/inicial Grau A)
 export const BASE_IPHONE_VALUES: Record<string, number> = {
   // Linha 17 / Air
@@ -315,14 +349,30 @@ export function parseValuationConfig(json?: string | ValuationConfig | null): Va
   }
 }
 
-function normalizeKey(str?: string): string {
+export function normalizeKey(str?: string): string {
   if (!str) return "";
   return str
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/[^a-z0-9\s_]/g, "")
     .trim();
+}
+
+/**
+ * Gera a chave única de variação para armazenamento e recuperação de preços personalizados
+ */
+export function getReferenceVariationKey(model: string, capacity?: string, color?: string): string {
+  const normModel = normalizeKey(model);
+  const normCap = normalizeKey(capacity);
+  const normColor = normalizeKey(color);
+  if (normCap && normColor) {
+    return `${normModel}_${normCap}_${normColor}`;
+  }
+  if (normCap) {
+    return `${normModel}_${normCap}`;
+  }
+  return normModel;
 }
 
 /**
@@ -385,29 +435,75 @@ export function findReferenceDevicePrice(
   return null;
 }
 
-function getCustomBasePrice(modelName: string, customPrices?: Record<string, number>): number | null {
-  if (!customPrices) return null;
-  const norm = normalizeKey(modelName);
-  if (!norm) return null;
+export interface CustomPriceMatch {
+  price: number;
+  isSpecificCapacity: boolean;
+}
 
-  for (const [key, val] of Object.entries(customPrices)) {
-    const normKey = normalizeKey(key);
-    if (val > 0 && norm === normKey) {
-      return val;
+export function getCustomBasePriceMatch(
+  modelName: string,
+  customPrices?: Record<string, number>,
+  storage?: string,
+  color?: string
+): CustomPriceMatch | null {
+  if (!customPrices) return null;
+  const normModel = normalizeKey(modelName);
+  if (!normModel) return null;
+
+  const normCap = normalizeKey(storage);
+  const normColor = normalizeKey(color);
+
+  // 1. Chave exata de Modelo + Capacidade + Cor (ex: "iphone 14 pro_128gb_silver")
+  if (normCap && normColor) {
+    const fullKey = `${normModel}_${normCap}_${normColor}`;
+    for (const [key, val] of Object.entries(customPrices)) {
+      if (val > 0 && normalizeKey(key) === fullKey) {
+        return { price: val, isSpecificCapacity: true };
+      }
     }
   }
 
-  const sortedCustom = Object.entries(customPrices).sort(
-    (a, b) => normalizeKey(b[0]).length - normalizeKey(a[0]).length
-  );
+  // 2. Chave de Modelo + Capacidade (ex: "iphone 14 pro_256gb")
+  if (normCap) {
+    const capKey = `${normModel}_${normCap}`;
+    for (const [key, val] of Object.entries(customPrices)) {
+      if (val > 0 && normalizeKey(key) === capKey) {
+        return { price: val, isSpecificCapacity: true };
+      }
+    }
+  }
+
+  // 3. Chave geral por Modelo (ex: "iphone 14 pro")
+  for (const [key, val] of Object.entries(customPrices)) {
+    const kNorm = normalizeKey(key);
+    if (val > 0 && !kNorm.includes("_") && normModel === kNorm) {
+      return { price: val, isSpecificCapacity: false };
+    }
+  }
+
+  // 4. Substring mais específico por Modelo (para entradas livres)
+  const sortedCustom = Object.entries(customPrices)
+    .filter(([key]) => !normalizeKey(key).includes("_"))
+    .sort((a, b) => normalizeKey(b[0]).length - normalizeKey(a[0]).length);
+
   for (const [key, val] of sortedCustom) {
     const normKey = normalizeKey(key);
-    if (val > 0 && norm.includes(normKey)) {
-      return val;
+    if (val > 0 && normModel.includes(normKey)) {
+      return { price: val, isSpecificCapacity: false };
     }
   }
 
   return null;
+}
+
+export function getCustomBasePrice(
+  modelName: string,
+  customPrices?: Record<string, number>,
+  storage?: string,
+  color?: string
+): number | null {
+  const match = getCustomBasePriceMatch(modelName, customPrices, storage, color);
+  return match ? match.price : null;
 }
 
 export function findBasePrice(modelName: string, customPrices?: Record<string, number>): number {
@@ -496,29 +592,43 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   const highlights: string[] = [];
 
   // Determinação do valor base e capacidade:
-  // Se o lojista configurou preço customizado no Admin, ele tem prioridade máxima.
-  const customOverride = getCustomBasePrice(input.model, cfg.customBasePrices);
-  const refDevice = !customOverride
+  // Se o lojista configurou preço customizado no Admin (seja por modelo, capacidade ou cor), ele tem prioridade máxima.
+  const customMatch = getCustomBasePriceMatch(
+    input.model,
+    cfg.customBasePrices,
+    input.storage,
+    input.color
+  );
+  const refDevice = !customMatch
     ? findReferenceDevicePrice(input.model, input.storage, input.color)
     : null;
 
   let base: number;
   let storageBonus = 0;
 
-  if (customOverride) {
-    base = customOverride;
-    const storageNorm = (input.storage || "").toLowerCase();
-    if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
-      storageBonus = Math.max(500, Math.round(base * 0.18));
-      highlights.push("Capacidade alta de 1TB (+ valor)");
-    } else if (storageNorm.includes("512")) {
-      storageBonus = Math.max(300, Math.round(base * 0.12));
-      highlights.push("Capacidade 512GB (+ valor)");
-    } else if (storageNorm.includes("256")) {
-      storageBonus = Math.max(100, Math.round(base * 0.06));
-      highlights.push("Capacidade 256GB");
-    } else if (storageNorm.includes("64")) {
-      storageBonus = -Math.max(80, Math.round(base * 0.06));
+  if (customMatch) {
+    base = customMatch.price;
+    if (customMatch.isSpecificCapacity) {
+      // Preço customizado especificamente para este GB/cor: não soma bônus genérico
+      storageBonus = 0;
+      if (input.storage) {
+        highlights.push(`Capacidade ${input.storage} (personalizada)`);
+      }
+    } else {
+      // Preço customizado no modelo base (128GB Grau A): calcula bônus de armazenamento proporcional
+      const storageNorm = (input.storage || "").toLowerCase();
+      if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
+        storageBonus = Math.max(500, Math.round(base * 0.18));
+        highlights.push("Capacidade alta de 1TB (+ valor)");
+      } else if (storageNorm.includes("512")) {
+        storageBonus = Math.max(300, Math.round(base * 0.12));
+        highlights.push("Capacidade 512GB (+ valor)");
+      } else if (storageNorm.includes("256")) {
+        storageBonus = Math.max(100, Math.round(base * 0.06));
+        highlights.push("Capacidade 256GB");
+      } else if (storageNorm.includes("64")) {
+        storageBonus = -Math.max(80, Math.round(base * 0.06));
+      }
     }
   } else if (refDevice) {
     // Aparelho bate diretamente com a tabela oficial de compra da loja!

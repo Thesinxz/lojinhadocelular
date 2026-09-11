@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { evaluateDevice, formatBRL, getGradeBadgeConfig } from "../src/lib/valuationEngine";
+import {
+  evaluateDevice,
+  formatBRL,
+  getGradeBadgeConfig,
+  getReferenceVariationKey,
+  getCustomBasePriceMatch,
+} from "../src/lib/valuationEngine";
 
 describe("valuationEngine", () => {
   it("evaluates a pristine iPhone 16 Pro Max with 512GB and loyalty bonus as Grade A+", () => {
@@ -233,6 +239,77 @@ describe("valuationEngine", () => {
     });
 
     expect(res.ok).toBe(true);
+  });
+
+  it("permite customização granular por modelo, GB e cor na matriz de preços", () => {
+    // 1. Testa geração de chaves compostas
+    expect(getReferenceVariationKey("iPhone 16 Pro Max", "512GB", "Desert Titanium")).toBe(
+      "iphone 16 pro max_512gb_desert titanium"
+    );
+    expect(getReferenceVariationKey("iPhone 15 Pro", "256GB")).toBe("iphone 15 pro_256gb");
+    expect(getReferenceVariationKey("iPhone 14")).toBe("iphone 14");
+
+    // 2. Testa prioridade de override: cor específica > capacidade > modelo base
+    const customBasePrices = {
+      "iphone 16 pro max": 4000,
+      "iphone 16 pro max_512gb": 4350,
+      "iphone 16 pro max_512gb_desert titanium": 4600,
+    };
+
+    // Caso Desert Titanium 512GB: deve casar na chave mais específica (4600)
+    const matchSpecific = getCustomBasePriceMatch(
+      "iPhone 16 Pro Max",
+      customBasePrices,
+      "512GB",
+      "Desert Titanium"
+    );
+    expect(matchSpecific).not.toBeNull();
+    expect(matchSpecific?.price).toBe(4600);
+    expect(matchSpecific?.isSpecificCapacity).toBe(true);
+
+    // Caso White Titanium 512GB: não tem cor específica, deve casar na chave de capacidade (4350)
+    const matchCap = getCustomBasePriceMatch(
+      "iPhone 16 Pro Max",
+      customBasePrices,
+      "512GB",
+      "White Titanium"
+    );
+    expect(matchCap).not.toBeNull();
+    expect(matchCap?.price).toBe(4350);
+    expect(matchCap?.isSpecificCapacity).toBe(true);
+
+    // Caso 256GB: não tem chave de 256GB, deve casar na chave geral do modelo (4000)
+    const matchModel = getCustomBasePriceMatch(
+      "iPhone 16 Pro Max",
+      customBasePrices,
+      "256GB",
+      "White Titanium"
+    );
+    expect(matchModel).not.toBeNull();
+    expect(matchModel?.price).toBe(4000);
+    expect(matchModel?.isSpecificCapacity).toBe(false);
+
+    // 3. Verifica se evaluateDevice respeita o preço customizado da variação exata
+    const evaluation = evaluateDevice(
+      {
+        model: "iPhone 16 Pro Max",
+        storage: "512GB",
+        color: "Desert Titanium",
+        batteryPercent: 95,
+      },
+      {
+        globalMultiplier: 1.0,
+        loyaltyBonusPercent: 5,
+        boxBonusReais: 80,
+        minBatteryThreshold: 80,
+        batteryPenaltyUnder80: 18,
+        customBasePrices,
+      }
+    );
+
+    // Deve usar diretamente 4600 sem adicionar bônus de 512GB sobre si mesmo
+    expect(evaluation.basePrice).toBe(4600);
+    expect(evaluation.highlights.some((h: string) => h.includes("Capacidade 512GB (personalizada)"))).toBe(true);
   });
 });
 

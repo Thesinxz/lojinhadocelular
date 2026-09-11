@@ -259,6 +259,46 @@ export const adminRouter = createRouter({
       return { ok: true };
     }),
 
+  addEvaluationPhotos: publicQuery
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        photos: z.array(
+          z.object({
+            key: z.string(),
+            label: z.string(),
+            url: z.string(),
+            name: z.string().optional(),
+            size: z.number().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const db = getDb();
+      await ensureTables();
+      const photosJson = JSON.stringify(input.photos);
+      try {
+        await db
+          .update(evaluations)
+          .set({
+            photos: photosJson,
+            photosCount: input.photos.length,
+          })
+          .where(eq(evaluations.id, input.id));
+      } catch {
+        const pool = getPool();
+        if (pool) {
+          await pool.query(
+            "UPDATE evaluations SET photos = ?, photos_count = ? WHERE id = ?",
+            [photosJson, input.photos.length, input.id],
+          );
+        }
+      }
+      return { ok: true, count: input.photos.length };
+    }),
+
   erpOverride: publicQuery
     .input(z.object({ externalId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {

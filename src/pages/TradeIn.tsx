@@ -518,7 +518,7 @@ export default function TradeIn() {
       // Limita fotos nos registros mais antigos para não estourar a cota de 5MB do localStorage
       const sanitizedHistory = [newEntry, ...history.slice(0, 9)].map((entry: any, idx: number) => {
         if (idx >= 3 && entry.photos) {
-          const { photos, ...rest } = entry;
+          const { photos: _photos, ...rest } = entry;
           return rest;
         }
         return entry;

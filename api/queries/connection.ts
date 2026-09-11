@@ -129,7 +129,10 @@ export async function ensureTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    await ensureColumnExists(pool, "evaluations", "photos", "MEDIUMTEXT");
+    await ensureColumnExists(pool, "evaluations", "photos", "LONGTEXT");
+    try {
+      await pool.query("ALTER TABLE `evaluations` MODIFY COLUMN `photos` LONGTEXT");
+    } catch {}
     await ensureColumnExists(pool, "evaluations", "photos_count", "INT NOT NULL DEFAULT 0");
     await ensureColumnExists(pool, "evaluations", "purchase_location", "VARCHAR(100) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "target_model", "VARCHAR(120) DEFAULT ''");

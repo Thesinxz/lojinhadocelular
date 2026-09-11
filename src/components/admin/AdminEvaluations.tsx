@@ -17,10 +17,14 @@ import {
   ChevronRight,
   X,
   ExternalLink,
+  Upload,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { safeStorage } from "@/lib/storage";
+import { compressImage, fileToDataUrl } from "@/lib/imageCompressor";
 import { SETTING_KEYS, type EvaluationPhotoItem } from "@contracts/types";
 import {
   evaluateDevice,
@@ -147,8 +151,91 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     onSuccess: () => utils.admin.evaluations.invalidate(),
   });
 
+  const [uploadingEvaluationId, setUploadingEvaluationId] = useState<number | null>(null);
+
+  const addPhotosMutation = trpc.admin.addEvaluationPhotos.useMutation({
+    onSuccess: () => {
+      utils.admin.evaluations.invalidate();
+      setUploadingEvaluationId(null);
+    },
+    onError: (err) => {
+      alert("Erro ao salvar fotos: " + err.message);
+      setUploadingEvaluationId(null);
+    },
+  });
+
+  const handleUploadPhotos = async (
+    evaluationId: number | undefined,
+    files: FileList | null,
+    existingPhotos: EvaluationPhotoItem[] = []
+  ) => {
+    if (!evaluationId || !files || files.length === 0) return;
+    setUploadingEvaluationId(evaluationId);
+
+    try {
+      const newPhotos: EvaluationPhotoItem[] = [];
+      const fileArr = Array.from(files);
+
+      for (let i = 0; i < fileArr.length; i++) {
+        const file = fileArr[i];
+        const compressed = await compressImage(file, {
+          maxWidth: 1200,
+          maxHeight: 1200,
+          quality: 0.78,
+          mimeType: "image/webp",
+        });
+
+        const dataUrl = compressed.dataUrl || (await fileToDataUrl(compressed.file));
+        newPhotos.push({
+          key: `foto_${Date.now()}_${i + 1}`,
+          label: `Foto ${existingPhotos.length + i + 1}`,
+          url: dataUrl,
+          name: file.name,
+          size: compressed.compressedSize,
+        });
+      }
+
+      await addPhotosMutation.mutateAsync({
+        id: evaluationId,
+        photos: [...existingPhotos, ...newPhotos],
+      });
+    } catch (err: any) {
+      alert("Falha ao processar imagens: " + (err?.message || err));
+      setUploadingEvaluationId(null);
+    }
+  };
+
+  const handleDeletePhoto = async (
+    evaluationId: number,
+    photoIndex: number,
+    currentPhotos: EvaluationPhotoItem[]
+  ) => {
+    if (!confirm("Tem certeza que deseja remover esta foto?")) return;
+    const updated = currentPhotos.filter((_, idx) => idx !== photoIndex);
+    await addPhotosMutation.mutateAsync({
+      id: evaluationId,
+      photos: updated,
+    });
+    if (activeLightbox && activeLightbox.evaluationId === evaluationId) {
+      if (updated.length === 0) {
+        setActiveLightbox(null);
+      } else {
+        setActiveLightbox((prev) =>
+          prev
+            ? {
+                ...prev,
+                photos: updated,
+                currentIndex: Math.min(prev.currentIndex, updated.length - 1),
+              }
+            : null
+        );
+      }
+    }
+  };
+
   // Estado do Modal Lightbox para visualização e zoom de fotos reais
   const [activeLightbox, setActiveLightbox] = useState<{
+    evaluationId?: number;
     photos: EvaluationPhotoItem[];
     currentIndex: number;
     modelName: string;
@@ -540,7 +627,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                         {effectivePhotosCount > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">
                             <Camera className="h-3.5 w-3.5" />
-                            {effectivePhotosCount} fotos {photos.length > 0 ? "anexadas" : "no WhatsApp"}
+                            {effectivePhotosCount} fotos {photos.length > 0 ? "anexadas" : "no site"}
                           </span>
                         )}
                         <span className="text-[11px] text-[#86868b]">
@@ -602,9 +689,34 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                               <Camera className="h-3.5 w-3.5 text-[#0071e3]" />
                               Fotos do Aparelho ({photos.length})
                             </span>
-                            <span className="text-[11px] text-[#86868b]">
-                              Clique na foto para ampliar
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <label
+                                className={`inline-flex items-center gap-1 text-[11px] font-medium text-[#0071e3] hover:text-[#0077ed] cursor-pointer transition ${
+                                  uploadingEvaluationId === item.id ? "opacity-50 pointer-events-none" : ""
+                                }`}
+                              >
+                                {uploadingEvaluationId === item.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Plus className="h-3 w-3" />
+                                )}
+                                <span>Adicionar mais</span>
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploadingEvaluationId === item.id}
+                                  onChange={(e) => {
+                                    handleUploadPhotos(item.id, e.target.files, photos);
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              <span className="text-[11px] text-[#86868b] hidden sm:inline">
+                                • Clique para ampliar
+                              </span>
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
                             {photos.map((photo, pIdx) => (
@@ -613,6 +725,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                                 type="button"
                                 onClick={() => {
                                   setActiveLightbox({
+                                    evaluationId: item.id,
                                     photos,
                                     currentIndex: pIdx,
                                     modelName: `${item.model} ${item.storage || ""}`.trim(),
@@ -641,26 +754,82 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                             ))}
                           </div>
                         </div>
-                      ) : (
-                        effectivePhotosCount > 0 && (
-                          <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 p-2.5 text-xs text-amber-900">
-                            <div className="flex items-center gap-2">
-                              <Camera className="h-4 w-4 text-amber-600 shrink-0" />
-                              <span>
-                                📸 <b>{effectivePhotosCount} fotos</b> foram anexadas pelo cliente nesta proposta (enviadas na conversa do WhatsApp).
-                              </span>
+                      ) : effectivePhotosCount > 0 ? (
+                        <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-xs text-blue-950">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10 text-[#0071e3] shrink-0">
+                              <Camera className="h-4 w-4" />
                             </div>
+                            <div>
+                              <p className="font-semibold text-blue-900">
+                                📸 <b>{effectivePhotosCount} fotos</b> foram anexadas pelo cliente no site Troca Fácil.
+                              </p>
+                              <p className="text-[11px] text-blue-800/80">
+                                Você pode anexar as fotos aqui para salvar no sistema e visualizar na galeria com zoom.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <label
+                              className={`inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition cursor-pointer ${
+                                uploadingEvaluationId === item.id ? "opacity-50 pointer-events-none" : ""
+                              }`}
+                            >
+                              {uploadingEvaluationId === item.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="h-3.5 w-3.5" />
+                              )}
+                              <span>{uploadingEvaluationId === item.id ? "Enviando..." : "Anexar Fotos"}</span>
+                              <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingEvaluationId === item.id}
+                                onChange={(e) => {
+                                  handleUploadPhotos(item.id, e.target.files, []);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
                             <a
                               href={whatsAppLink}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition w-fit"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition"
                             >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                              Ver no WhatsApp
+                              <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>WhatsApp</span>
                             </a>
                           </div>
-                        )
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center gap-2">
+                          <label
+                            className={`inline-flex items-center gap-1.5 text-xs text-[#86868b] hover:text-[#0071e3] cursor-pointer transition ${
+                              uploadingEvaluationId === item.id ? "opacity-50 pointer-events-none" : ""
+                            }`}
+                          >
+                            {uploadingEvaluationId === item.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Upload className="h-3.5 w-3.5" />
+                            )}
+                            <span>{uploadingEvaluationId === item.id ? "Enviando fotos..." : "Anexar fotos do aparelho"}</span>
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingEvaluationId === item.id}
+                              onChange={(e) => {
+                                handleUploadPhotos(item.id, e.target.files, []);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                        </div>
                       )}
 
                       {/* Box de Resultado da Pré-Avaliação */}
@@ -816,6 +985,27 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                   <ExternalLink className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Nova Aba</span>
                 </a>
+              )}
+
+              {/* Excluir foto atual */}
+              {activeLightbox.evaluationId !== undefined && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeLightbox.evaluationId !== undefined) {
+                      handleDeletePhoto(
+                        activeLightbox.evaluationId,
+                        activeLightbox.currentIndex,
+                        activeLightbox.photos
+                      );
+                    }
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-500/20 transition cursor-pointer"
+                  title="Excluir esta foto da avaliação"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                  <span className="hidden sm:inline">Excluir</span>
+                </button>
               )}
 
               {/* Fechar */}

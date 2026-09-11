@@ -404,13 +404,15 @@ export const shopRouter = createRouter({
         try {
           const pool = getPool();
           if (pool) {
+            const photosCount = input.photos?.length || input.photosCount || 0;
+            const photosJson = input.photos && input.photos.length > 0 ? JSON.stringify(input.photos) : null;
             const [res]: any = await pool.query(
               `INSERT INTO evaluations (
                 name, whatsapp, model, storage, color, purchase_location, target_model,
                 face_id, screen_original, battery_original, cameras_ok, audio_ok,
                 charging_port_ok, opened_before, has_box, visual_condition, \`condition\`,
-                battery, notes, photos_count, status
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+                battery, notes, photos_count, photos, status
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
               [
                 input.name.trim(),
                 input.whatsapp.trim(),
@@ -431,16 +433,16 @@ export const shopRouter = createRouter({
                 input.condition.trim(),
                 input.battery.trim(),
                 (input.notes || "").trim() || null,
-                input.photos?.length || input.photosCount || 0,
+                photosCount,
+                photosJson,
               ]
             );
             return { ok: true, id: Number(res?.insertId ?? 0) };
           }
-        } catch (sqlErr) {
+        } catch (sqlErr: any) {
           console.error("Erro no fallback SQL de inserção:", sqlErr);
         }
         return { ok: true, id: null };
       }
     }),
 });
-
