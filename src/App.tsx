@@ -3,7 +3,6 @@ import { Routes, Route, useLocation, Navigate } from "react-router";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import WelcomePopup from "./components/WelcomePopup";
-import WhatsAppFloat from "./components/WhatsAppFloat";
 import CookieBanner from "./components/CookieBanner";
 import CartDrawer from "./components/CartDrawer";
 import { CartProvider } from "./lib/cart";
@@ -110,7 +109,6 @@ export default function App() {
         </main>
         <Footer />
         <WelcomePopup />
-        <WhatsAppFloat />
         <CookieBanner />
         <CartDrawer />
       </div>
