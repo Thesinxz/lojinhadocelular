@@ -48,11 +48,11 @@ export default function HeroBlk() {
         muted
         loop
         playsInline
-        preload="metadata"
-        poster="/hero-poster.jpg"
+        preload="auto"
+        poster="/hero-poster.jpg?v=ldc1"
         className="absolute inset-0 h-full w-full object-cover"
       >
-        <source src="/hero.mp4" type="video/mp4" />
+        <source src="/hero.mp4?v=ldc1" type="video/mp4" />
       </video>
 
       {/* Overlay de gradiente escuro cinematográfico */}
