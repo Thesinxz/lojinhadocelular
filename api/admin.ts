@@ -1,5 +1,5 @@
 import { createRouter, publicQuery } from "./middleware";
-import { getDb, ensureTables } from "./queries/connection";
+import { getDb, ensureTables, getPool } from "./queries/connection";
 import { products, variants, evaluations } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
@@ -187,8 +187,46 @@ export const adminRouter = createRouter({
         .select()
         .from(evaluations)
         .orderBy(desc(evaluations.createdAt));
-    } catch (err) {
-      console.error("Erro ao consultar avaliações admin:", err);
+    } catch (err: any) {
+      console.warn("Consulta de avaliações via Drizzle falhou, tentando fallback SQL direto:", err?.message || err);
+      try {
+        const pool = getPool();
+        if (pool) {
+          const [rows]: any = await pool.query(
+            "SELECT * FROM evaluations ORDER BY created_at DESC"
+          );
+          if (Array.isArray(rows)) {
+            return rows.map((r: any) => ({
+              id: Number(r.id),
+              name: String(r.name || ""),
+              whatsapp: String(r.whatsapp || ""),
+              model: String(r.model || ""),
+              storage: String(r.storage || ""),
+              color: String(r.color || ""),
+              purchaseLocation: String(r.purchase_location || ""),
+              targetModel: String(r.target_model || ""),
+              faceId: String(r.face_id || ""),
+              screenOriginal: String(r.screen_original || ""),
+              batteryOriginal: String(r.battery_original || ""),
+              camerasOk: String(r.cameras_ok || ""),
+              audioOk: String(r.audio_ok || ""),
+              chargingPortOk: String(r.charging_port_ok || ""),
+              openedBefore: String(r.opened_before || ""),
+              hasBox: String(r.has_box || ""),
+              visualCondition: String(r.visual_condition || ""),
+              condition: String(r.condition || "Em análise"),
+              battery: String(r.battery || ""),
+              notes: r.notes ? String(r.notes) : null,
+              photosCount: Number(r.photos_count || 0),
+              photos: r.photos ? String(r.photos) : null,
+              status: (r.status as any) || "pendente",
+              createdAt: r.created_at ? new Date(r.created_at) : new Date(),
+            }));
+          }
+        }
+      } catch (sqlErr: any) {
+        console.error("Erro fatal no fallback SQL de avaliações:", sqlErr?.message || sqlErr);
+      }
       return [];
     }
   }),

@@ -10,6 +10,31 @@ let instance: MySql2Database<typeof fullSchema>;
 let pool: mysql.Pool | undefined;
 let tablesEnsured = false;
 
+async function ensureColumnExists(
+  p: mysql.Pool,
+  table: string,
+  column: string,
+  columnDef: string
+) {
+  try {
+    const [rows]: any = await p.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [table, column]
+    );
+    if (Array.isArray(rows) && rows.length > 0) {
+      return;
+    }
+  } catch {}
+
+  try {
+    await p.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${columnDef}`);
+  } catch (err: any) {
+    if (err?.errno === 1060 || err?.code === "ER_DUP_FIELDNAME") {
+      return;
+    }
+  }
+}
+
 export async function ensureTables() {
   if (tablesEnsured || !pool) return;
   try {
@@ -55,16 +80,16 @@ export async function ensureTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Migrações incrementais seguras
-    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS sku VARCHAR(60) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS video_url TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS battery_health VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS image_url TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS warranty VARCHAR(120) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS \`condition\` VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE variants ADD COLUMN IF NOT EXISTS quantity INT NOT NULL DEFAULT 1`).catch(() => {});
+    // Migrações incrementais seguras compatíveis com todas as versões de MySQL
+    await ensureColumnExists(pool, "products", "video_url", "TEXT");
+    await ensureColumnExists(pool, "variants", "sku", "VARCHAR(60) DEFAULT ''");
+    await ensureColumnExists(pool, "variants", "video_url", "TEXT");
+    await ensureColumnExists(pool, "variants", "battery_health", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "variants", "image_url", "TEXT");
+    await ensureColumnExists(pool, "variants", "warranty", "VARCHAR(120) DEFAULT ''");
+    await ensureColumnExists(pool, "variants", "condition", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "variants", "notes", "TEXT");
+    await ensureColumnExists(pool, "variants", "quantity", "INT NOT NULL DEFAULT 1");
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -104,24 +129,32 @@ export async function ensureTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS photos MEDIUMTEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS purchase_location VARCHAR(100) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS target_model VARCHAR(120) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS face_id VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS screen_original VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS battery_original VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS cameras_ok VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS audio_ok VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS charging_port_ok VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS opened_before VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS has_box VARCHAR(30) DEFAULT ''`).catch(() => {});
-    await pool.query(`ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS visual_condition VARCHAR(100) DEFAULT ''`).catch(() => {});
+    await ensureColumnExists(pool, "evaluations", "photos", "MEDIUMTEXT");
+    await ensureColumnExists(pool, "evaluations", "photos_count", "INT NOT NULL DEFAULT 0");
+    await ensureColumnExists(pool, "evaluations", "purchase_location", "VARCHAR(100) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "target_model", "VARCHAR(120) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "face_id", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "screen_original", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "battery_original", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "cameras_ok", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "audio_ok", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "charging_port_ok", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "opened_before", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "has_box", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "visual_condition", "VARCHAR(100) DEFAULT ''");
 
     tablesEnsured = true;
   } catch (err) {
     console.error("Erro ao verificar/criar tabelas no banco MySQL:", err);
   }
 
+}
+
+export function getPool(): mysql.Pool | undefined {
+  if (!pool) {
+    getDb();
+  }
+  return pool;
 }
 
 export function getDb(): MySql2Database<typeof fullSchema> {

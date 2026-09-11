@@ -1,5 +1,5 @@
 import { createRouter, publicQuery } from "./middleware";
-import { getDb, ensureTables } from "./queries/connection";
+import { getDb, ensureTables, getPool } from "./queries/connection";
 import { products, evaluations } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -399,8 +399,46 @@ export const shopRouter = createRouter({
           status: "pendente",
         });
         return { ok: true, id: Number(res[0]?.insertId ?? 0) };
-      } catch (err) {
-        console.error("Erro ao salvar avaliação no banco:", err);
+      } catch (err: any) {
+        console.error("Erro ao salvar avaliação via Drizzle, tentando fallback SQL:", err?.message || err);
+        try {
+          const pool = getPool();
+          if (pool) {
+            const [res]: any = await pool.query(
+              `INSERT INTO evaluations (
+                name, whatsapp, model, storage, color, purchase_location, target_model,
+                face_id, screen_original, battery_original, cameras_ok, audio_ok,
+                charging_port_ok, opened_before, has_box, visual_condition, \`condition\`,
+                battery, notes, photos_count, status
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+              [
+                input.name.trim(),
+                input.whatsapp.trim(),
+                input.model.trim(),
+                (input.storage || "").trim(),
+                (input.color || "").trim(),
+                (input.purchaseLocation || "").trim(),
+                (input.targetModel || "").trim(),
+                (input.faceId || "").trim(),
+                (input.screenOriginal || "").trim(),
+                (input.batteryOriginal || "").trim(),
+                (input.camerasOk || "").trim(),
+                (input.audioOk || "").trim(),
+                (input.chargingPortOk || "").trim(),
+                (input.openedBefore || "").trim(),
+                (input.hasBox || "").trim(),
+                (input.visualCondition || "").trim(),
+                input.condition.trim(),
+                input.battery.trim(),
+                (input.notes || "").trim() || null,
+                input.photos?.length || input.photosCount || 0,
+              ]
+            );
+            return { ok: true, id: Number(res?.insertId ?? 0) };
+          }
+        } catch (sqlErr) {
+          console.error("Erro no fallback SQL de inserção:", sqlErr);
+        }
         return { ok: true, id: null };
       }
     }),

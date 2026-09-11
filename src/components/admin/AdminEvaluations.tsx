@@ -190,24 +190,34 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeLightbox, handlePrevPhoto, handleNextPhoto]);
 
-  // Mescla banco com backup local caso nao haja conexao com MySQL
+  // Mescla banco com backup local para máxima resiliência
   const evaluationsList: LocalEvaluation[] = useMemo(() => {
     const dbList = (query.data ?? []) as LocalEvaluation[];
-    if (dbList.length > 0) return dbList;
-
+    let localList: LocalEvaluation[] = [];
     try {
-      const local = JSON.parse(
+      localList = JSON.parse(
         safeStorage.getItem("lojinha_evaluations_history") || "[]"
       ) as LocalEvaluation[];
-      return local.map((item, idx) => ({
-        ...item,
-        id: item.id || 9999 - idx,
-        status: item.status || "pendente",
-        createdAt: item.createdAt || new Date(),
-      }));
-    } catch {
-      return [];
-    }
+    } catch {}
+
+    const formattedLocal = localList.map((item, idx) => ({
+      ...item,
+      id: item.id || 9999 - idx,
+      status: item.status || "pendente",
+      createdAt: item.createdAt || new Date(),
+    }));
+
+    if (dbList.length === 0) return formattedLocal;
+
+    // Se dbList tem dados, preserva itens do banco e mescla eventuais propostas locais pendentes
+    const knownSignatures = new Set(
+      dbList.map((d) => `${d.name?.toLowerCase().trim()}_${d.whatsapp?.replace(/\D/g, "")}`)
+    );
+    const extraLocal = formattedLocal.filter(
+      (l) => !knownSignatures.has(`${l.name?.toLowerCase().trim()}_${l.whatsapp?.replace(/\D/g, "")}`)
+    );
+
+    return [...dbList, ...extraLocal];
   }, [query.data]);
 
   const counts = useMemo(() => {
