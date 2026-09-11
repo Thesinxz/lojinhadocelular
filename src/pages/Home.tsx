@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Zap,
   Award,
+  ChevronDown,
+  HelpCircle,
 } from "lucide-react";
 import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
@@ -22,6 +24,39 @@ import { trpc, type ProductWithVariants } from "@/providers/trpc";
 import { useShopSettings, sortProducts, type SortOption, waLink } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import type { CategoryValue } from "@contracts/types";
+
+const FAQ_ITEMS = [
+  {
+    question: "Quais marcas de celulares e produtos vocês vendem?",
+    answer:
+      "Trabalhamos com a linha completa de Apple iPhones (lacrados na caixa e seminovos premium com procedência), tablets iPad, e os principais smartphones Android do mercado: Xiaomi, Redmi Note, linha gamer POCO, Samsung Galaxy e Realme. Também temos carregadores originais homologados pela Anatel, cabos, capinhas anti-impacto, películas e fones de ouvido.",
+  },
+  {
+    question: "Os iPhones seminovos possuem garantia e procedência garantida?",
+    answer:
+      "Sim! Todos os nossos iPhones seminovos são importados diretamente dos EUA, passam por uma rigorosa revisão técnica de mais de 30 itens e contam com até 1 ano de garantia, nota fiscal e bateria verificada com alta saúde. Nossa empresa é formalizada sob o CNPJ 61.874.839/0001-43.",
+  },
+  {
+    question: "Vocês fazem conserto de celular e troca de tela na hora?",
+    answer:
+      "Sim! Contamos com assistência técnica e laboratório próprio com técnicos certificados em Jardim-MS e Guia Lopes da Laguna. Realizamos troca de tela na hora, troca de bateria, reparo em placa-mãe, desoxidação após contato com água, conector de carga e restauração de Face ID, sempre utilizando peças de altíssima qualidade com garantia.",
+  },
+  {
+    question: "Como funciona a Troca Fácil (Trade-in) do meu celular usado?",
+    answer:
+      "Você pode entregar o seu smartphone usado (iPhone ou Android) como entrada para abater no valor de um aparelho novo ou seminovo. Você pode fazer a pré-avaliação online em nosso site no botão 'Avaliar Aparelho' ou vir até nossa loja física para uma avaliação rápida e justa.",
+  },
+  {
+    question: "A Lojinha do Celular entrega em quais cidades do Mato Grosso do Sul?",
+    answer:
+      "Oferecemos pronta entrega imediata via motoboy em Jardim-MS e Guia Lopes da Laguna-MS. Também enviamos de forma rápida e segurada para Bonito, Nioaque, Porto Murtinho, Bela Vista, Caracol e todas as cidades do estado do Mato Grosso do Sul.",
+  },
+  {
+    question: "Quais são as opções de pagamento e parcelamento?",
+    answer:
+      "Aceitamos pagamento via Pix à vista com desconto especial, além de parcelamento no cartão de crédito em até 12x (ou em prazos maiores conforme simulação) com taxas justas e transparentes. Você também pode dar uma entrada no Pix e parcelar o valor restante no cartão.",
+  },
+];
 
 const CATEGORY_PILLS: { label: string; value: CategoryValue | undefined }[] = [
   { label: "Todos", value: undefined },

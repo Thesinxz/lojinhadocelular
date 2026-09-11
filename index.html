@@ -195,11 +195,20 @@
       }
     </script>
 
-    <!-- Prevent blank white screens on asset 404 after redeploys -->
+    <!-- Prevent blank white screens on asset 404 after redeploys & suppress Chrome DevTools internal telemetry bugs -->
     <script>
       window.addEventListener('error', function (e) {
         try {
           var msg = (e && e.message) || '';
+          // Suprime bug interno de telemetria do Chrome DevTools / Live Metrics (web-vitals reportAllChanges em scripts VM / anônimos)
+          if (msg.indexOf("reading 'startTime'") !== -1) {
+            var fn = (e && e.filename) || '';
+            if (!fn || fn.indexOf('VM') !== -1 || fn.indexOf('anonymous') !== -1) {
+              if (e.preventDefault) e.preventDefault();
+              return true;
+            }
+          }
+
           var isChunkError =
             msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
             msg.indexOf('Loading chunk') !== -1;

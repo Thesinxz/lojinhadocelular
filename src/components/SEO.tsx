@@ -6,7 +6,7 @@ type SEOProps = {
   image?: string;
   url?: string;
   type?: string;
-  jsonLd?: Record<string, unknown>;
+  jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
 };
 
 export default function SEO({
@@ -17,10 +17,16 @@ export default function SEO({
   type = "website",
   jsonLd,
 }: SEOProps) {
+  const jsonLdString = jsonLd ? JSON.stringify(jsonLd) : "";
+
   useEffect(() => {
     // Título
     const defaultTitle = "Lojinha do Celular — iPhones e Android em Jardim-MS";
-    const fullTitle = title ? `${title} — Lojinha do Celular` : defaultTitle;
+    const fullTitle = title
+      ? title.includes("Lojinha do Celular")
+        ? title
+        : `${title} — Lojinha do Celular`
+      : defaultTitle;
     document.title = fullTitle;
 
     // Descrição
@@ -33,8 +39,12 @@ export default function SEO({
     setOgMeta("og:description", metaDesc);
     setOgMeta("og:type", type);
 
-    if (url) {
-      setOgMeta("og:url", url);
+    // Canonical & OG URL
+    const canonicalUrl =
+      url || (typeof window !== "undefined" ? window.location.href.split("?")[0] : "");
+    if (canonicalUrl) {
+      setCanonical(canonicalUrl);
+      setOgMeta("og:url", canonicalUrl);
     }
 
     if (image) {
@@ -50,18 +60,18 @@ export default function SEO({
 
     // Injeção de JSON-LD dinâmico
     let scriptEl = document.getElementById("dynamic-jsonld") as HTMLScriptElement | null;
-    if (jsonLd) {
+    if (jsonLdString) {
       if (!scriptEl) {
         scriptEl = document.createElement("script");
         scriptEl.id = "dynamic-jsonld";
         scriptEl.type = "application/ld+json";
         document.head.appendChild(scriptEl);
       }
-      scriptEl.textContent = JSON.stringify(jsonLd);
+      scriptEl.textContent = jsonLdString;
     } else if (scriptEl) {
       scriptEl.remove();
     }
-  }, [title, description, image, url, type, jsonLd]);
+  }, [title, description, image, url, type, jsonLdString]);
 
   return null;
 }
@@ -94,4 +104,17 @@ function setTwitterMeta(name: string, content: string) {
     document.head.appendChild(el);
   }
   el.setAttribute("content", content);
+}
+
+function setCanonical(url: string) {
+  let el = document.querySelector(`link[rel="canonical"]`) as HTMLLinkElement | null;
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+  const absoluteUrl = url.startsWith("http")
+    ? url
+    : `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+  el.setAttribute("href", absoluteUrl);
 }

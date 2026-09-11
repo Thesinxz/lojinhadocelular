@@ -99,7 +99,8 @@ export default function ProductCard({
             src={optimizedUrl}
             srcSet={srcSet}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
-            alt={product.name}
+            alt={`${product.name} ${isSeminovo ? "Seminovo com Garantia" : "Lacrado na Caixa"} - Loja de Celular Jardim MS`}
+            title={`${product.name} na Lojinha do Celular - Pronta Entrega em Jardim e Guia Lopes MS`}
             loading={priority ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : "auto"}
             decoding="async"

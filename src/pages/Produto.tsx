@@ -252,6 +252,58 @@ export default function Produto() {
   );
   const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
+  const productJsonLd =
+    product && price != null
+      ? {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: cleanTitle || product.name,
+          image: prodImage
+            ? prodImage.startsWith("/")
+              ? `https://lojinhadocelular.com${prodImage}`
+              : prodImage
+            : undefined,
+          description: prodDesc,
+          sku: displaySku || String(product.id),
+          brand: {
+            "@type": "Brand",
+            name:
+              product.brand ||
+              (product.name.toLowerCase().includes("iphone") ? "Apple" : "Smartphone"),
+          },
+          offers: {
+            "@type": "Offer",
+            url: prodUrl || `https://lojinhadocelular.com/produto/${product.id}`,
+            priceCurrency: "BRL",
+            price: (price / 100).toFixed(2),
+            priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split("T")[0],
+            itemCondition: isLacrado
+              ? "https://schema.org/NewCondition"
+              : "https://schema.org/UsedCondition",
+            availability:
+              (selected?.stock ?? product.stock ?? 1) > 0
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+            seller: {
+              "@type": "LocalBusiness",
+              name: "Lojinha do Celular",
+              telephone: "+55-67-99208-6012",
+              priceRange: "$$",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: "Rua Marechal Rondon, 620",
+                addressLocality: "Jardim",
+                addressRegion: "MS",
+                postalCode: "79240-000",
+                addressCountry: "BR",
+              },
+            },
+          },
+        }
+      : undefined;
+
   const handleAddToCart = () => {
     if (!product || price == null) return;
     const cartItemId = `${product.id}-${selectedVariantId || color || "default"}-${storage || "default"}`;
@@ -380,6 +432,7 @@ export default function Produto() {
         description={prodDesc}
         image={prodImage}
         url={prodUrl}
+        jsonLd={productJsonLd}
       />
 
       <div className="max-w-5xl mx-auto">
