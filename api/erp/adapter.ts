@@ -209,7 +209,9 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
     } else if (unitFilter && unitFilter.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase()) {
       stock = stockGuiaLopes;
     } else {
-      stock = stockJardim + stockGuiaLopes;
+      // Como o ERP cria automaticamente estoque na filial ao cadastrar na matriz,
+      // a Matriz é o estoque físico real. Não somamos (evita dobrar a quantidade de 1 para 2).
+      stock = stockJardim > 0 ? stockJardim : stockGuiaLopes;
     }
   } else {
     stock = parseStockQuantity(
@@ -234,9 +236,7 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
   }
 
   let unitAvailability: StoreUnitAvailability = "indisponivel";
-  if (stockJardim > 0 && stockGuiaLopes > 0) {
-    unitAvailability = "ambas";
-  } else if (stockJardim > 0) {
+  if (stockJardim > 0) {
     unitAvailability = "jardim";
   } else if (stockGuiaLopes > 0) {
     unitAvailability = "guia_lopes";
@@ -483,9 +483,7 @@ export function adaptErpCatalog(items: unknown, unitFilter = env.erpUnitId): Sho
         existingV.quantity += mainV.quantity;
         existingV.stockJardim = (existingV.stockJardim || 0) + (mainV.stockJardim || 0);
         existingV.stockGuiaLopes = (existingV.stockGuiaLopes || 0) + (mainV.stockGuiaLopes || 0);
-        if (existingV.stockJardim > 0 && existingV.stockGuiaLopes > 0) {
-          existingV.unitAvailability = "ambas";
-        } else if (existingV.stockJardim > 0) {
+        if (existingV.stockJardim > 0) {
           existingV.unitAvailability = "jardim";
         } else if (existingV.stockGuiaLopes > 0) {
           existingV.unitAvailability = "guia_lopes";
@@ -494,9 +492,7 @@ export function adaptErpCatalog(items: unknown, unitFilter = env.erpUnitId): Sho
 
       existing.stockJardim = (existing.stockJardim || 0) + (adapted.stockJardim || 0);
       existing.stockGuiaLopes = (existing.stockGuiaLopes || 0) + (adapted.stockGuiaLopes || 0);
-      if (existing.stockJardim > 0 && existing.stockGuiaLopes > 0) {
-        existing.unitAvailability = "ambas";
-      } else if (existing.stockJardim > 0) {
+      if (existing.stockJardim > 0) {
         existing.unitAvailability = "jardim";
       } else if (existing.stockGuiaLopes > 0) {
         existing.unitAvailability = "guia_lopes";

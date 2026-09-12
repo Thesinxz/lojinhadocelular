@@ -326,7 +326,7 @@ describe("Gestão Celular ERP Adapter", () => {
       expect(adaptedJardim?.stockJardim).toBe(2);
       expect(adaptedJardim?.stockGuiaLopes).toBe(0);
 
-      // 3. Disponível em ambas as lojas
+      // 3. Produto com estoque na matriz e espelhado na filial pelo ERP
       const ambas: ErpRawProduct = {
         id: "ambas-prod-1",
         name: "iPhone 13 128GB Meia-noite",
@@ -338,7 +338,9 @@ describe("Gestão Celular ERP Adapter", () => {
       };
       const adaptedAmbas = adaptErpProduct(ambas, "all");
       expect(adaptedAmbas).not.toBeNull();
-      expect(adaptedAmbas?.unitAvailability).toBe("ambas");
+      // Não duplica quantidade física
+      expect(adaptedAmbas?.variants[0].quantity).toBe(1);
+      expect(adaptedAmbas?.unitAvailability).toBe("jardim");
       expect(adaptedAmbas?.stockJardim).toBe(1);
       expect(adaptedAmbas?.stockGuiaLopes).toBe(1);
     });
@@ -388,7 +390,7 @@ describe("Gestão Celular ERP Adapter", () => {
       expect(res[0].variants[0].quantity).toBe(2);
       expect(res[0].stockJardim).toBe(1);
       expect(res[0].stockGuiaLopes).toBe(1);
-      expect(res[0].unitAvailability).toBe("ambas");
+      expect(res[0].unitAvailability).toBe("jardim");
     });
 
     it("deve processar arrays e envelopes de dados da API", () => {

@@ -48,16 +48,14 @@ export const ERP_KNOWN_UNITS = {
 
 function resolveUnitId(raw: string | undefined): string {
   const val = cleanValue(raw).toLowerCase();
-  if (!val || val === "all" || val === "todas" || val === "*") {
+  if (val === "all" || val === "todas" || val === "*") {
     return "all";
-  }
-  if (val === "matriz" || val === "jardim") {
-    return ERP_KNOWN_UNITS.MATRIZ;
   }
   if (val === "guia_lopes" || val === "guia-lopes" || val === "guialopes") {
     return ERP_KNOWN_UNITS.GUIA_LOPES;
   }
-  return cleanValue(raw);
+  // Padrão: Matriz (Jardim - MS) para evitar duplicações automáticas do ERP
+  return ERP_KNOWN_UNITS.MATRIZ;
 }
 
 let _erpApiUrl: string | null = null;
@@ -121,7 +119,7 @@ export const env = {
   get erpUnitId(): string {
     return _erpUnitId !== null
       ? _erpUnitId
-      : resolveUnitId(optional("ERP_UNIT_ID", "all"));
+      : resolveUnitId(optional("ERP_UNIT_ID", "matriz"));
   },
   set erpUnitId(val: string) {
     _erpUnitId = val;
