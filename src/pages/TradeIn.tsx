@@ -12,6 +12,7 @@ import {
   X,
   RotateCcw,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink, getMainStoreUrl } from "@/lib/shop";
@@ -166,6 +167,7 @@ export default function TradeIn() {
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lgpdConsent, setLgpdConsent] = useState(true);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
 
@@ -487,30 +489,36 @@ export default function TradeIn() {
       .filter(Boolean)
       .join("\n");
 
-    // 1. Salva no banco de dados via tRPC com fotos
-    submitMutation.mutate({
-      name: data.name.trim(),
-      whatsapp: data.whatsapp.trim(),
-      model: data.model.trim(),
-      storage: data.storage.trim(),
-      color: data.color.trim(),
-      purchaseLocation: data.purchaseLocation,
-      targetModel: data.targetModel,
-      faceId: data.faceId,
-      screenOriginal: data.screenOriginal,
-      batteryOriginal: data.batteryOriginal,
-      camerasOk: data.camerasOk,
-      audioOk: data.audioOk,
-      chargingPortOk: data.chargingPortOk,
-      openedBefore: data.openedBefore,
-      hasBox: data.hasBox,
-      visualCondition: data.visualCondition,
-      condition: data.visualCondition || "Em análise",
-      battery: batteryText,
-      notes: data.notes.trim() || undefined,
-      photosCount: photosPayload.length || filledPhotosCount,
-      photos: photosPayload,
-    });
+    // 1. Salva no banco de dados via tRPC com fotos (garante upload completo no servidor)
+    try {
+      await submitMutation.mutateAsync({
+        name: data.name.trim(),
+        whatsapp: data.whatsapp.trim(),
+        model: data.model.trim(),
+        storage: data.storage.trim(),
+        color: data.color.trim(),
+        purchaseLocation: data.purchaseLocation,
+        targetModel: data.targetModel,
+        faceId: data.faceId,
+        screenOriginal: data.screenOriginal,
+        batteryOriginal: data.batteryOriginal,
+        camerasOk: data.camerasOk,
+        audioOk: data.audioOk,
+        chargingPortOk: data.chargingPortOk,
+        openedBefore: data.openedBefore,
+        hasBox: data.hasBox,
+        visualCondition: data.visualCondition,
+        condition: data.visualCondition || "Em análise",
+        battery: batteryText,
+        notes: data.notes.trim() || undefined,
+        photosCount: photosPayload.length || filledPhotosCount,
+        photos: photosPayload,
+      });
+    } catch (err) {
+      console.warn("Aviso ao salvar proposta via tRPC:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
 
     // 2. Histórico local de segurança (preserva fotos para os registros mais recentes)
     try {
@@ -1503,6 +1511,47 @@ export default function TradeIn() {
                 <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
               </div>
 
+              {/* Fotos anexadas para conferência visual do aparelho */}
+              {filledPhotosCount > 0 && (
+                <div className="mt-4 rounded-2xl border border-neutral-200/80 bg-[#fbfbfd] p-3.5 sm:p-4">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#1d1d1f]">
+                      <Camera className="h-4 w-4 text-[#0071e3]" />
+                      Fotos do aparelho para conferência ({filledPhotosCount} de 5)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep(14);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="text-xs font-semibold text-[#0071e3] hover:underline cursor-pointer"
+                    >
+                      Alterar fotos
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                    {photoSlots
+                      .filter((s) => s.previewUrl || s.file || s.dataUrl)
+                      .map((slot) => (
+                        <div
+                          key={slot.key}
+                          className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-2xs"
+                        >
+                          <img
+                            src={slot.previewUrl || slot.dataUrl}
+                            alt={slot.label}
+                            className="h-full w-full object-cover"
+                          />
+                          <span className="absolute bottom-1 inset-x-1 truncate rounded bg-black/65 px-1 py-0.5 text-[9px] font-medium text-white text-center backdrop-blur-xs">
+                            {slot.label}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {/* Destaque da Pré-Avaliação */}
               {hidePrices ? (
                 <div className="mt-4 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
@@ -1584,16 +1633,26 @@ export default function TradeIn() {
                 <button
                   type="button"
                   onClick={goBack}
-                  className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                  disabled={isSubmitting}
+                  className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7] disabled:opacity-50"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Voltar
                 </button>
                 <button
                   type="button"
                   onClick={submitEvaluation}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
+                  disabled={isSubmitting}
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle2 className="h-4 w-4" /> Enviar para avaliação
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Enviando proposta...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Enviar para avaliação
+                    </>
+                  )}
                 </button>
               </div>
             </div>

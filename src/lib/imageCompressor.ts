@@ -170,11 +170,6 @@ export async function compressImage(
         });
 
         const previewUrl = URL.createObjectURL(compressedFile);
-        let dataUrl: string | undefined;
-        try {
-          dataUrl = canvas.toDataURL(type, quality);
-        } catch {}
-
         const originalSize = file.size;
         const compressedSize = compressedFile.size;
         const savingsPercent = Math.max(
@@ -182,14 +177,31 @@ export async function compressImage(
           Math.round(((originalSize - compressedSize) / originalSize) * 100)
         );
 
-        resolve({
-          file: compressedFile,
-          previewUrl,
-          dataUrl,
-          originalSize,
-          compressedSize,
-          savingsPercent,
-        });
+        fileToDataUrl(compressedFile)
+          .then((dataUrl) => {
+            resolve({
+              file: compressedFile,
+              previewUrl,
+              dataUrl,
+              originalSize,
+              compressedSize,
+              savingsPercent,
+            });
+          })
+          .catch(() => {
+            let fallbackDataUrl: string | undefined;
+            try {
+              fallbackDataUrl = canvas.toDataURL(type, quality);
+            } catch {}
+            resolve({
+              file: compressedFile,
+              previewUrl,
+              dataUrl: fallbackDataUrl,
+              originalSize,
+              compressedSize,
+              savingsPercent,
+            });
+          });
       }
     };
 
