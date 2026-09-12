@@ -60,7 +60,9 @@ export function AdminErpProductEditor({
   const [videoUrl, setVideoUrl] = useState(product.videoUrl || mainVariant?.videoUrl || "");
   const [customName, setCustomName] = useState(product.name || "");
   const [category, setCategory] = useState(product.category || "iphone_seminovo");
-  const [batteryHealth, setBatteryHealth] = useState(mainVariant?.batteryHealth || "");
+  const [batteryHealth, setBatteryHealth] = useState(
+    mainVariant?.batteryHealth || (product as { batteryHealth?: string | null })?.batteryHealth || "",
+  );
   const [warranty, setWarranty] = useState(product.warranty || mainVariant?.warranty || "1 ano de garantia");
   const [description, setDescription] = useState(product.description || "");
   const [featured, setFeatured] = useState(Boolean(product.featured));
@@ -305,8 +307,8 @@ export function AdminErpProductEditor({
                 placeholder="Ex: 89% ou 100%"
                 className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition"
               />
-              <div className="flex gap-1.5 mt-2">
-                {["100%", "95%", "90%", "88%", "85%+"].map((pct) => (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {["100%", "95%", "90%", "88%", "85%", "82%", "80%"].map((pct) => (
                   <button
                     key={pct}
                     type="button"

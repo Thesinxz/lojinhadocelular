@@ -148,6 +148,7 @@ export interface ShopProduct {
   imageUrl: string | null;
   videoUrl?: string | null;
   warranty: string | null;
+  batteryHealth?: string | null;
   featured: boolean;
   active: boolean;
   createdAt: Date;

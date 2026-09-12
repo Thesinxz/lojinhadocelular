@@ -68,6 +68,20 @@ export function parseBatteryHealth(val: unknown, condition = "seminovo"): string
   return condition === "lacrado" ? "100%" : null;
 }
 
+export function extractBatteryFromName(name: string): string | null {
+  if (!name) return null;
+  const matchExplicit = name.match(/(?:bateria|saude|saúde|bat\.?)\s*[:=]?\s*(\d{2,3})%?/i);
+  if (matchExplicit) {
+    const n = parseInt(matchExplicit[1], 10);
+    if (n >= 50 && n <= 100) return `${n}%`;
+  }
+  const matchSuffix = name.match(/\b(100|[5-9]\d)%\s*(?:bateria|saude|saúde|bat\.?)/i);
+  if (matchSuffix) {
+    return `${matchSuffix[1]}%`;
+  }
+  return null;
+}
+
 export function inferBrandAndCategory(
   nameOrOptions: string | { name: string; brand?: string; condition?: string },
   rawBrand?: string,
@@ -305,7 +319,14 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
   const colorHex = raw.color_hex || detectColorHex(color) || "#111111";
 
   const batteryHealth = parseBatteryHealth(
-    raw.battery_health ?? raw.battery ?? raw.saude_bateria ?? raw.bateria,
+    raw.battery_health ??
+      raw.battery ??
+      raw.saude_bateria ??
+      raw.bateria ??
+      raw.observacoes ??
+      raw.notes ??
+      raw.description ??
+      extractBatteryFromName(name),
     condition,
   );
 
@@ -427,6 +448,7 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
     imageUrl,
     videoUrl,
     warranty,
+    batteryHealth,
     featured: false,
     active: true,
     createdAt: new Date(),

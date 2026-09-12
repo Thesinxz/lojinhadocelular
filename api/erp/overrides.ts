@@ -131,7 +131,15 @@ export function applyOverridesToProducts(
   overrides: Record<string, ErpProductOverride>,
 ): ShopProduct[] {
   return products.map((p) => {
-    const override = p.externalId ? overrides[p.externalId] : null;
+    let override = p.externalId ? overrides[p.externalId] : null;
+    if (!override && p.alternateIds?.length) {
+      for (const altId of p.alternateIds) {
+        if (overrides[altId]) {
+          override = overrides[altId];
+          break;
+        }
+      }
+    }
     if (!override) return p;
 
     const updated = { ...p };
@@ -159,6 +167,9 @@ export function applyOverridesToProducts(
     }
     if (override.warranty !== undefined && override.warranty.trim()) {
       updated.warranty = override.warranty.trim();
+    }
+    if (override.batteryHealth !== undefined && override.batteryHealth.trim()) {
+      updated.batteryHealth = override.batteryHealth.trim();
     }
 
     // Aplica os overrides nas variantes filhas

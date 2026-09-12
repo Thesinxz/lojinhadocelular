@@ -4,11 +4,13 @@ import {
   parseStockQuantity,
   parseBatteryHealth,
   inferBrandAndCategory,
+  extractBatteryFromName,
   adaptErpProduct,
   adaptErpCatalog,
   adaptErpCatalogResponse,
 } from "./erp/adapter";
-import type { ErpRawProduct } from "./erp/types";
+import { applyOverridesToProducts } from "./erp/overrides";
+import type { ErpRawProduct, ShopProduct } from "./erp/types";
 
 describe("Gestão Celular ERP Adapter", () => {
   describe("parsePriceToCents", () => {
@@ -200,7 +202,67 @@ describe("Gestão Celular ERP Adapter", () => {
       expect(v.imageUrl).toBe("https://meusite.com/foto-real-14promax.jpg");
       expect(v.videoUrl).toBe("https://youtube.com/shorts/demo123");
       expect(v.batteryHealth).toBe("89%");
+      expect(p.batteryHealth).toBe("89%");
       expect(v.warranty).toBe("1 ano de garantia Apple");
+    });
+
+    it("deve aplicar override de bateria mesmo quando o produto estiver em alternateIds", () => {
+      const baseProduct: ShopProduct = {
+        id: "erp-uuid-primary",
+        externalId: "erp-uuid-primary",
+        alternateIds: ["erp-uuid-secondary", "69d9d2c4-bfa8-4c9e-b3f2-1d317e57a0d0"],
+        source: "erp",
+        name: "APPLE CEL IPHONE 15 PRO 515GB BLUE TITANIUM",
+        brand: "Apple",
+        category: "iphone_seminovo",
+        condition: "seminovo",
+        description: null,
+        imageUrl: null,
+        videoUrl: null,
+        warranty: "6 meses",
+        featured: false,
+        active: true,
+        createdAt: new Date(),
+        variants: [
+          {
+            id: "erp-uuid-primary-1",
+            productId: "erp-uuid-primary",
+            version: "",
+            storage: "512GB",
+            color: "BLUE TITANIUM",
+            colorHex: "#3b4454",
+            imageUrl: null,
+            videoUrl: null,
+            sku: "ERP-15PRO",
+            batteryHealth: null,
+            warranty: "6 meses",
+            condition: "seminovo",
+            notes: null,
+            priceCash: 414999,
+            quantity: 1,
+            available: true,
+          },
+        ],
+      };
+
+      const overrides = {
+        "69d9d2c4-bfa8-4c9e-b3f2-1d317e57a0d0": {
+          batteryHealth: "80%",
+        },
+      };
+
+      const merged = applyOverridesToProducts([baseProduct], overrides);
+      expect(merged[0].variants[0].batteryHealth).toBe("80%");
+      expect(merged[0].batteryHealth).toBe("80%");
+    });
+  });
+
+  describe("extractBatteryFromName", () => {
+    it("deve extrair saúde da bateria a partir do título do produto quando informado", () => {
+      expect(extractBatteryFromName("iPhone 15 Pro 512GB Blue Titanium Bat 80%")).toBe("80%");
+      expect(extractBatteryFromName("APPLE CEL IPHONE 13 128GB BATERIA 85%")).toBe("85%");
+      expect(extractBatteryFromName("iPhone 14 Pro Max 256GB - 91% Bateria")).toBe("91%");
+      expect(extractBatteryFromName("iPhone 15 Pro 515GB Blue Titanium")).toBeNull();
     });
   });
 
@@ -540,6 +602,17 @@ describe("Gestão Celular ERP Adapter", () => {
           const totalStock = p.variants.reduce((acc, v) => acc + v.quantity, 0);
           expect(totalStock).toBeGreaterThan(0);
         });
+
+        // Verifica especificamente se o iPhone 15 Pro Azul Titânio reflete a saúde da bateria de 80%
+        const iphone15Pro = result.products.find(
+          (p) =>
+            p.externalId === "69d9d2c4-bfa8-4c9e-b3f2-1d317e57a0d0" ||
+            p.alternateIds?.includes("69d9d2c4-bfa8-4c9e-b3f2-1d317e57a0d0"),
+        );
+        if (iphone15Pro) {
+          expect(iphone15Pro.variants[0].batteryHealth).toBe("80%");
+          expect(iphone15Pro.batteryHealth).toBe("80%");
+        }
       } finally {
         env.erpCatalogEnabled = prevEnabled;
         env.erpStoreSlug = prevSlug;

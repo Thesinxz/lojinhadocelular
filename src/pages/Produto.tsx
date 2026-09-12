@@ -208,7 +208,8 @@ export default function Produto() {
     (product?.name.toLowerCase().includes("iphone") ?? false);
   const batteryHealthDisplay =
     selected?.batteryHealth ||
-    (isLacrado && isIphone ? null : !isLacrado && isIphone ? "93%" : null);
+    (product as { batteryHealth?: string | null })?.batteryHealth ||
+    (isLacrado && isIphone ? "100%" : null);
 
   const categoryLabel = product
     ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)

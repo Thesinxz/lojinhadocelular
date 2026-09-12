@@ -471,7 +471,7 @@ export default function AdminProductEditor({
       imageUrl: v.imageUrl?.trim() || undefined,
       videoUrl: v.videoUrl?.trim() || undefined,
       sku: v.sku?.trim() || "",
-      batteryHealth: v.condition === "lacrado" ? "" : (v.batteryHealth?.trim() || "85%"),
+      batteryHealth: v.condition === "lacrado" ? "" : (v.batteryHealth?.trim() || ""),
       warranty: v.warranty?.trim() || (v.condition === "lacrado" ? "1 ano de garantia" : "6 meses de garantia"),
       condition: v.condition,
       notes: v.notes?.trim() || "",
@@ -1188,7 +1188,7 @@ export default function AdminProductEditor({
                             />
                             {/* CHIPS RÁPIDOS DE BATERIA */}
                             <div className="mt-2 flex flex-wrap gap-1">
-                              {["100%", "98%", "95%", "93%", "90%", "88%", "85%", "Bateria Nova"].map((b) => (
+                              {["100%", "98%", "95%", "93%", "90%", "88%", "85%", "82%", "80%", "Bateria Nova"].map((b) => (
                                 <button
                                   key={b}
                                   type="button"

@@ -27,7 +27,9 @@ export default function ProductCard({
       ? installmentFromFees(price, 12, fee12)
       : null;
 
-  const batteryHealth = product.variants.find((v) => v.batteryHealth)?.batteryHealth;
+  const batteryHealth =
+    product.variants.find((v) => v.batteryHealth)?.batteryHealth ||
+    (product as { batteryHealth?: string | null }).batteryHealth;
   const [isLoaded, setIsLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -179,10 +181,10 @@ export default function ProductCard({
         </h3>
 
         {/* Saúde da bateria (caso seminovo) */}
-        {isSeminovo && (
+        {isSeminovo && batteryHealth && (
           <div className="mt-1 flex items-center gap-1 text-xs text-neutral-500 font-medium">
             <BatteryCharging className="h-3.5 w-3.5 text-neutral-400" />
-            <span>Bateria {batteryHealth ? `${batteryHealth}` : "90%+"}</span>
+            <span>Bateria {batteryHealth}</span>
           </div>
         )}
 
