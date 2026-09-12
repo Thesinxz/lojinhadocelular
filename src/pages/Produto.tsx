@@ -206,10 +206,16 @@ export default function Produto() {
   const isIphone =
     product?.brand.toLowerCase() === "apple" ||
     (product?.name.toLowerCase().includes("iphone") ?? false);
-  const batteryHealthDisplay =
+  const rawBattery =
     selected?.batteryHealth ||
-    (product as { batteryHealth?: string | null })?.batteryHealth ||
-    (isLacrado && isIphone ? "100%" : null);
+    (product as { batteryHealth?: string | null })?.batteryHealth;
+  const batteryHealthDisplay = rawBattery
+    ? rawBattery.includes("%") || isNaN(Number(rawBattery.replace(/\D/g, "")))
+      ? rawBattery
+      : `${rawBattery.replace(/\D/g, "")}%`
+    : isLacrado && isIphone
+      ? "100%"
+      : null;
 
   const categoryLabel = product
     ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)
@@ -606,9 +612,7 @@ export default function Produto() {
 
             {/* Título do Produto */}
             <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-neutral-950 mt-3 leading-tight">
-              {product.name}
-              {color ? ` - ${color}` : ""}
-              {storage && storage !== "Padrão" ? ` ${storage}` : ""}
+              {cleanTitle}
             </h1>
 
             {/* Bloco de Preço */}
@@ -753,7 +757,7 @@ export default function Produto() {
                 <a
                   href={waLink(
                     targetWhatsapp,
-                    `Olá! Vi o ${product.name}${storage ? ` ${storage}` : ""}${color ? ` ${color}` : ""} na Lojinha do Celular, mas está esgotado no momento. Gostaria de saber a previsão de chegada ou encomendar.`,
+                    `Olá! Vi o ${cleanTitle} na Lojinha do Celular, mas está esgotado no momento. Gostaria de saber a previsão de chegada ou encomendar.`,
                   )}
                   target="_blank"
                   rel="noreferrer"
@@ -828,7 +832,7 @@ export default function Produto() {
               <div className="divide-y divide-neutral-100 text-xs sm:text-sm">
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-neutral-500">Modelo</span>
-                  <span className="font-bold text-neutral-900 text-right">{product.name}</span>
+                  <span className="font-bold text-neutral-900 text-right">{cleanTitle}</span>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-neutral-500">Categoria</span>

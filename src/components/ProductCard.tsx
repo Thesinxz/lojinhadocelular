@@ -27,9 +27,14 @@ export default function ProductCard({
       ? installmentFromFees(price, 12, fee12)
       : null;
 
-  const batteryHealth =
+  const rawBattery =
     product.variants.find((v) => v.batteryHealth)?.batteryHealth ||
     (product as { batteryHealth?: string | null }).batteryHealth;
+  const batteryHealth = rawBattery
+    ? rawBattery.includes("%") || isNaN(Number(rawBattery.replace(/\D/g, "")))
+      ? rawBattery
+      : `${rawBattery.replace(/\D/g, "")}%`
+    : null;
   const [isLoaded, setIsLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);

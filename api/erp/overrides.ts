@@ -5,6 +5,7 @@ import type { ShopProduct } from "./types";
 import { getDb, ensureTables } from "../queries/connection";
 import { settings } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { parseBatteryHealth } from "./adapter";
 
 export interface ErpProductOverride {
   imageUrl?: string;
@@ -97,9 +98,15 @@ export async function saveErpOverride(
   const all = await getErpOverrides();
   const current = Object.prototype.hasOwnProperty.call(all, externalId) ? all[externalId] : {};
 
+  const normalizedData = { ...data };
+  if (normalizedData.batteryHealth !== undefined && normalizedData.batteryHealth.trim()) {
+    const norm = parseBatteryHealth(normalizedData.batteryHealth);
+    normalizedData.batteryHealth = norm || normalizedData.batteryHealth.trim();
+  }
+
   all[externalId] = {
     ...current,
-    ...data,
+    ...normalizedData,
   };
   memoryOverrides = all;
 
@@ -168,8 +175,13 @@ export function applyOverridesToProducts(
     if (override.warranty !== undefined && override.warranty.trim()) {
       updated.warranty = override.warranty.trim();
     }
-    if (override.batteryHealth !== undefined && override.batteryHealth.trim()) {
-      updated.batteryHealth = override.batteryHealth.trim();
+    const normalizedBattery =
+      override.batteryHealth !== undefined && override.batteryHealth.trim()
+        ? parseBatteryHealth(override.batteryHealth) || override.batteryHealth.trim()
+        : undefined;
+
+    if (normalizedBattery) {
+      updated.batteryHealth = normalizedBattery;
     }
 
     // Aplica os overrides nas variantes filhas
@@ -181,8 +193,8 @@ export function applyOverridesToProducts(
       if (override.videoUrl !== undefined) {
         vUpdated.videoUrl = override.videoUrl ? override.videoUrl.trim() : null;
       }
-      if (override.batteryHealth !== undefined && override.batteryHealth.trim()) {
-        vUpdated.batteryHealth = override.batteryHealth.trim();
+      if (normalizedBattery) {
+        vUpdated.batteryHealth = normalizedBattery;
       }
       if (override.warranty !== undefined && override.warranty.trim()) {
         vUpdated.warranty = override.warranty.trim();

@@ -614,11 +614,15 @@ export default function Admin() {
                               />
                               {p.featured ? "🔥 Em Promoção" : "☆ Ativar Promoção"}
                             </button>
-                            {p.variants?.[0]?.batteryHealth && (
-                              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                🔋 {p.variants[0].batteryHealth}
-                              </span>
-                            )}
+                            {(() => {
+                              const b = p.variants?.[0]?.batteryHealth || (p as { batteryHealth?: string | null })?.batteryHealth;
+                              if (!b) return null;
+                              return (
+                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                  🔋 {b.includes("%") ? b : `${b.replace(/\D/g, "")}%`}
+                                </span>
+                              );
+                            })()}
                             {(p.videoUrl || p.variants?.[0]?.videoUrl) && (
                               <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
                                 🎥 Vídeo

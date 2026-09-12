@@ -701,21 +701,46 @@ export function detectIphoneModel(query: string): IphoneModelSpec | null {
 
   const q = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-  // 1. Busca exata por nome
+  // Guard: Se contém marcas conhecidas não-Apple, nunca é iPhone
+  const nonAppleBrands = ["tecno", "samsung", "galaxy", "xiaomi", "redmi", "poco", "motorola", "moto", "realme", "infinix", "oppo", "huawei", "honor", "nokia", "lg", "asus", "sony"];
+  if (nonAppleBrands.some((b) => new RegExp(`\\b${b}\\b`, "i").test(q))) {
+    return null;
+  }
+
+  // 1. Busca exata por nome canônico do modelo (com ou sem 'iPhone')
   for (const model of IPHONE_CATALOG) {
     const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    if (q === mName || q === mName.replace(/^iphone\s*/, "")) {
+    const shortName = mName.replace(/^iphone\s*/, "");
+    if (q === mName || (q.includes("iphone") && q === shortName)) {
       return model;
     }
   }
 
-  // 2. Busca por substring decrescente para não confundir "iPhone 16 Pro Max" com "iPhone 16"
+  // 2. Busca com prioridade para modelos compostos ("16 Pro Max", "15 Pro", etc.)
   const sorted = [...IPHONE_CATALOG].sort((a, b) => b.name.length - a.name.length);
   for (const model of sorted) {
     const mName = model.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     const shortName = mName.replace(/^iphone\s*/, "");
-    if (q === mName || q === shortName || q.includes(mName) || q.includes(shortName)) {
+
+    // Se a query tem "iphone <modelo>"
+    const regexFullName = new RegExp(`\\b${mName.replace(/\s+/g, "\\s+")}\\b`, "i");
+    if (regexFullName.test(q)) {
       return model;
+    }
+
+    // Se for modelo composto (ex: "16 Pro Max", "15 Pro", "14 Plus", "13 Mini", "XR", "XS Max")
+    const isCompositeOrUnique = shortName.includes(" ") || /^(xr|xs|se)/i.test(shortName);
+    if (isCompositeOrUnique) {
+      const regexShort = new RegExp(`\\b${shortName.replace(/\s+/g, "\\s+")}\\b`, "i");
+      if (regexShort.test(q)) {
+        return model;
+      }
+    } else {
+      // Para números simples como "16", "15", "14", "13", "12", "11", só aceita se vier precedido por "iphone" ou "cel iphone"
+      const regexNum = new RegExp(`\\b(?:cel\\s+|apple\\s+)?iphone\\s*${shortName}\\b`, "i");
+      if (regexNum.test(q)) {
+        return model;
+      }
     }
   }
 
@@ -787,29 +812,6 @@ export function resolveProductImage(
   if (match) {
     const resolved = getIphoneModelColorImage(match, colorName);
     if (resolved) return resolved;
-  }
-
-  // Fallbacks elegantes por geração
-  if (cleanName.includes("16 pro")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-16-pro-natural-titanium.webp");
-  }
-  if (cleanName.includes("16")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-16-white.webp");
-  }
-  if (cleanName.includes("15 pro")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-15-pro-natural-titanium.webp");
-  }
-  if (cleanName.includes("15")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-15-blue.webp");
-  }
-  if (cleanName.includes("14 pro")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-14-pro-deep-purple.webp");
-  }
-  if (cleanName.includes("14")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-14-starlight.webp");
-  }
-  if (cleanName.includes("13")) {
-    return resolveIphoneImageUrl("/images/iphones/iphone-13-midnight.webp");
   }
 
   return cleanUrl || "/images/logo.png";

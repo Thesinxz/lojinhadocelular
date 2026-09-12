@@ -255,6 +255,55 @@ describe("Gestão Celular ERP Adapter", () => {
       expect(merged[0].variants[0].batteryHealth).toBe("80%");
       expect(merged[0].batteryHealth).toBe("80%");
     });
+
+    it("deve normalizar batteryHealth de número puro '85' para '85%' com símbolo de porcentagem", () => {
+      const baseProduct: ShopProduct = {
+        id: "erp-uuid-num",
+        externalId: "erp-uuid-num",
+        source: "erp",
+        name: "APPLE CEL IPHONE 14 128GB",
+        brand: "Apple",
+        category: "iphone_seminovo",
+        condition: "seminovo",
+        description: null,
+        imageUrl: null,
+        videoUrl: null,
+        warranty: "6 meses",
+        featured: false,
+        active: true,
+        createdAt: new Date(),
+        variants: [
+          {
+            id: "erp-uuid-num-1",
+            productId: "erp-uuid-num",
+            version: "",
+            storage: "128GB",
+            color: "Azul",
+            colorHex: "#3b4454",
+            imageUrl: null,
+            videoUrl: null,
+            sku: "ERP-14",
+            batteryHealth: null,
+            warranty: "6 meses",
+            condition: "seminovo",
+            notes: null,
+            priceCash: 350000,
+            quantity: 1,
+            available: true,
+          },
+        ],
+      };
+
+      const overrides = {
+        "erp-uuid-num": {
+          batteryHealth: "85",
+        },
+      };
+
+      const merged = applyOverridesToProducts([baseProduct], overrides);
+      expect(merged[0].variants[0].batteryHealth).toBe("85%");
+      expect(merged[0].batteryHealth).toBe("85%");
+    });
   });
 
   describe("extractBatteryFromName", () => {

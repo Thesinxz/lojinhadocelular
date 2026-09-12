@@ -1182,26 +1182,58 @@ export default function AdminProductEditor({
                           <>
                             <input
                               value={v.batteryHealth ?? ""}
-                              onChange={(e) => setVariant(i, { batteryHealth: e.target.value })}
-                              placeholder="Ex: 93%, 100%, Bateria Nova"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.endsWith("%")) {
+                                  setVariant(i, { batteryHealth: val });
+                                  return;
+                                }
+                                const digits = val.replace(/\D/g, "");
+                                if (digits.length === 2 && parseInt(digits, 10) >= 50) {
+                                  setVariant(i, { batteryHealth: `${digits}%` });
+                                  return;
+                                }
+                                if (digits === "100") {
+                                  setVariant(i, { batteryHealth: "100%" });
+                                  return;
+                                }
+                                setVariant(i, { batteryHealth: val });
+                              }}
+                              onBlur={() => {
+                                const val = v.batteryHealth?.trim() || "";
+                                if (val && !val.includes("%")) {
+                                  const num = parseInt(val.replace(/\D/g, ""), 10);
+                                  if (!isNaN(num) && num > 0 && num <= 100) {
+                                    setVariant(i, { batteryHealth: `${num}%` });
+                                  }
+                                }
+                              }}
+                              placeholder="Ex: 85%, 100%, Bateria Nova"
                               className={inputCls}
                             />
                             {/* CHIPS RÁPIDOS DE BATERIA */}
                             <div className="mt-2 flex flex-wrap gap-1">
-                              {["100%", "98%", "95%", "93%", "90%", "88%", "85%", "82%", "80%", "Bateria Nova"].map((b) => (
-                                <button
-                                  key={b}
-                                  type="button"
-                                  onClick={() => setVariant(i, { batteryHealth: b })}
-                                  className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition cursor-pointer ${
-                                    v.batteryHealth === b
-                                      ? "border-emerald-600 bg-emerald-600 text-white"
-                                      : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100"
-                                  }`}
-                                >
-                                  {b}
-                                </button>
-                              ))}
+                              {["100%", "98%", "95%", "93%", "90%", "88%", "85%", "82%", "80%", "Bateria Nova"].map((b) => {
+                                const isSelected =
+                                  v.batteryHealth === b ||
+                                  (b.endsWith("%") &&
+                                    Boolean(v.batteryHealth) &&
+                                    v.batteryHealth?.replace(/\D/g, "") === b.replace(/\D/g, ""));
+                                return (
+                                  <button
+                                    key={b}
+                                    type="button"
+                                    onClick={() => setVariant(i, { batteryHealth: b })}
+                                    className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition cursor-pointer ${
+                                      isSelected
+                                        ? "border-emerald-600 bg-emerald-600 text-white"
+                                        : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100"
+                                    }`}
+                                  >
+                                    {b}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </>
                         ) : (

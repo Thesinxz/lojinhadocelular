@@ -44,13 +44,13 @@ export function formatCommercialProductName(
   let baseName = clean;
 
   if (iphoneMatch) {
-    baseName = iphoneMatch.name; // Ex: "iPhone 17 Pro Max"
+    baseName = iphoneMatch.name; // Ex: "iPhone 16 Pro Max"
   } else {
-    // Normalização geral
+    // Normalização específica para iPhone se começar explicitamente com IPHONE
     if (/^IPHONE\s+/i.test(clean)) {
       baseName = "iPhone " + clean.replace(/^IPHONE\s+/i, "");
-    } else if (/^(11|12|13|14|15|16|17)\b/i.test(clean)) {
-      baseName = "iPhone " + clean;
+    } else if (/^(?:apple\s+)?iphone\b/i.test(clean)) {
+      baseName = clean.replace(/^(?:apple\s+)?iphone/i, "iPhone");
     }
   }
 
@@ -58,6 +58,7 @@ export function formatCommercialProductName(
   const normColor = (color || "").trim();
   const normStorage = (storage || "").trim();
 
+  // Limpar tokens de especificações
   const specParts: string[] = [];
   if (normColor && normColor !== "Padrão") {
     specParts.push(normColor);
@@ -75,11 +76,14 @@ export function formatCommercialProductName(
   const hasColor =
     Boolean(normColor) &&
     normColor !== "Padrão" &&
-    baseLower.includes(normColor.toLowerCase());
+    (baseLower.includes(normColor.toLowerCase()) || (normColor.toLowerCase() === "meia-noite" && baseLower.includes("midnight")) || (normColor.toLowerCase() === "midnight" && baseLower.includes("meia-noite")));
+    
+  // Verifica se já contém storage (ex: 256GB, 256, 128GB, 128)
+  const storageDigits = normStorage.replace(/\D/g, "");
   const hasStorage =
     Boolean(normStorage) &&
     normStorage !== "Padrão" &&
-    baseLower.includes(normStorage.toLowerCase());
+    (baseLower.includes(normStorage.toLowerCase()) || (storageDigits.length >= 2 && new RegExp(`\\b${storageDigits}(?:gb|tb)?\\b`, "i").test(baseLower)));
 
   if (hasColor && hasStorage) {
     return baseName;

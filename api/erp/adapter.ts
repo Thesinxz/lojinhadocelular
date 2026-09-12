@@ -1,7 +1,19 @@
 import type { CategoryValue } from "../../contracts/types";
 import type { ErpRawProduct, ShopProduct, ShopVariant, StoreUnitAvailability } from "./types";
 import { resolveProductImage, detectColorHex } from "../../src/lib/iphoneCatalog";
+import { formatCommercialProductName } from "../../src/lib/commercialFormatting";
 import { env, ERP_KNOWN_UNITS } from "../lib/env";
+
+export function extractBrandString(brandInput: unknown): string {
+  if (!brandInput) return "";
+  if (typeof brandInput === "string") return brandInput.trim();
+  if (typeof brandInput === "object" && brandInput !== null) {
+    const obj = brandInput as Record<string, any>;
+    if (typeof obj.name === "string") return obj.name.trim();
+    if (typeof obj.nome === "string") return obj.nome.trim();
+  }
+  return "";
+}
 
 export function parsePriceToCents(rawPrice: unknown): number {
   if (rawPrice == null) return 0;
@@ -83,27 +95,29 @@ export function extractBatteryFromName(name: string): string | null {
 }
 
 export function inferBrandAndCategory(
-  nameOrOptions: string | { name: string; brand?: string; condition?: string },
-  rawBrand?: string,
+  nameOrOptions: string | { name: string; brand?: any; condition?: string },
+  rawBrand?: any,
   condition = "seminovo",
 ): { brand: string; category: CategoryValue; condition: string } {
   let name = "";
-  let bInput = rawBrand;
+  let bInput = extractBrandString(rawBrand);
   let condInput = condition;
 
   if (typeof nameOrOptions === "object" && nameOrOptions !== null) {
     name = nameOrOptions.name || "";
-    bInput = nameOrOptions.brand || bInput;
+    bInput = extractBrandString(nameOrOptions.brand) || bInput;
     condInput = nameOrOptions.condition || condInput;
   } else {
     name = String(nameOrOptions || "");
   }
 
   const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  const b = (bInput || "").toLowerCase().trim();
+  const b = bInput.toLowerCase().trim();
 
-  let brand = "Apple";
-  if (b.includes("xiaomi") || n.includes("xiaomi") || n.includes("redmi") || n.includes("poco")) {
+  let brand = "Outra";
+  if (b.includes("tecno") || n.includes("tecno")) {
+    brand = "Tecno";
+  } else if (b.includes("xiaomi") || n.includes("xiaomi") || n.includes("redmi") || n.includes("poco")) {
     brand = "Xiaomi";
   } else if (b.includes("samsung") || n.includes("samsung") || n.includes("galaxy")) {
     brand = "Samsung";
@@ -111,12 +125,14 @@ export function inferBrandAndCategory(
     brand = "Motorola";
   } else if (b.includes("realme") || n.includes("realme")) {
     brand = "Realme";
+  } else if (b.includes("infinix") || n.includes("infinix")) {
+    brand = "Infinix";
   } else if (
     b.includes("apple") ||
     n.includes("iphone") ||
     n.includes("ipad") ||
     n.includes("apple watch") ||
-    /\b(11|12|13|14|15|16|17)\s*(pro\s*max|pro|plus|mini|e)?\b/i.test(n) ||
+    /\b(11|12|13|14|15|16)\s*(pro\s*max|pro|plus|mini|e)?\b/i.test(n) ||
     /\b(xr|xs\s*max|xs)\b/i.test(n) ||
     n.includes("pro max") ||
     n.includes("titanio") ||
@@ -124,7 +140,7 @@ export function inferBrandAndCategory(
   ) {
     brand = "Apple";
   } else if (bInput) {
-    brand = bInput.trim();
+    brand = bInput.charAt(0).toUpperCase() + bInput.slice(1);
   } else {
     brand = "Outra";
   }
@@ -147,7 +163,7 @@ export function inferBrandAndCategory(
 
   const finalCondition = isLacrado ? "lacrado" : "seminovo";
 
-  let category: CategoryValue = "iphone_seminovo";
+  let category: CategoryValue = "android";
   if (brand === "Apple" || n.includes("iphone")) {
     category = isLacrado ? "iphone_lacrado" : "iphone_seminovo";
   } else if (
@@ -155,7 +171,8 @@ export function inferBrandAndCategory(
     n.includes("pelicula") ||
     n.includes("fone") ||
     n.includes("carregador") ||
-    n.includes("cabo")
+    n.includes("cabo") ||
+    n.includes("suporte")
   ) {
     category = "acessorio";
   } else {
@@ -210,21 +227,24 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
   // Se houver array de estoques por unidade (Matriz Jardim e Filial Guia Lopes)
   if (Array.isArray(raw.stocks) && raw.stocks.length > 0) {
     const sMatriz = raw.stocks.find(
-      (s) => s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase(),
+      (s: any) =>
+        s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase() ||
+        s.unit?.nome?.toLowerCase().includes("matriz") ||
+        s.unit?.nome?.toLowerCase().includes("jardim"),
     );
     const sGuia = raw.stocks.find(
-      (s) => s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase(),
+      (s: any) =>
+        s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase() ||
+        s.unit?.nome?.toLowerCase().includes("guia"),
     );
     stockJardim = parseStockQuantity(sMatriz?.available ?? sMatriz?.quantity ?? sMatriz?.stock ?? 0);
     stockGuiaLopes = parseStockQuantity(sGuia?.available ?? sGuia?.quantity ?? sGuia?.stock ?? 0);
 
-    if (unitFilter && unitFilter.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase()) {
+    if (unitFilter && (unitFilter.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase() || unitFilter.toLowerCase() === "matriz" || unitFilter.toLowerCase() === "jardim")) {
       stock = stockJardim;
-    } else if (unitFilter && unitFilter.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase()) {
+    } else if (unitFilter && (unitFilter.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase() || unitFilter.toLowerCase() === "guia_lopes" || unitFilter.toLowerCase() === "guialopes")) {
       stock = stockGuiaLopes;
     } else {
-      // Como o ERP cria automaticamente estoque na filial ao cadastrar na matriz,
-      // a Matriz é o estoque físico real. Não somamos (evita dobrar a quantidade de 1 para 2).
       stock = stockJardim > 0 ? stockJardim : stockGuiaLopes;
     }
   } else {
@@ -339,7 +359,8 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
     raw.fotos?.[0] ||
     raw.thumbnail ||
     "";
-  const imageUrl = resolveProductImage(name, rawImg || null, color);
+  const formattedProductName = formatCommercialProductName(name, color, storage);
+  const imageUrl = resolveProductImage(formattedProductName, rawImg || null, color);
 
   const grade = raw.grade || raw.classificacao || "";
   const notesParts: string[] = [];

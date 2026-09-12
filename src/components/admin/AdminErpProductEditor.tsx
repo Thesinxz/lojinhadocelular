@@ -98,15 +98,57 @@ export function AdminErpProductEditor({
   );
   const basePrice = mainVariant?.priceCash ? mainVariant.priceCash : 0;
 
+  function normalizeBatteryStr(val: string): string {
+    const trimmed = val.trim();
+    if (!trimmed) return "";
+    if (trimmed.toLowerCase() === "nova" || trimmed.toLowerCase().includes("bateria nova")) {
+      return "Bateria Nova";
+    }
+    const digits = trimmed.replace(/\D/g, "");
+    const num = parseInt(digits, 10);
+    if (!isNaN(num) && num > 0 && num <= 100) {
+      return `${num}%`;
+    }
+    return trimmed;
+  }
+
+  const handleBatteryChange = (val: string) => {
+    const cleaned = val.trim();
+    if (cleaned === "") {
+      setBatteryHealth("");
+      return;
+    }
+    if (val.endsWith("%")) {
+      setBatteryHealth(val);
+      return;
+    }
+    const digits = val.replace(/\D/g, "");
+    if (digits.length === 2 && parseInt(digits, 10) >= 50) {
+      setBatteryHealth(`${digits}%`);
+      return;
+    }
+    if (digits === "100") {
+      setBatteryHealth("100%");
+      return;
+    }
+    setBatteryHealth(val);
+  };
+
+  const handleBatteryBlur = () => {
+    if (!batteryHealth.trim()) return;
+    setBatteryHealth(normalizeBatteryStr(batteryHealth));
+  };
+
   const handleSave = () => {
     setErrorMessage("");
+    const normalizedBattery = normalizeBatteryStr(batteryHealth);
     saveMutation.mutate({
       externalId,
       customName: customName.trim() || undefined,
       category: category as (typeof CATEGORIES)[number]["value"],
       imageUrl: imageUrl.trim() || undefined,
       videoUrl: videoUrl.trim() || undefined,
-      batteryHealth: batteryHealth.trim() || undefined,
+      batteryHealth: normalizedBattery || undefined,
       warranty: warranty.trim() || undefined,
       description: description.trim() || undefined,
       featured,
@@ -303,21 +345,32 @@ export function AdminErpProductEditor({
               <input
                 type="text"
                 value={batteryHealth}
-                onChange={(e) => setBatteryHealth(e.target.value)}
-                placeholder="Ex: 89% ou 100%"
-                className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition"
+                onChange={(e) => handleBatteryChange(e.target.value)}
+                onBlur={handleBatteryBlur}
+                placeholder="Ex: 85% ou 100%"
+                className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition font-medium"
               />
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {["100%", "95%", "90%", "88%", "85%", "82%", "80%"].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    onClick={() => setBatteryHealth(pct)}
-                    className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-semibold text-neutral-600 hover:bg-neutral-100"
-                  >
-                    {pct}
-                  </button>
-                ))}
+                {["100%", "95%", "90%", "88%", "85%", "82%", "80%"].map((pct) => {
+                  const isSelected =
+                    batteryHealth === pct ||
+                    (Boolean(batteryHealth) &&
+                      batteryHealth.replace(/\D/g, "") === pct.replace(/\D/g, ""));
+                  return (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => setBatteryHealth(pct)}
+                      className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                        isSelected
+                          ? "border-emerald-600 bg-emerald-600 text-white shadow-xs"
+                          : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
+                      }`}
+                    >
+                      {pct}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
