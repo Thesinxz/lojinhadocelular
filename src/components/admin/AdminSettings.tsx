@@ -402,6 +402,31 @@ export default function AdminSettings() {
           </Field>
         </div>
 
+        {/* Ocultar Valores Estimados para o Cliente */}
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={valuationConfig.hidePricesToClient !== false}
+              onChange={(e) =>
+                setValuationConfig((prev) => ({
+                  ...prev,
+                  hidePricesToClient: e.target.checked,
+                }))
+              }
+              className="mt-0.5 h-4 w-4 rounded border-amber-300 text-[#0071e3] focus:ring-[#0071e3]"
+            />
+            <div>
+              <span className="text-xs font-bold text-[#1d1d1f] block">
+                Ocultar valores monetários (R$) e volta estimada para o cliente
+              </span>
+              <p className="mt-0.5 text-xs text-[#6e6e73] leading-relaxed">
+                <strong>Recomendado para segurança da loja:</strong> O cliente envia todos os dados técnicos, fotos e modelo de interesse pelo site, mas <strong>não vê valores em R$</strong> nem no site nem no WhatsApp. A equipe da Lojinha avalia as fotos e passa a proposta comercial diretamente no WhatsApp, evitando divergências em caso de erro na pré-avaliação automática. A equipe continua vendo as estimativas no painel.
+              </p>
+            </div>
+          </label>
+        </div>
+
         {/* Preços Base dos Modelos Mais Populares & Matriz Completa (GB e Cores) */}
         <div className="mt-6 border-t border-[#e5e5e7] pt-5">
           <div className="flex flex-col gap-3 mb-4">

@@ -230,6 +230,7 @@ export default function TradeIn() {
   );
 
   const gradeConfig = useMemo(() => getGradeBadgeConfig(valuation.grade), [valuation.grade]);
+  const hidePrices = valuationConfig.hidePricesToClient !== false;
 
   function updateField<K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) {
     const finalValue =
@@ -455,10 +456,16 @@ export default function TradeIn() {
       `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
       "",
       `✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`,
-      `💰 *Estimativa de Avaliação:* ${formatBRL(valuation.minEstimatedValue)} a ${formatBRL(valuation.maxEstimatedValue)}`,
-      valuation.targetModelName && valuation.minTradeDelta !== undefined
-        ? `🎯 *Volta Estimada (${valuation.targetModelName}):* ${formatBRL(valuation.minTradeDelta)} a ${formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}`
-        : "",
+      ...(hidePrices
+        ? [
+            "💬 *Proposta:* Aguardando análise técnica e cotação da equipe Lojinha do Celular",
+          ]
+        : [
+            `💰 *Estimativa de Avaliação:* ${formatBRL(valuation.minEstimatedValue)} a ${formatBRL(valuation.maxEstimatedValue)}`,
+            valuation.targetModelName && valuation.minTradeDelta !== undefined
+              ? `🎯 *Volta Estimada (${valuation.targetModelName}):* ${formatBRL(valuation.minTradeDelta)} a ${formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}`
+              : "",
+          ]),
       valuation.loyaltyBonusApplied ? "🎁 *Bônus Fidelidade Lojinha do Celular (+5% na avaliação)*" : "",
       "",
       "🔍 *Diagnóstico Rápido:*",
@@ -590,32 +597,60 @@ export default function TradeIn() {
               </div>
             </div>
 
-            {/* FAIXA DE VALOR EM DESTAQUE */}
-            <div className="mt-5 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                💰 Faixa Estimada de Pré-Avaliação
-              </span>
-              <div className="mt-1 font-display text-2xl sm:text-3xl font-bold text-emerald-950">
-                {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
-              </div>
-              <p className="mt-1 text-[11px] text-emerald-900/80">
-                {valuation.disclaimer}
-              </p>
-            </div>
-
-            {/* SE HOUVER APARELHO DESEJADO PARA TROCA */}
-            {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
-              <div className="mt-3 rounded-2xl border border-purple-200/80 bg-purple-50/70 p-4">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
-                  🎯 Troca pelo {valuation.targetModelName}
-                </span>
-                <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-purple-950">
-                  Volta estimada de {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
+            {/* FAIXA DE VALOR OU CONFIRMAÇÃO DE ENVIO */}
+            {hidePrices ? (
+              <div className="mt-5 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
+                    ✨ Diagnóstico Registrado
+                  </span>
+                  <span className="text-[10px] font-semibold text-blue-800 bg-white border border-blue-200 px-2 py-0.5 rounded-md">
+                    Cotação em andamento
+                  </span>
                 </div>
-                <p className="mt-1 text-[11px] text-purple-900/80">
-                  Entregando seu {data.model}, essa é a estimativa da diferença a pagar.
+                <p className="mt-2 text-xs sm:text-sm text-[#1d1d1f] font-medium leading-relaxed">
+                  As informações e fotos do seu aparelho foram enviadas com sucesso! Nossa equipe técnica está analisando os dados e passará a proposta oficial e o valor da volta diretamente no seu WhatsApp em instantes.
                 </p>
+                {data.targetModel && (
+                  <div className="mt-3 rounded-xl border border-purple-200/80 bg-purple-50/70 p-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 block">
+                      🎯 Aparelho de interesse para troca
+                    </span>
+                    <span className="mt-0.5 font-display text-base font-bold text-purple-950 block">
+                      {data.targetModel}
+                    </span>
+                  </div>
+                )}
               </div>
+            ) : (
+              <>
+                <div className="mt-5 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                    💰 Faixa Estimada de Pré-Avaliação
+                  </span>
+                  <div className="mt-1 font-display text-2xl sm:text-3xl font-bold text-emerald-950">
+                    {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
+                  </div>
+                  <p className="mt-1 text-[11px] text-emerald-900/80">
+                    {valuation.disclaimer}
+                  </p>
+                </div>
+
+                {/* SE HOUVER APARELHO DESEJADO PARA TROCA */}
+                {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
+                  <div className="mt-3 rounded-2xl border border-purple-200/80 bg-purple-50/70 p-4">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
+                      🎯 Troca pelo {valuation.targetModelName}
+                    </span>
+                    <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-purple-950">
+                      Volta estimada de {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
+                    </div>
+                    <p className="mt-1 text-[11px] text-purple-900/80">
+                      Entregando seu {data.model}, essa é a estimativa da diferença a pagar.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* PONTOS FORTES E BÔNUS */}
@@ -1468,31 +1503,55 @@ export default function TradeIn() {
                 <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
               </div>
 
-              {/* Destaque da Pré-Avaliação Estimada */}
-              <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                    💰 Pré-avaliação estimada
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
-                  >
-                    <span>{gradeConfig.iconText}</span>
-                    <span>{gradeConfig.label}</span>
-                  </span>
+              {/* Destaque da Pré-Avaliação */}
+              {hidePrices ? (
+                <div className="mt-4 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
+                      ✨ Classificação Preliminar
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
+                    >
+                      <span>{gradeConfig.iconText}</span>
+                      <span>{gradeConfig.label} ({valuation.grade})</span>
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs sm:text-sm font-medium text-[#1d1d1f] leading-relaxed">
+                    Seu aparelho foi qualificado preliminarmente com base nas condições informadas! Ao enviar, nossa equipe técnica em Jardim/MS analisará suas fotos e diagnóstico para passar a melhor proposta comercial direto no seu WhatsApp.
+                  </div>
+                  {valuation.loyaltyBonusApplied && (
+                    <p className="mt-2 text-xs font-semibold text-purple-900 flex items-center gap-1">
+                      🎁 Bônus Fidelidade Lojinha do Celular garantido para sua proposta!
+                    </p>
+                  )}
                 </div>
-                <div className="mt-1 font-display text-2xl font-bold text-emerald-950">
-                  {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
+              ) : (
+                <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                      💰 Pré-avaliação estimada
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
+                    >
+                      <span>{gradeConfig.iconText}</span>
+                      <span>{gradeConfig.label}</span>
+                    </span>
+                  </div>
+                  <div className="mt-1 font-display text-2xl font-bold text-emerald-950">
+                    {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
+                  </div>
+                  {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
+                    <p className="mt-1.5 text-xs font-medium text-purple-900">
+                      🎯 Volta estimada no {valuation.targetModelName}:{" "}
+                      <b>
+                        {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
+                      </b>
+                    </p>
+                  )}
                 </div>
-                {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
-                  <p className="mt-1.5 text-xs font-medium text-purple-900">
-                    🎯 Volta estimada no {valuation.targetModelName}:{" "}
-                    <b>
-                      {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
-                    </b>
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Mini resumo do diagnóstico técnico */}
               <div className="mt-3 rounded-xl bg-[#f5f5f7] p-3 text-[11px] leading-relaxed text-[#6e6e73]">

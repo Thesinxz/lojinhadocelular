@@ -836,9 +836,16 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                       <div className="mt-3 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/8 to-emerald-500/3 p-3.5 sm:p-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div>
-                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
-                              💰 Estimativa de Pré-Avaliação da Loja
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                                💰 Estimativa Interna da Loja
+                              </span>
+                              {valuationConfig.hidePricesToClient !== false && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
+                                  🔒 Oculto do cliente no site/WhatsApp
+                                </span>
+                              )}
+                            </div>
                             <div className="mt-0.5 font-display text-xl sm:text-2xl font-bold text-emerald-950">
                               {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
                             </div>

@@ -70,6 +70,7 @@ export interface ValuationConfig {
   batteryPenaltyUnder80: number; // ex: 18 = -18%
   customBasePrices: Record<string, number>; // ex: {"iphone 16 pro max": 6500, ...}
   disclaimerText?: string;
+  hidePricesToClient?: boolean; // Se true, o cliente não vê valores monetários (R$) no site nem na mensagem do WhatsApp
 }
 
 export const DEFAULT_VALUATION_CONFIG: ValuationConfig = {
@@ -81,6 +82,7 @@ export const DEFAULT_VALUATION_CONFIG: ValuationConfig = {
   customBasePrices: {},
   disclaimerText:
     "Pré-avaliação online estimada. O valor exato é confirmado após a conferência física e testes rápidos na Lojinha do Celular.",
+  hidePricesToClient: true, // Padrão seguro solicitado pelo lojista para evitar divergências ou erros
 };
 
 export const DEFAULT_SETTINGS: Record<string, string> = {

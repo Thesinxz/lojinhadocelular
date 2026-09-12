@@ -310,7 +310,7 @@ export const POPULAR_CONFIG_IPHONES: Array<{ id: string; name: string; defaultBa
   { id: "iphone xs max", name: "iPhone XS Max", defaultBasePrice: 850 },
 ];
 
-export function parseValuationConfig(json?: string | ValuationConfig | null): ValuationConfig {
+export function parseValuationConfig(json?: string | Partial<ValuationConfig> | null): ValuationConfig {
   if (!json) return DEFAULT_VALUATION_CONFIG;
   try {
     const parsed = typeof json === "string" ? JSON.parse(json) : json;
@@ -343,6 +343,10 @@ export function parseValuationConfig(json?: string | ValuationConfig | null): Va
         typeof parsed.disclaimerText === "string" && parsed.disclaimerText.trim()
           ? parsed.disclaimerText
           : DEFAULT_VALUATION_CONFIG.disclaimerText,
+      hidePricesToClient:
+        typeof parsed.hidePricesToClient === "boolean"
+          ? parsed.hidePricesToClient
+          : (DEFAULT_VALUATION_CONFIG.hidePricesToClient ?? true),
     };
   } catch {
     return DEFAULT_VALUATION_CONFIG;
@@ -364,7 +368,7 @@ export function normalizeKey(str?: string): string {
  */
 export function getReferenceVariationKey(model: string, capacity?: string, color?: string): string {
   const normModel = normalizeKey(model);
-  const normCap = normalizeKey(capacity);
+  const normCap = normalizeKey(capacity).replace(/\s+/g, "");
   const normColor = normalizeKey(color);
   if (normCap && normColor) {
     return `${normModel}_${normCap}_${normColor}`;
@@ -386,7 +390,7 @@ export function findReferenceDevicePrice(
   const normModel = normalizeKey(modelName);
   if (!normModel) return null;
 
-  const normCap = normalizeKey(capacity);
+  const normCap = normalizeKey(capacity).replace(/\s+/g, "");
   const normColor = normalizeKey(color);
 
   // 1. Tenta correspondência exata de modelo primeiro
@@ -416,7 +420,7 @@ export function findReferenceDevicePrice(
 
   if (normCap) {
     const capMatches = modelMatches.filter((item) => {
-      const itemCap = normalizeKey(item.capacity);
+      const itemCap = normalizeKey(item.capacity).replace(/\s+/g, "");
       return normCap === itemCap || normCap.includes(itemCap) || itemCap.includes(normCap);
     });
 
@@ -450,7 +454,7 @@ export function getCustomBasePriceMatch(
   const normModel = normalizeKey(modelName);
   if (!normModel) return null;
 
-  const normCap = normalizeKey(storage);
+  const normCap = normalizeKey(storage).replace(/\s+/g, "");
   const normColor = normalizeKey(color);
 
   // 1. Chave exata de Modelo + Capacidade + Cor (ex: "iphone 14 pro_128gb_silver")

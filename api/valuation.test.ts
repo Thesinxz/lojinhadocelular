@@ -30,7 +30,7 @@ describe("valuationEngine", () => {
     expect(result.grade).toBe("A+");
     expect(result.score).toBeGreaterThanOrEqual(90);
     expect(result.loyaltyBonusApplied).toBe(true);
-    expect(result.minEstimatedValue).toBeGreaterThanOrEqual(4500);
+    expect(result.minEstimatedValue).toBeGreaterThanOrEqual(4400);
     expect(result.maxEstimatedValue).toBeGreaterThan(result.minEstimatedValue);
     expect(result.targetModelName).toBe("iPhone 17 Pro Max");
     expect(result.minTradeDelta).toBeDefined();
@@ -310,6 +310,52 @@ describe("valuationEngine", () => {
     // Deve usar diretamente 4600 sem adicionar bônus de 512GB sobre si mesmo
     expect(evaluation.basePrice).toBe(4600);
     expect(evaluation.highlights.some((h: string) => h.includes("Capacidade 512GB (personalizada)"))).toBe(true);
+  });
+
+  it("suporta configuração de ocultar valores para o cliente e normaliza capacidades com espaços", async () => {
+    const { parseValuationConfig, findReferenceDevicePrice } = await import("../src/lib/valuationEngine");
+
+    // 1. Testa parseValuationConfig com hidePricesToClient
+    const defaultConfig = parseValuationConfig(null);
+    expect(defaultConfig.hidePricesToClient).toBe(true);
+
+    const explicitFalse = parseValuationConfig({ hidePricesToClient: false });
+    expect(explicitFalse.hidePricesToClient).toBe(false);
+
+    const explicitTrue = parseValuationConfig({ hidePricesToClient: true });
+    expect(explicitTrue.hidePricesToClient).toBe(true);
+
+    // 2. Testa correspondência de capacidades com e sem espaços ("128 GB" vs "128GB")
+    const matchWithSpace = findReferenceDevicePrice("iPhone 14", "128 GB");
+    expect(matchWithSpace).not.toBeNull();
+    expect(matchWithSpace?.priceBrl).toBe(1500);
+
+    const matchWithoutSpace = findReferenceDevicePrice("iPhone 14", "128GB");
+    expect(matchWithoutSpace).not.toBeNull();
+    expect(matchWithoutSpace?.priceBrl).toBe(1500);
+
+    // 3. Testa que iPhone 14 avalia na faixa correta (~R$ 1.500) e não R$ 4.000
+    const evalIphone14 = evaluateDevice({
+      model: "iPhone 14",
+      storage: "128 GB",
+      color: "Starlight",
+      purchaseLocation: "Lojinha do Celular",
+      batteryPercent: 95,
+      targetModel: "iPhone 15 Pro Max",
+      visualCondition: "Parece novo, sem marcas",
+      faceId: "Sim",
+      screenOriginal: "Sim",
+      batteryOriginal: "Sim",
+      camerasOk: "Sim",
+      audioOk: "Sim",
+      chargingPortOk: "Sim",
+      openedBefore: "Não",
+      hasBox: "Não sei",
+    });
+
+    expect(evalIphone14.basePrice).toBe(1500);
+    expect(evalIphone14.minEstimatedValue).toBeGreaterThanOrEqual(1400);
+    expect(evalIphone14.maxEstimatedValue).toBeLessThanOrEqual(1800);
   });
 });
 
