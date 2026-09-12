@@ -1,6 +1,7 @@
 import type { CategoryValue } from "../../contracts/types";
-import type { ErpRawProduct, ShopProduct, ShopVariant } from "./types";
+import type { ErpRawProduct, ShopProduct, ShopVariant, StoreUnitAvailability } from "./types";
 import { resolveProductImage, detectColorHex } from "../../src/lib/iphoneCatalog";
+import { env, ERP_KNOWN_UNITS } from "../lib/env";
 
 export function parsePriceToCents(rawPrice: unknown): number {
   if (rawPrice == null) return 0;
@@ -183,23 +184,38 @@ export function extractColorFromName(name: string): string {
   return "Preto";
 }
 
-export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
+export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId): ShopProduct | null {
   if (!raw || !raw.id) return null;
 
   const rawVariants = raw.variants || raw.variacoes || [];
 
-  let stock = parseStockQuantity(
-    raw.stock ?? raw.quantity ?? raw.estoque ?? raw.quantidade ?? raw.qtd ?? raw.saldo ?? 0,
-  );
+  let stockJardim = 0;
+  let stockGuiaLopes = 0;
+  let stock = 0;
 
-  // Se houver array de estoques por unidade (ex: Matriz e Guia Lopes da Laguna)
+  // Se houver array de estoques por unidade (Matriz Jardim e Filial Guia Lopes)
   if (Array.isArray(raw.stocks) && raw.stocks.length > 0) {
-    const sumStocks = raw.stocks.reduce((acc, s) => {
-      return acc + parseStockQuantity(s.available ?? s.quantity ?? s.stock ?? 0);
-    }, 0);
-    if (sumStocks > 0) {
-      stock = sumStocks;
+    const sMatriz = raw.stocks.find(
+      (s) => s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase(),
+    );
+    const sGuia = raw.stocks.find(
+      (s) => s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase(),
+    );
+    stockJardim = parseStockQuantity(sMatriz?.available ?? sMatriz?.quantity ?? sMatriz?.stock ?? 0);
+    stockGuiaLopes = parseStockQuantity(sGuia?.available ?? sGuia?.quantity ?? sGuia?.stock ?? 0);
+
+    if (unitFilter && unitFilter.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase()) {
+      stock = stockJardim;
+    } else if (unitFilter && unitFilter.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase()) {
+      stock = stockGuiaLopes;
+    } else {
+      stock = stockJardim + stockGuiaLopes;
     }
+  } else {
+    stock = parseStockQuantity(
+      raw.stock ?? raw.quantity ?? raw.estoque ?? raw.quantidade ?? raw.qtd ?? raw.saldo ?? 0,
+    );
+    stockJardim = stock;
   }
 
   // Se o estoque direto for 0 ou indefinido, calcula a soma das variantes
@@ -207,6 +223,9 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
     stock = rawVariants.reduce((acc, v) => {
       return acc + parseStockQuantity(v.stock ?? v.quantity ?? 0);
     }, 0);
+    if (stockJardim === 0 && stockGuiaLopes === 0) {
+      stockJardim = stock;
+    }
   }
 
   // Requisito 3: "Exibir somente produtos com estoque disponível. Quando o ERP informar estoque zero, remover o produto da vitrine."
@@ -214,7 +233,22 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
     return null;
   }
 
+  let unitAvailability: StoreUnitAvailability = "indisponivel";
+  if (stockJardim > 0 && stockGuiaLopes > 0) {
+    unitAvailability = "ambas";
+  } else if (stockJardim > 0) {
+    unitAvailability = "jardim";
+  } else if (stockGuiaLopes > 0) {
+    unitAvailability = "guia_lopes";
+  }
+
   const name = (raw.name || raw.nome || raw.model || raw.modelo || raw.title || "Celular").trim();
+
+  // Filtra modelos fictícios / de teste cadastrados no ERP (ex: iPhone 17 que ainda não existe no mercado)
+  const isUnreleasedModel = /\biphone\s*(1[7-9]|[2-9]\d)\b/i.test(name);
+  if (isUnreleasedModel) {
+    return null;
+  }
 
   // Filtra peças de reposição da assistência técnica (como frontais, telas avulsas, conectores)
   const lowerName = name.toLowerCase();
@@ -329,6 +363,9 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
     priceCash,
     quantity: stock,
     available: true,
+    stockJardim,
+    stockGuiaLopes,
+    unitAvailability,
   };
 
   let mappedVariants: ShopVariant[] = [];
@@ -367,6 +404,9 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
           priceCash: vPrice > 0 ? vPrice : priceCash,
           quantity: vStock,
           available: true,
+          stockJardim,
+          stockGuiaLopes,
+          unitAvailability,
         };
       });
   }
@@ -391,10 +431,13 @@ export function adaptErpProduct(raw: ErpRawProduct): ShopProduct | null {
     active: true,
     createdAt: new Date(),
     variants: mappedVariants,
+    stockJardim,
+    stockGuiaLopes,
+    unitAvailability,
   };
 }
 
-export function adaptErpCatalog(items: unknown): ShopProduct[] {
+export function adaptErpCatalog(items: unknown, unitFilter = env.erpUnitId): ShopProduct[] {
   if (!items) return [];
 
   let rawList: ErpRawProduct[] = [];
@@ -417,15 +460,53 @@ export function adaptErpCatalog(items: unknown): ShopProduct[] {
     }
   }
 
-  const result: ShopProduct[] = [];
+  // Agrupa e mescla produtos idênticos cadastrados separadamente no ERP por IMEI/lote
+  const mergedMap = new Map<string, ShopProduct>();
+
   for (const item of rawList) {
-    const adapted = adaptErpProduct(item);
-    if (adapted) {
-      result.push(adapted);
+    const adapted = adaptErpProduct(item, unitFilter);
+    if (!adapted) continue;
+
+    const mainV = adapted.variants[0];
+    const storageKey = (mainV?.storage || "").toLowerCase().trim();
+    const colorKey = (mainV?.color || "").toLowerCase().trim();
+    const priceKey = mainV?.priceCash || 0;
+    const key = `${adapted.name.toLowerCase().trim()}__${adapted.condition}__${storageKey}__${colorKey}__${priceKey}`;
+
+    if (mergedMap.has(key)) {
+      const existing = mergedMap.get(key)!;
+      existing.alternateIds = existing.alternateIds || [];
+      existing.alternateIds.push(String(adapted.id), adapted.externalId);
+
+      const existingV = existing.variants[0];
+      if (existingV && mainV) {
+        existingV.quantity += mainV.quantity;
+        existingV.stockJardim = (existingV.stockJardim || 0) + (mainV.stockJardim || 0);
+        existingV.stockGuiaLopes = (existingV.stockGuiaLopes || 0) + (mainV.stockGuiaLopes || 0);
+        if (existingV.stockJardim > 0 && existingV.stockGuiaLopes > 0) {
+          existingV.unitAvailability = "ambas";
+        } else if (existingV.stockJardim > 0) {
+          existingV.unitAvailability = "jardim";
+        } else if (existingV.stockGuiaLopes > 0) {
+          existingV.unitAvailability = "guia_lopes";
+        }
+      }
+
+      existing.stockJardim = (existing.stockJardim || 0) + (adapted.stockJardim || 0);
+      existing.stockGuiaLopes = (existing.stockGuiaLopes || 0) + (adapted.stockGuiaLopes || 0);
+      if (existing.stockJardim > 0 && existing.stockGuiaLopes > 0) {
+        existing.unitAvailability = "ambas";
+      } else if (existing.stockJardim > 0) {
+        existing.unitAvailability = "jardim";
+      } else if (existing.stockGuiaLopes > 0) {
+        existing.unitAvailability = "guia_lopes";
+      }
+    } else {
+      mergedMap.set(key, adapted);
     }
   }
 
-  return result;
+  return Array.from(mergedMap.values());
 }
 
 export const adaptErpCatalogResponse = adaptErpCatalog;

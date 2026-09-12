@@ -7,6 +7,7 @@ import { TRPCError } from "@trpc/server";
 import { SETTING_KEYS } from "../contracts/types";
 import { env } from "./lib/env";
 import { getErpCatalog } from "./erp/service";
+import type { StoreUnitAvailability } from "./erp/types";
 import { getShopPublicSettings } from "./services/settingsStore";
 
 const PUBLIC_SETTING_KEYS = [
@@ -95,7 +96,17 @@ function sortProductsBackend<
     condition: string;
     category: string;
     featured: boolean;
-    variants: { priceCash: number; available: boolean; notes?: string | null }[];
+    variants: {
+      priceCash: number;
+      available: boolean;
+      notes?: string | null;
+      unitAvailability?: StoreUnitAvailability;
+      stockJardim?: number;
+      stockGuiaLopes?: number;
+    }[];
+    unitAvailability?: StoreUnitAvailability;
+    stockJardim?: number;
+    stockGuiaLopes?: number;
   },
 >(list: T[]): T[] {
   const sorted = [...list].sort((a, b) => {
@@ -232,7 +243,20 @@ export const shopRouter = createRouter({
           with: { variants: true },
         });
 
-        return sortProductsBackend(list);
+        const localizedList = list.map((p) => ({
+          ...p,
+          unitAvailability: "jardim" as StoreUnitAvailability,
+          stockJardim: 1,
+          stockGuiaLopes: 0,
+          variants: p.variants.map((v) => ({
+            ...v,
+            unitAvailability: "jardim" as StoreUnitAvailability,
+            stockJardim: v.quantity ?? 1,
+            stockGuiaLopes: 0,
+          })),
+        }));
+
+        return sortProductsBackend(localizedList);
       } catch (err) {
         console.error("Erro ao buscar produtos públicos:", err);
         return [];
@@ -259,7 +283,19 @@ export const shopRouter = createRouter({
         with: { variants: true },
         limit: 12,
       });
-      return sortProductsBackend(list);
+      const localizedList = list.map((p) => ({
+        ...p,
+        unitAvailability: "jardim" as StoreUnitAvailability,
+        stockJardim: 1,
+        stockGuiaLopes: 0,
+        variants: p.variants.map((v) => ({
+          ...v,
+          unitAvailability: "jardim" as StoreUnitAvailability,
+          stockJardim: v.quantity ?? 1,
+          stockGuiaLopes: 0,
+        })),
+      }));
+      return sortProductsBackend(localizedList);
     } catch (err) {
       console.error("Erro ao buscar destaques públicos:", err);
       return [];
@@ -277,7 +313,10 @@ export const shopRouter = createRouter({
         const erp = await getErpCatalog();
         if (erp.status === "ok") {
           const found = erp.products.find(
-            (p) => String(p.id) === idStr || p.externalId === idStr,
+            (p) =>
+              String(p.id) === idStr ||
+              p.externalId === idStr ||
+              p.alternateIds?.includes(idStr),
           );
           if (found && found.active !== false) {
             return sanitizePublicProduct(found);
@@ -299,7 +338,18 @@ export const shopRouter = createRouter({
             with: { variants: true },
           });
           if (product) {
-            return sanitizePublicProduct(product);
+            return sanitizePublicProduct({
+              ...product,
+              unitAvailability: "jardim" as StoreUnitAvailability,
+              stockJardim: 1,
+              stockGuiaLopes: 0,
+              variants: product.variants.map((v) => ({
+                ...v,
+                unitAvailability: "jardim" as StoreUnitAvailability,
+                stockJardim: v.quantity ?? 1,
+                stockGuiaLopes: 0,
+              })),
+            });
           }
           return null;
         } catch (err) {

@@ -21,6 +21,7 @@ export default function Catalogo() {
   ) as CategoryType | undefined;
 
   const [brand, setBrand] = useState("");
+  const [selectedUnit, setSelectedUnit] = useState<"todas" | "jardim" | "guia_lopes">("todas");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("relevancia");
 
@@ -42,9 +43,20 @@ export default function Catalogo() {
   const products = useMemo(() => {
     const list = (query.data ?? []) as ProductWithVariants[];
     let filtered = list;
+
+    if (selectedUnit === "jardim") {
+      filtered = filtered.filter(
+        (p) => p.unitAvailability === "jardim" || p.unitAvailability === "ambas",
+      );
+    } else if (selectedUnit === "guia_lopes") {
+      filtered = filtered.filter(
+        (p) => p.unitAvailability === "guia_lopes" || p.unitAvailability === "ambas",
+      );
+    }
+
     if (search.trim()) {
       const term = search.toLowerCase();
-      filtered = list.filter(
+      filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(term) ||
           p.brand.toLowerCase().includes(term) ||
@@ -57,7 +69,7 @@ export default function Catalogo() {
       );
     }
     return sortProducts(filtered, sortBy);
-  }, [query.data, search, sortBy]);
+  }, [query.data, selectedUnit, search, sortBy]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -67,7 +79,7 @@ export default function Catalogo() {
       />
       <h1 className="font-display text-3xl font-bold text-ink">Catálogo</h1>
       <p className="mt-1 text-neutral-600">
-        Estoque atualizado das duas unidades. Toque no produto para ver versões, cores e preços.
+        Estoque atualizado das lojas de Jardim e Guia Lopes da Laguna. Toque no produto para ver versões, cores e disponibilidade.
       </p>
 
       {/* Busca e Ordenação */}
@@ -99,16 +111,37 @@ export default function Catalogo() {
         </div>
       </div>
 
-      {/* Filtros de categoria */}
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Filtros de unidade / loja */}
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <FilterChip
+          active={selectedUnit === "todas"}
+          onClick={() => setSelectedUnit("todas")}
+          label="🏪 Todas as Lojas"
+        />
+        <FilterChip
+          active={selectedUnit === "jardim"}
+          onClick={() => setSelectedUnit("jardim")}
+          label="📍 Loja Jardim (Matriz)"
+        />
+        <FilterChip
+          active={selectedUnit === "guia_lopes"}
+          onClick={() => setSelectedUnit("guia_lopes")}
+          label="📍 Loja Guia Lopes"
+        />
+      </div>
+
+      {/* Filtros de categoria */}
+      <div className="mt-2 flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <FilterChip
+          small
           active={!categoria}
           onClick={() => setSearchParams({})}
-          label="Todos"
+          label="Todas categorias"
         />
         {CATEGORIES.map((c) => (
           <FilterChip
             key={c.value}
+            small
             active={categoria === c.value}
             onClick={() => setSearchParams({ categoria: c.value })}
             label={c.label}

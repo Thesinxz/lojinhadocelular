@@ -137,6 +137,18 @@ export default function ProductCard({
               Lacrado
             </span>
           )}
+
+          {/* Badge de Unidade / Loja */}
+          {product.unitAvailability === "guia_lopes" && (
+            <span className="rounded-full border border-amber-300 bg-amber-500 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-xs">
+              📍 Guia Lopes
+            </span>
+          )}
+          {product.unitAvailability === "ambas" && (
+            <span className="rounded-full border border-emerald-300 bg-emerald-600 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-xs">
+              📍 2 Lojas
+            </span>
+          )}
         </div>
       </div>
 

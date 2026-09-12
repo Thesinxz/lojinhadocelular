@@ -41,10 +41,30 @@ function normalizeStoreSlug(rawSlug: string): string {
   return slug;
 }
 
+export const ERP_KNOWN_UNITS = {
+  MATRIZ: "dd89c64c-5188-4f14-a32b-a915e8e3b9b3", // Jardim - MS
+  GUIA_LOPES: "71e3305a-b48b-4026-b953-7bdd3217648b", // Guia Lopes da Laguna - MS
+} as const;
+
+function resolveUnitId(raw: string | undefined): string {
+  const val = cleanValue(raw).toLowerCase();
+  if (!val || val === "all" || val === "todas" || val === "*") {
+    return "all";
+  }
+  if (val === "matriz" || val === "jardim") {
+    return ERP_KNOWN_UNITS.MATRIZ;
+  }
+  if (val === "guia_lopes" || val === "guia-lopes" || val === "guialopes") {
+    return ERP_KNOWN_UNITS.GUIA_LOPES;
+  }
+  return cleanValue(raw);
+}
+
 let _erpApiUrl: string | null = null;
 let _erpStoreSlug: string | null = null;
 let _erpCategorySlug: string | null = null;
 let _erpCatalogEnabled: boolean | null = null;
+let _erpUnitId: string | null = null;
 
 export const env = {
   get appId(): string {
@@ -97,6 +117,14 @@ export const env = {
   },
   set erpCatalogEnabled(val: boolean) {
     _erpCatalogEnabled = val;
+  },
+  get erpUnitId(): string {
+    return _erpUnitId !== null
+      ? _erpUnitId
+      : resolveUnitId(optional("ERP_UNIT_ID", "all"));
+  },
+  set erpUnitId(val: string) {
+    _erpUnitId = val;
   },
 };
 

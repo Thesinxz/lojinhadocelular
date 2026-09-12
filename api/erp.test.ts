@@ -5,6 +5,7 @@ import {
   parseBatteryHealth,
   inferBrandAndCategory,
   adaptErpProduct,
+  adaptErpCatalog,
   adaptErpCatalogResponse,
 } from "./erp/adapter";
 import type { ErpRawProduct } from "./erp/types";
@@ -285,9 +286,111 @@ describe("Gestão Celular ERP Adapter", () => {
       expect(adapted.variants[0].color).toBe("Meia-noite");
       expect(adapted.variants[0].quantity).toBe(3);
     });
+    it("deve identificar disponibilidade por unidade (Jardim vs Guia Lopes vs Ambas)", () => {
+      const matrizId = "dd89c64c-5188-4f14-a32b-a915e8e3b9b3";
+      const guiaId = "71e3305a-b48b-4026-b953-7bdd3217648b";
+
+      // 1. Exclusivo de Guia Lopes
+      const guiaOnly: ErpRawProduct = {
+        id: "guia-prod-1",
+        name: "iPhone 14 256GB Roxo",
+        price: 2150,
+        stocks: [
+          { unit_id: matrizId, available: 0 },
+          { unit_id: guiaId, available: 1 },
+        ],
+      };
+      const adaptedGuia = adaptErpProduct(guiaOnly, "all");
+      expect(adaptedGuia).not.toBeNull();
+      expect(adaptedGuia?.unitAvailability).toBe("guia_lopes");
+      expect(adaptedGuia?.stockJardim).toBe(0);
+      expect(adaptedGuia?.stockGuiaLopes).toBe(1);
+
+      // Se o filtro for Matriz (Jardim), deve ser descartado
+      const adaptedGuiaFilteredMatriz = adaptErpProduct(guiaOnly, matrizId);
+      expect(adaptedGuiaFilteredMatriz).toBeNull();
+
+      // 2. Exclusivo de Jardim (Matriz)
+      const jardimOnly: ErpRawProduct = {
+        id: "jardim-prod-1",
+        name: "iPhone 15 128GB Preto",
+        price: 2899,
+        stocks: [
+          { unit_id: matrizId, available: 2 },
+          { unit_id: guiaId, available: 0 },
+        ],
+      };
+      const adaptedJardim = adaptErpProduct(jardimOnly, "all");
+      expect(adaptedJardim).not.toBeNull();
+      expect(adaptedJardim?.unitAvailability).toBe("jardim");
+      expect(adaptedJardim?.stockJardim).toBe(2);
+      expect(adaptedJardim?.stockGuiaLopes).toBe(0);
+
+      // 3. Disponível em ambas as lojas
+      const ambas: ErpRawProduct = {
+        id: "ambas-prod-1",
+        name: "iPhone 13 128GB Meia-noite",
+        price: 2100,
+        stocks: [
+          { unit_id: matrizId, available: 1 },
+          { unit_id: guiaId, available: 1 },
+        ],
+      };
+      const adaptedAmbas = adaptErpProduct(ambas, "all");
+      expect(adaptedAmbas).not.toBeNull();
+      expect(adaptedAmbas?.unitAvailability).toBe("ambas");
+      expect(adaptedAmbas?.stockJardim).toBe(1);
+      expect(adaptedAmbas?.stockGuiaLopes).toBe(1);
+    });
+
+    it("deve DESCARTAR modelos inexistentes / fictícios de teste do ERP como iPhone 17+", () => {
+      const fakeIphone17: ErpRawProduct = {
+        id: "fake-17",
+        name: "CEL IPHONE 17 PRO MAX SILVER 256GB",
+        price: 7219,
+        stock: 1,
+        stocks: [{ unit_id: "71e3305a-b48b-4026-b953-7bdd3217648b", available: 1 }],
+      };
+      expect(adaptErpProduct(fakeIphone17)).toBeNull();
+    });
   });
 
   describe("adaptErpCatalogResponse", () => {
+    it("deve mesclar produtos duplicados idênticos somando quantidades e agrupando estoque", () => {
+      const matrizId = "dd89c64c-5188-4f14-a32b-a915e8e3b9b3";
+      const guiaId = "71e3305a-b48b-4026-b953-7bdd3217648b";
+
+      const duplicates: ErpRawProduct[] = [
+        {
+          id: "dup-1",
+          name: "iPhone 15 Pro Max 512GB Azul",
+          condition: "USED",
+          storage_capacity: "512GB",
+          color: "Azul",
+          price: 4199,
+          stocks: [{ unit_id: matrizId, available: 1 }, { unit_id: guiaId, available: 0 }],
+        },
+        {
+          id: "dup-2",
+          name: "iPhone 15 Pro Max 512GB Azul",
+          condition: "USED",
+          storage_capacity: "512GB",
+          color: "Azul",
+          price: 4199,
+          stocks: [{ unit_id: matrizId, available: 0 }, { unit_id: guiaId, available: 1 }],
+        },
+      ];
+
+      const res = adaptErpCatalog(duplicates, "all");
+      expect(res.length).toBe(1);
+      expect(res[0].id).toBe("dup-1");
+      expect(res[0].alternateIds).toContain("dup-2");
+      expect(res[0].variants[0].quantity).toBe(2);
+      expect(res[0].stockJardim).toBe(1);
+      expect(res[0].stockGuiaLopes).toBe(1);
+      expect(res[0].unitAvailability).toBe("ambas");
+    });
+
     it("deve processar arrays e envelopes de dados da API", () => {
       const rawList: ErpRawProduct[] = [
         {

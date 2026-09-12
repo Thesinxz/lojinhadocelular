@@ -58,7 +58,7 @@ export function parseHeroImages(json: string | undefined): string[] {
 }
 
 /** Menor preço à vista entre as variantes disponíveis */
-export function minPrice(product: ProductWithVariants): number | null {
+export function minPrice(product: { variants: { available: boolean; priceCash: number }[] }): number | null {
   const prices = product.variants.filter((v) => v.available).map((v) => v.priceCash);
   if (prices.length === 0) return null;
   return Math.min(...prices);
@@ -136,7 +136,7 @@ export function getImageSrcSet(url: string | null | undefined): string | undefin
 }
 
 /** Cores disponíveis de um produto (sem duplicar) */
-export function availableColors(product: ProductWithVariants) {
+export function availableColors(product: { variants: { available: boolean; color: string; colorHex?: string | null }[] }) {
   const map = new Map<string, string>();
   for (const v of product.variants) {
     if (v.available && !map.has(v.color)) map.set(v.color, v.colorHex ?? "#111111");

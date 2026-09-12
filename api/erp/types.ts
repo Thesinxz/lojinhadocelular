@@ -111,6 +111,8 @@ export type ErpCatalogApiResponse =
   | { products: ErpRawProduct[] }
   | { items: ErpRawProduct[] };
 
+export type StoreUnitAvailability = "jardim" | "guia_lopes" | "ambas" | "indisponivel";
+
 export interface ShopVariant {
   id: string | number;
   productId: string | number;
@@ -128,12 +130,16 @@ export interface ShopVariant {
   priceCash: number;
   quantity: number;
   available: boolean;
+  stockJardim?: number;
+  stockGuiaLopes?: number;
+  unitAvailability?: StoreUnitAvailability;
 }
 
 export interface ShopProduct {
   id: string | number;
   source: ProductSource;
   externalId: string;
+  alternateIds?: string[];
   name: string;
   brand: string;
   category: CategoryValue;
@@ -146,6 +152,9 @@ export interface ShopProduct {
   active: boolean;
   createdAt: Date;
   variants: ShopVariant[];
+  stockJardim?: number;
+  stockGuiaLopes?: number;
+  unitAvailability?: StoreUnitAvailability;
 }
 
 export type ErpFetchResult = {

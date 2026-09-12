@@ -214,7 +214,14 @@ export default function Produto() {
     ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)
     : "";
 
-  const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
+  const unitAvailability = selected?.unitAvailability || product?.unitAvailability || "jardim";
+  const isGuiaOnly = unitAvailability === "guia_lopes";
+  const isAmbas = unitAvailability === "ambas";
+
+  const targetWhatsapp = isGuiaOnly
+    ? s.whatsappGll || s.whatsappJardim || "5567998206533"
+    : s.whatsappJardim || s.whatsappGll || "5567992086012";
+
   const conditionLabel = isLacrado ? "Lacrado" : "Seminovo";
   const formattedPrice = price != null ? formatBRL(price) : "";
 
@@ -227,13 +234,19 @@ export default function Produto() {
   const displaySku = formatCommercialSku(selected?.sku || productCode);
   const cleanTitle = formatCommercialProductName(product?.name || "", color, storage);
 
+  const unitLocationText = isGuiaOnly
+    ? "Guia Lopes da Laguna - MS"
+    : isAmbas
+      ? "Jardim - MS (Também disponível em Guia Lopes)"
+      : "Jardim - MS";
+
   const buyMessage =
     product && price != null
       ? `*Olá, Lojinha do Celular!* 📱\nQuero fechar este pedido pelo site:\n\n1. *${cleanTitle}* (${conditionLabel}) — cód. ${displaySku}\nPix: ${formattedPrice}\n\n*Total no Pix: ${formattedPrice}*\n${
           installment12
             ? `ou até 12x de ${formatBRL(installment12)} no cartão\n\n`
             : "\n"
-        }📍 Unidade: Jardim - MS\n\nPode confirmar disponibilidade e a entrega? 📦`
+        }📍 Unidade: ${unitLocationText}\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
 
   const prodTitle = cleanTitle
@@ -571,6 +584,23 @@ export default function Produto() {
                   🔋 Bateria {batteryHealthDisplay}
                 </span>
               )}
+
+              {/* Badge de Unidade / Loja */}
+              {unitAvailability === "guia_lopes" && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900">
+                  📍 Unidade Guia Lopes
+                </span>
+              )}
+              {unitAvailability === "ambas" && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-900">
+                  📍 Jardim & Guia Lopes
+                </span>
+              )}
+              {unitAvailability === "jardim" && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                  📍 Unidade Jardim (Matriz)
+                </span>
+              )}
             </div>
 
             {/* Título do Produto */}
@@ -703,12 +733,25 @@ export default function Produto() {
               </div>
             )}
 
+            {/* Aviso quando o aparelho está fisicamente em Guia Lopes */}
+            {isGuiaOnly && (
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/90 p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
+                <span className="text-base leading-none">📍</span>
+                <div>
+                  <p className="font-bold text-amber-950">Aparelho disponível na Unidade de Guia Lopes da Laguna</p>
+                  <p className="mt-0.5 text-amber-800">
+                    Ao pedir pelo WhatsApp, seu pedido será atendido diretamente pela nossa filial de Guia Lopes para separação e entrega.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Botões de Ação Duplos */}
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
               {!isAvailable ? (
                 <a
                   href={waLink(
-                    whatsapp,
+                    targetWhatsapp,
                     `Olá! Vi o ${product.name}${storage ? ` ${storage}` : ""}${color ? ` ${color}` : ""} na Lojinha do Celular, mas está esgotado no momento. Gostaria de saber a previsão de chegada ou encomendar.`,
                   )}
                   target="_blank"
@@ -730,7 +773,7 @@ export default function Produto() {
                   </button>
 
                   <a
-                    href={waLink(whatsapp, buyMessage)}
+                    href={waLink(targetWhatsapp, buyMessage)}
                     target="_blank"
                     rel="noreferrer"
                     onClick={handleAddToCart}
