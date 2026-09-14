@@ -16,6 +16,7 @@ export interface ErpRawVariant {
   price_cash?: number | string;
   stock?: number | string;
   quantity?: number | string;
+  available_quantity?: number | string;
   image?: string;
   image_url?: string;
   warranty?: string;
@@ -74,11 +75,18 @@ export interface ErpRawProduct {
 
   stock?: number | string;
   quantity?: number | string;
+  available_quantity?: number | string;
   estoque?: number | string;
   quantidade?: number | string;
   qtd?: number | string;
   saldo?: number | string;
-  stocks?: { unit_id?: string; available?: number | string; quantity?: number | string; stock?: number | string }[];
+  stocks?: {
+    unit_id?: string;
+    available?: number | string;
+    available_quantity?: number | string;
+    quantity?: number | string;
+    stock?: number | string;
+  }[];
 
   category?: string | { slug?: string; name?: string };
   category_slug?: string;

@@ -355,6 +355,10 @@ export default function Admin() {
                       <span className="rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                         🟡 Offline / Sincronizando
                       </span>
+                    ) : catalogStatusQuery.data.status === "empty" ? (
+                      <span className="rounded-full bg-slate-100 border border-slate-300 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                        ⚪ Estoque vazio
+                      </span>
                     ) : (
                       <span className="rounded-full bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-bold text-red-800">
                         🔴 Configuração Pendente
@@ -366,6 +370,8 @@ export default function Admin() {
                       <>
                         Estoque e preços lidos oficialmente do ERP. Personalize <strong>fotos reais</strong>, <strong>vídeos</strong>, <strong>saúde da bateria</strong> ou <strong>destaque</strong> abaixo.
                       </>
+                    ) : catalogStatusQuery.data.status === "empty" ? (
+                      "A API do ERP respondeu corretamente, mas não há aparelhos disponíveis para exibir no momento."
                     ) : (
                       <>
                         {catalogStatusQuery.data.message || "Tentando comunicação com a API do ERP."}

@@ -237,8 +237,12 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
         s.unit_id?.toLowerCase() === ERP_KNOWN_UNITS.GUIA_LOPES.toLowerCase() ||
         s.unit?.nome?.toLowerCase().includes("guia"),
     );
-    stockJardim = parseStockQuantity(sMatriz?.available ?? sMatriz?.quantity ?? sMatriz?.stock ?? 0);
-    stockGuiaLopes = parseStockQuantity(sGuia?.available ?? sGuia?.quantity ?? sGuia?.stock ?? 0);
+    stockJardim = parseStockQuantity(
+      sMatriz?.available_quantity ?? sMatriz?.available ?? sMatriz?.quantity ?? sMatriz?.stock ?? 0,
+    );
+    stockGuiaLopes = parseStockQuantity(
+      sGuia?.available_quantity ?? sGuia?.available ?? sGuia?.quantity ?? sGuia?.stock ?? 0,
+    );
 
     if (unitFilter && (unitFilter.toLowerCase() === ERP_KNOWN_UNITS.MATRIZ.toLowerCase() || unitFilter.toLowerCase() === "matriz" || unitFilter.toLowerCase() === "jardim")) {
       stock = stockJardim;
@@ -249,7 +253,14 @@ export function adaptErpProduct(raw: ErpRawProduct, unitFilter = env.erpUnitId):
     }
   } else {
     stock = parseStockQuantity(
-      raw.stock ?? raw.quantity ?? raw.estoque ?? raw.quantidade ?? raw.qtd ?? raw.saldo ?? 0,
+      raw.available_quantity ??
+        raw.stock ??
+        raw.quantity ??
+        raw.estoque ??
+        raw.quantidade ??
+        raw.qtd ??
+        raw.saldo ??
+        0,
     );
     stockJardim = stock;
   }
@@ -496,6 +507,20 @@ export function adaptErpCatalog(items: unknown, unitFilter = env.erpUnitId): Sho
       Array.isArray((obj.data as Record<string, unknown>).products)
     ) {
       rawList = (obj.data as Record<string, unknown>).products as ErpRawProduct[];
+    } else if (
+      obj.data &&
+      typeof obj.data === "object" &&
+      (obj.data as Record<string, unknown>).dados &&
+      typeof (obj.data as Record<string, unknown>).dados === "object" &&
+      Array.isArray(
+        ((obj.data as Record<string, unknown>).dados as Record<string, unknown>).products,
+      )
+    ) {
+      // Envelope atual da API Gestão Celular:
+      // { success: true, data: { sucesso: true, dados: { products: [...] } } }
+      rawList = (
+        (obj.data as Record<string, unknown>).dados as Record<string, unknown>
+      ).products as ErpRawProduct[];
     } else if (Array.isArray(obj.products)) {
       rawList = obj.products as ErpRawProduct[];
     } else if (Array.isArray(obj.items)) {

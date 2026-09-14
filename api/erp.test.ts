@@ -531,6 +531,31 @@ describe("Gestão Celular ERP Adapter", () => {
       const res3 = adaptErpCatalogResponse({ products: rawList });
       expect(res3.length).toBe(1);
       expect(res3[0].id).toBe("uuid-1");
+
+      const res4 = adaptErpCatalogResponse({
+        success: true,
+        data: {
+          sucesso: true,
+          dados: {
+            products: [
+              {
+                ...rawList[0],
+                stock: undefined,
+                available_quantity: 2,
+                stocks: [
+                  {
+                    unit_id: "dd89c64c-5188-4f14-a32b-a915e8e3b9b3",
+                    available_quantity: 2,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      expect(res4.length).toBe(1);
+      expect(res4[0].id).toBe("uuid-1");
+      expect(res4[0].variants[0].quantity).toBe(2);
     });
   });
 
