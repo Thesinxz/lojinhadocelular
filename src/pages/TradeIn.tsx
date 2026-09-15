@@ -167,6 +167,7 @@ export default function TradeIn() {
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lgpdConsent, setLgpdConsent] = useState(true);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
@@ -422,7 +423,6 @@ export default function TradeIn() {
   async function submitEvaluation() {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    const whatsappWindow = window.open("about:blank", "_blank", "noopener,noreferrer");
 
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
 
@@ -523,7 +523,6 @@ export default function TradeIn() {
       }
     } catch (err) {
       console.error("Erro ao salvar proposta via tRPC:", err);
-      if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
       setError("Não foi possível registrar sua avaliação agora. Confira sua conexão e tente novamente.");
       return;
     } finally {
@@ -551,13 +550,11 @@ export default function TradeIn() {
       safeStorage.setItem("lojinha_evaluations_history", JSON.stringify(sanitizedHistory));
     } catch {}
 
-    // 3. Abre conversa com o atendente
+    // 3. Prepara a conversa com o atendente para abertura explícita pelo cliente.
+    // Não abrimos uma aba provisória antes do envio: isso deixava about:blank
+    // aberto quando o navegador bloqueava a navegação após uma operação assíncrona.
     const whatsappUrl = waLink(destination, summaryText);
-    if (whatsappWindow && !whatsappWindow.closed) {
-      whatsappWindow.location.href = whatsappUrl;
-    } else {
-      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    }
+    setWhatsappUrl(whatsappUrl);
     setSent(true);
   }
 
@@ -694,12 +691,7 @@ export default function TradeIn() {
           {/* BOTÕES DE AÇÃO */}
           <div className="mt-6 flex flex-col gap-3 w-full sm:flex-row">
             <a
-              href={waLink(
-                destination,
-                `Olá! Acabei de fazer a pré-avaliação do meu ${data.model} no site Troca Fácil da Lojinha do Celular (Estimativa: ${formatBRL(
-                  valuation.minEstimatedValue
-                )} a ${formatBRL(valuation.maxEstimatedValue)}). Gostaria de confirmar a proposta!`
-              )}
+              href={whatsappUrl || waLink(destination, `Olá! Acabei de fazer a pré-avaliação do meu ${data.model} no site Troca Fácil da Lojinha do Celular. Gostaria de confirmar a proposta!`)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]"
