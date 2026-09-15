@@ -38,14 +38,16 @@ const trpcClient = trpc.createClient({
         return token ? { Authorization: `Bearer ${token}` } : {};
       },
       fetch(input, init) {
-        // Suporte resiliente a timeout de requisições mesmo em navegadores antigos
+        // O envio da avaliação pode carregar fotos e ser feito em rede móvel.
+        // Um timeout de 15s abortava o request no Safari antes do banco responder.
         let signal = init?.signal;
         if (!signal && typeof AbortSignal !== "undefined") {
+          const timeoutMs = 60_000;
           if (typeof AbortSignal.timeout === "function") {
-            signal = AbortSignal.timeout(15000);
+            signal = AbortSignal.timeout(timeoutMs);
           } else {
             const controller = new AbortController();
-            setTimeout(() => controller.abort(), 15000);
+            setTimeout(() => controller.abort(), timeoutMs);
             signal = controller.signal;
           }
         }

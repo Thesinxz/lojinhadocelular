@@ -31,7 +31,7 @@ import {
   getGradeBadgeConfig,
   parseValuationConfig,
 } from "@/lib/valuationEngine";
-import { compressImage, fileToDataUrl, formatFileSize } from "@/lib/imageCompressor";
+import { compressImage, formatFileSize } from "@/lib/imageCompressor";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -168,6 +168,7 @@ export default function TradeIn() {
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [whatsappUrl, setWhatsappUrl] = useState("");
+  const [photoWarning, setPhotoWarning] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lgpdConsent, setLgpdConsent] = useState(true);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
@@ -282,10 +283,12 @@ export default function TradeIn() {
 
     try {
       const result = await compressImage(file, {
-        maxWidth: 1440,
-        maxHeight: 1440,
-        quality: 0.82,
-        mimeType: "image/webp",
+        // JPEG é mais compatível com fotos do iPhone/Safari e reduz o payload
+        // enviado junto com os dados da avaliação em redes móveis.
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 0.7,
+        mimeType: "image/jpeg",
       });
 
       setPhotoSlots(prev =>
@@ -307,13 +310,14 @@ export default function TradeIn() {
         })
       );
       setError("");
+      if (!result.dataUrl) {
+        setPhotoWarning(
+          "Uma foto não pôde ser otimizada no Safari. A avaliação será registrada, mas essa foto deverá ser enviada pelo WhatsApp."
+        );
+      }
     } catch (err) {
-      console.error("Falha ao comprimir imagem, usando original:", err);
+      console.error("Falha ao comprimir imagem; ela não será incluída no request:", err);
       const previewUrl = URL.createObjectURL(file);
-      let fallbackDataUrl: string | undefined;
-      try {
-        fallbackDataUrl = await fileToDataUrl(file);
-      } catch {}
 
       setPhotoSlots(prev =>
         prev.map(slot => {
@@ -323,7 +327,9 @@ export default function TradeIn() {
               ...slot,
               file,
               previewUrl,
-              dataUrl: fallbackDataUrl,
+              // Não envia o HEIC/original em base64: no Safari isso pode
+              // ultrapassar o limite do request e impedir o cadastro inteiro.
+              dataUrl: undefined,
               originalSize: file.size,
               compressedSize: file.size,
               savingsPercent: 0,
@@ -332,6 +338,9 @@ export default function TradeIn() {
           }
           return slot;
         })
+      );
+      setPhotoWarning(
+        "Uma foto não pôde ser otimizada no Safari. A avaliação será registrada, mas essa foto deverá ser enviada pelo WhatsApp."
       );
       setError("");
     }
@@ -429,24 +438,16 @@ export default function TradeIn() {
     // Processa fotos anexadas para envio e armazenamento
     const photosPayload: { key: string; label: string; url: string; name?: string; size?: number }[] = [];
     for (const slot of photoSlots) {
-      if (slot.file || slot.dataUrl) {
-        let url = slot.dataUrl;
-        if (!url && slot.file) {
-          try {
-            url = await fileToDataUrl(slot.file);
-          } catch (e) {
-            console.error("Erro ao converter foto:", e);
-          }
-        }
-        if (url) {
-          photosPayload.push({
-            key: slot.key,
-            label: slot.label,
-            url,
-            name: slot.file?.name,
-            size: slot.compressedSize || slot.file?.size,
-          });
-        }
+      // Somente fotos já comprimidas entram no request. Enviar o original
+      // do iPhone em base64 pode estourar o limite de 10 MB no Safari.
+      if (slot.dataUrl) {
+        photosPayload.push({
+          key: slot.key,
+          label: slot.label,
+          url: slot.dataUrl,
+          name: slot.file?.name,
+          size: slot.compressedSize || slot.file?.size,
+        });
       }
     }
 
@@ -485,7 +486,7 @@ export default function TradeIn() {
       `• Possui caixa: ${data.hasBox || "Não informado"}`,
       `• Conservação visual: ${data.visualCondition || "Não informado"}`,
       "",
-      `📸 *Fotos anexadas:* ${photosPayload.length || filledPhotosCount} de 5 selecionadas`,
+      `📸 *Fotos anexadas:* ${photosPayload.length} de 5 selecionadas`,
       data.notes ? `📝 *Obs:* ${data.notes}` : "",
       "",
       "Enviado pelo site https://lojinhadocelular.com",
@@ -515,7 +516,7 @@ export default function TradeIn() {
         condition: data.visualCondition || "Em análise",
         battery: batteryText,
         notes: data.notes.trim() || undefined,
-        photosCount: photosPayload.length || filledPhotosCount,
+        photosCount: photosPayload.length,
         photos: photosPayload,
       });
       if (!result.ok) {
@@ -535,7 +536,7 @@ export default function TradeIn() {
       const newEntry = {
         ...data,
         battery: batteryText,
-        photosCount: photosPayload.length || filledPhotosCount,
+        photosCount: photosPayload.length,
         photos: photosPayload,
         date: new Date().toISOString(),
       };
@@ -629,7 +630,9 @@ export default function TradeIn() {
                   </span>
                 </div>
                 <p className="mt-2 text-xs sm:text-sm text-[#1d1d1f] font-medium leading-relaxed">
-                  As informações e fotos do seu aparelho foram enviadas com sucesso! Nossa equipe técnica está analisando os dados e passará a proposta oficial e o valor da volta diretamente no seu WhatsApp em instantes.
+                  {photoWarning
+                    ? `Sua avaliação foi registrada com sucesso. ${photoWarning}`
+                    : "As informações e fotos do seu aparelho foram enviadas com sucesso! Nossa equipe técnica está analisando os dados e passará a proposta oficial e o valor da volta diretamente no seu WhatsApp em instantes."}
                 </p>
                 {data.targetModel && (
                   <div className="mt-3 rounded-xl border border-purple-200/80 bg-purple-50/70 p-3">

@@ -88,26 +88,13 @@ export async function compressImage(
       if (!ctx) {
         // Fallback caso canvas 2D falhe
         const fallbackUrl = URL.createObjectURL(file);
-        fileToDataUrl(file)
-          .then((dataUrl) => {
-            resolve({
-              file,
-              previewUrl: fallbackUrl,
-              dataUrl,
-              originalSize: file.size,
-              compressedSize: file.size,
-              savingsPercent: 0,
-            });
-          })
-          .catch(() => {
-            resolve({
-              file,
-              previewUrl: fallbackUrl,
-              originalSize: file.size,
-              compressedSize: file.size,
-              savingsPercent: 0,
-            });
-          });
+        resolve({
+          file,
+          previewUrl: fallbackUrl,
+          originalSize: file.size,
+          compressedSize: file.size,
+          savingsPercent: 0,
+        });
         return;
       }
 
@@ -126,26 +113,13 @@ export async function compressImage(
               (jpegBlob) => {
                 if (!jpegBlob) {
                   const fallbackUrl = URL.createObjectURL(file);
-                  fileToDataUrl(file)
-                    .then((dataUrl) => {
-                      resolve({
-                        file,
-                        previewUrl: fallbackUrl,
-                        dataUrl,
-                        originalSize: file.size,
-                        compressedSize: file.size,
-                        savingsPercent: 0,
-                      });
-                    })
-                    .catch(() => {
-                      resolve({
-                        file,
-                        previewUrl: fallbackUrl,
-                        originalSize: file.size,
-                        compressedSize: file.size,
-                        savingsPercent: 0,
-                      });
-                    });
+                  resolve({
+                    file,
+                    previewUrl: fallbackUrl,
+                    originalSize: file.size,
+                    compressedSize: file.size,
+                    savingsPercent: 0,
+                  });
                   return;
                 }
                 finish(jpegBlob, "image/jpeg", ".jpg");
