@@ -104,6 +104,21 @@ export const env = {
   get whatsappCloudApiVersion(): string {
     return optional("WHATSAPP_CLOUD_API_VERSION", "v22.0");
   },
+  get s3Endpoint(): string {
+    return optional("S3_ENDPOINT", "");
+  },
+  get s3Region(): string {
+    return optional("S3_REGION", "auto");
+  },
+  get s3BucketName(): string {
+    return optional("S3_BUCKET_NAME", "");
+  },
+  get s3AccessKeyId(): string {
+    return optional("S3_ACCESS_KEY_ID", "");
+  },
+  get s3SecretAccessKey(): string {
+    return optional("S3_SECRET_ACCESS_KEY", "");
+  },
   // ERP Gestão Celular — Storefront Catalog
   get erpApiUrl(): string {
     return _erpApiUrl !== null

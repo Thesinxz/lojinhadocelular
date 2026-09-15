@@ -14,6 +14,7 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { ensureTables, getPool } from "./queries/connection";
 import { isEvaluationNotificationConfigured } from "./services/evaluationNotification";
+import { isEvaluationPhotoStorageConfigured } from "./services/evaluationPhotoStorage";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -333,6 +334,7 @@ app.get("/api/health", async (c) => {
       database: databaseStatus,
       evaluations: databaseStatus === "connected" ? "available" : "unavailable",
       notification: isEvaluationNotificationConfigured() ? "configured" : "not_configured",
+      evaluationPhotos: isEvaluationPhotoStorageConfigured() ? "s3" : "database_inline",
     },
   });
 });

@@ -205,6 +205,8 @@ export interface EvaluationPhotoItem {
   key: string;
   label: string;
   url: string;
+  storage?: "inline" | "s3";
+  objectKey?: string;
   name?: string;
   size?: number;
 }

@@ -13,6 +13,10 @@ import {
   notifyEvaluationCreated,
   persistEvaluationNotificationStatus,
 } from "./services/evaluationNotification";
+import {
+  createEvaluationPhotoUploadUrl,
+  prepareEvaluationPhotosForStorage,
+} from "./services/evaluationPhotoStorage";
 
 const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.whatsappJardim,
@@ -369,6 +373,25 @@ export const shopRouter = createRouter({
     return await getShopPublicSettings(PUBLIC_SETTING_KEYS);
   }),
 
+  // Gera uma URL temporária para o navegador enviar a foto diretamente ao R2/S3.
+  prepareEvaluationPhotoUpload: publicQuery
+    .input(
+      z.object({
+        contentType: z.string().max(80),
+        size: z.number().int().positive().max(2 * 1024 * 1024),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await createEvaluationPhotoUploadUrl(input);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Não foi possível preparar o upload da foto.",
+        });
+      }
+    }),
+
   // Envio de proposta de avaliação de aparelho
   submitEvaluation: publicQuery
     .input(
@@ -399,6 +422,8 @@ export const shopRouter = createRouter({
               key: z.string().max(40),
               label: z.string().max(80),
               url: z.string().max(10_000_000),
+              storage: z.enum(["inline", "s3"]).optional(),
+              objectKey: z.string().max(300).optional(),
               name: z.string().max(120).optional(),
               size: z.number().optional(),
             }),
@@ -420,10 +445,19 @@ export const shopRouter = createRouter({
         input.photos && input.photos.length > 0
           ? input.photos.length
           : (input.photosCount ?? 0);
-      const photosJson =
-        input.photos && input.photos.length > 0
-          ? JSON.stringify(input.photos)
-          : null;
+      let storedPhotos = input.photos || [];
+      if (storedPhotos.length > 0) {
+        try {
+          storedPhotos = await prepareEvaluationPhotosForStorage(storedPhotos);
+        } catch (error) {
+          // A falha no bucket não pode impedir o cadastro da avaliação.
+          // Mantemos a representação recebida para a equipe poder solicitar as fotos.
+          console.error("Falha ao armazenar fotos da avaliação no S3:", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+      const photosJson = storedPhotos.length > 0 ? JSON.stringify(storedPhotos) : null;
       let evaluationId = 0;
 
       try {

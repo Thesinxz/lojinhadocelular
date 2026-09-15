@@ -20,12 +20,29 @@ import {
   notifyEvaluationCreated,
   persistEvaluationNotificationStatus,
 } from "./services/evaluationNotification";
+import {
+  deleteEvaluationPhotoObjects,
+  getPhotoObjectKey,
+  hydrateEvaluationPhotos,
+  isEvaluationPhotoStorageConfigured,
+  parseStoredEvaluationPhotos,
+  prepareEvaluationPhotosForStorage,
+} from "./services/evaluationPhotoStorage";
 
 function requireAdmin(req: Request) {
   const token = tokenFromRequest(req);
   if (!token || !verifyToken(token)) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Não autorizado" });
   }
+}
+
+async function hydrateEvaluationRecord<T extends { photos?: unknown }>(record: T): Promise<T> {
+  const photos = parseStoredEvaluationPhotos(record.photos);
+  if (!photos.length) return record;
+  return {
+    ...record,
+    photos: await hydrateEvaluationPhotos(photos),
+  };
 }
 
 const variantInput = z.object({
@@ -187,10 +204,11 @@ export const adminRouter = createRouter({
     try {
       const db = getDb();
       await ensureTables();
-      return await db
+      const rows = await db
         .select()
         .from(evaluations)
         .orderBy(desc(evaluations.createdAt));
+      return await Promise.all(rows.map(row => hydrateEvaluationRecord(row)));
     } catch (err: any) {
       console.warn("Consulta de avaliações via Drizzle falhou, tentando fallback SQL direto:", err?.message || err);
       try {
@@ -200,7 +218,7 @@ export const adminRouter = createRouter({
             "SELECT * FROM evaluations ORDER BY created_at DESC"
           );
           if (Array.isArray(rows)) {
-            return rows.map((r: any) => ({
+            const mapped = rows.map((r: any) => ({
               id: Number(r.id),
               name: String(r.name || ""),
               whatsapp: String(r.whatsapp || ""),
@@ -229,6 +247,7 @@ export const adminRouter = createRouter({
               notifiedAt: r.notified_at ? new Date(r.notified_at) : null,
               createdAt: r.created_at ? new Date(r.created_at) : new Date(),
             }));
+            return await Promise.all(mapped.map(row => hydrateEvaluationRecord(row)));
           }
         }
       } catch (sqlErr: any) {
@@ -262,7 +281,20 @@ export const adminRouter = createRouter({
       requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
+      const evaluation = await db.query.evaluations.findFirst({
+        where: eq(evaluations.id, input.id),
+      });
+      const objectKeys = parseStoredEvaluationPhotos(evaluation?.photos)
+        .map(getPhotoObjectKey)
+        .filter((key): key is string => Boolean(key));
       await db.delete(evaluations).where(eq(evaluations.id, input.id));
+      try {
+        await deleteEvaluationPhotoObjects(objectKeys);
+      } catch (error) {
+        console.error("Avaliação removida, mas não foi possível remover todas as fotos do S3:", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
       return { ok: true };
     }),
 
@@ -275,6 +307,8 @@ export const adminRouter = createRouter({
             key: z.string(),
             label: z.string(),
             url: z.string(),
+            storage: z.enum(["inline", "s3"]).optional(),
+            objectKey: z.string().max(300).optional(),
             name: z.string().optional(),
             size: z.number().optional(),
           }),
@@ -285,13 +319,22 @@ export const adminRouter = createRouter({
       requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
-      const photosJson = JSON.stringify(input.photos);
+      const currentEvaluation = await db.query.evaluations.findFirst({
+        where: eq(evaluations.id, input.id),
+      });
+      const currentKeys = new Set(
+        parseStoredEvaluationPhotos(currentEvaluation?.photos)
+          .map(getPhotoObjectKey)
+          .filter((key): key is string => Boolean(key)),
+      );
+      const storedPhotos = await prepareEvaluationPhotosForStorage(input.photos);
+      const photosJson = JSON.stringify(storedPhotos);
       try {
         await db
           .update(evaluations)
           .set({
             photos: photosJson,
-            photosCount: input.photos.length,
+            photosCount: storedPhotos.length,
           })
           .where(eq(evaluations.id, input.id));
       } catch {
@@ -299,11 +342,55 @@ export const adminRouter = createRouter({
         if (pool) {
           await pool.query(
             "UPDATE evaluations SET photos = ?, photos_count = ? WHERE id = ?",
-            [photosJson, input.photos.length, input.id],
+            [photosJson, storedPhotos.length, input.id],
           );
         }
       }
-      return { ok: true, count: input.photos.length };
+      const nextKeys = new Set(storedPhotos.map(getPhotoObjectKey).filter((key): key is string => Boolean(key)));
+      const removedKeys = [...currentKeys].filter(key => !nextKeys.has(key));
+      try {
+        await deleteEvaluationPhotoObjects(removedKeys);
+      } catch (error) {
+        console.error("As fotos removidas da avaliação não puderam ser excluídas do S3:", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return { ok: true, count: storedPhotos.length };
+    }),
+
+  migrateEvaluationPhotosToS3: publicQuery
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      if (!isEvaluationPhotoStorageConfigured()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Configure o armazenamento S3/R2 no Coolify antes de migrar as fotos.",
+        });
+      }
+      const db = getDb();
+      await ensureTables();
+      const evaluation = await db.query.evaluations.findFirst({
+        where: eq(evaluations.id, input.id),
+      });
+      if (!evaluation) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Avaliação não encontrada" });
+      }
+
+      const photos = parseStoredEvaluationPhotos(evaluation.photos);
+      const storedPhotos = await prepareEvaluationPhotosForStorage(photos);
+      await db
+        .update(evaluations)
+        .set({
+          photos: JSON.stringify(storedPhotos),
+          photosCount: storedPhotos.length,
+        })
+        .where(eq(evaluations.id, input.id));
+      return {
+        ok: true,
+        count: storedPhotos.length,
+        migrated: storedPhotos.filter(photo => photo.storage === "s3").length,
+      };
     }),
 
   retryEvaluationNotification: publicQuery
@@ -432,4 +519,3 @@ export const adminRouter = createRouter({
     };
   }),
 });
-

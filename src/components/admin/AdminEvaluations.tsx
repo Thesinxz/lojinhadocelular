@@ -180,6 +180,16 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     },
   });
 
+  const migratePhotosMutation = trpc.admin.migrateEvaluationPhotosToS3.useMutation({
+    onSuccess: (result) => {
+      utils.admin.evaluations.invalidate();
+      alert(`${result.migrated} foto(s) armazenada(s) no R2/S3.`);
+    },
+    onError: (err) => {
+      alert("Não foi possível migrar as fotos para o R2/S3: " + err.message);
+    },
+  });
+
   const retryNotificationMutation = trpc.admin.retryEvaluationNotification.useMutation({
     onSuccess: (result) => {
       utils.admin.evaluations.invalidate();
@@ -218,6 +228,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
           key: `foto_${Date.now()}_${i + 1}`,
           label: `Foto ${existingPhotos.length + i + 1}`,
           url: dataUrl,
+          storage: "inline",
           name: file.name,
           size: compressed.compressedSize,
         });
@@ -607,6 +618,9 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
 
             const photos = parseEvaluationPhotos(item.photos);
             const effectivePhotosCount = photos.length || item.photosCount || 0;
+            const hasInlinePhotos = photos.some(
+              photo => photo.storage !== "s3" && !photo.url.startsWith("s3://"),
+            );
 
             return (
               <div
@@ -765,6 +779,21 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                               Fotos do Aparelho ({photos.length})
                             </span>
                             <div className="flex items-center gap-2">
+                              {hasInlinePhotos && (
+                                <button
+                                  type="button"
+                                  onClick={() => migratePhotosMutation.mutate({ id: item.id as number })}
+                                  disabled={migratePhotosMutation.isPending}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-800 disabled:opacity-50"
+                                >
+                                  {migratePhotosMutation.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Upload className="h-3 w-3" />
+                                  )}
+                                  <span>Salvar no R2</span>
+                                </button>
+                              )}
                               <label
                                 className={`inline-flex items-center gap-1 text-[11px] font-medium text-[#0071e3] hover:text-[#0077ed] cursor-pointer transition ${
                                   uploadingEvaluationId === item.id ? "opacity-50 pointer-events-none" : ""

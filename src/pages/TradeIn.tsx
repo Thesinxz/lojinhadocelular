@@ -162,6 +162,7 @@ export default function TradeIn() {
   const settings = useShopSettings();
   const destination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
   const submitMutation = trpc.shop.submitEvaluation.useMutation();
+  const preparePhotoUploadMutation = trpc.shop.prepareEvaluationPhotoUpload.useMutation();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<EvaluationData>(INITIAL_EVALUATION);
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
@@ -436,18 +437,59 @@ export default function TradeIn() {
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
 
     // Processa fotos anexadas para envio e armazenamento
-    const photosPayload: { key: string; label: string; url: string; name?: string; size?: number }[] = [];
+    const photosPayload: {
+      key: string;
+      label: string;
+      url: string;
+      storage?: "inline" | "s3";
+      objectKey?: string;
+      name?: string;
+      size?: number;
+    }[] = [];
     for (const slot of photoSlots) {
       // Somente fotos já comprimidas entram no request. Enviar o original
       // do iPhone em base64 pode estourar o limite de 10 MB no Safari.
       if (slot.dataUrl) {
-        photosPayload.push({
-          key: slot.key,
-          label: slot.label,
-          url: slot.dataUrl,
-          name: slot.file?.name,
-          size: slot.compressedSize || slot.file?.size,
-        });
+        try {
+          const upload = await preparePhotoUploadMutation.mutateAsync({
+            contentType: slot.file?.type || "image/jpeg",
+            size: slot.file?.size || 0,
+          });
+
+          if (upload.configured && slot.file) {
+            const response = await fetch(upload.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": upload.contentType },
+              body: slot.file,
+            });
+            if (!response.ok) {
+              throw new Error(`Upload da foto recusado (${response.status})`);
+            }
+            photosPayload.push({
+              key: slot.key,
+              label: slot.label,
+              url: `s3://${upload.objectKey}`,
+              storage: "s3",
+              objectKey: upload.objectKey,
+              name: slot.file.name,
+              size: slot.compressedSize || slot.file.size,
+            });
+          } else {
+            photosPayload.push({
+              key: slot.key,
+              label: slot.label,
+              url: slot.dataUrl,
+              storage: "inline",
+              name: slot.file?.name,
+              size: slot.compressedSize || slot.file?.size,
+            });
+          }
+        } catch (photoError) {
+          console.error("Falha ao enviar foto para o armazenamento:", photoError);
+          setPhotoWarning(
+            "Uma foto não pôde ser enviada para o armazenamento. A avaliação será registrada, mas essa foto deverá ser enviada pelo WhatsApp."
+          );
+        }
       }
     }
 
