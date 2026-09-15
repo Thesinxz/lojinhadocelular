@@ -16,6 +16,10 @@ import { env } from "./lib/env";
 import { getErpCatalog, clearErpCache } from "./erp/service";
 import { getErpOverride, saveErpOverride } from "./erp/overrides";
 import { getAdminSettings, saveSettings } from "./services/settingsStore";
+import {
+  notifyEvaluationCreated,
+  persistEvaluationNotificationStatus,
+} from "./services/evaluationNotification";
 
 function requireAdmin(req: Request) {
   const token = tokenFromRequest(req);
@@ -220,6 +224,9 @@ export const adminRouter = createRouter({
               photosCount: Number(r.photos_count || 0),
               photos: r.photos ? String(r.photos) : null,
               status: (r.status as any) || "pendente",
+              notificationStatus: String(r.notification_status || "not_configured"),
+              notificationError: r.notification_error ? String(r.notification_error) : null,
+              notifiedAt: r.notified_at ? new Date(r.notified_at) : null,
               createdAt: r.created_at ? new Date(r.created_at) : new Date(),
             }));
           }
@@ -297,6 +304,47 @@ export const adminRouter = createRouter({
         }
       }
       return { ok: true, count: input.photos.length };
+    }),
+
+  retryEvaluationNotification: publicQuery
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const db = getDb();
+      await ensureTables();
+      const evaluation = await db.query.evaluations.findFirst({
+        where: eq(evaluations.id, input.id),
+      });
+
+      if (!evaluation) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Avaliação não encontrada" });
+      }
+
+      const result = await notifyEvaluationCreated({
+        id: evaluation.id,
+        name: evaluation.name,
+        whatsapp: evaluation.whatsapp,
+        model: evaluation.model,
+        storage: evaluation.storage,
+        targetModel: evaluation.targetModel,
+        photosCount: evaluation.photosCount,
+      });
+
+      try {
+        await persistEvaluationNotificationStatus(evaluation.id, result);
+      } catch (error: any) {
+        console.error("Não foi possível salvar o resultado da retentativa de notificação:", {
+          code: error?.code,
+          errno: error?.errno,
+          sqlState: error?.sqlState,
+        });
+      }
+
+      return {
+        ok: result.status === "sent",
+        status: result.status,
+        error: result.error || null,
+      };
     }),
 
   erpOverride: publicQuery
@@ -384,5 +432,4 @@ export const adminRouter = createRouter({
     };
   }),
 });
-
 

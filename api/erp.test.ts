@@ -504,6 +504,35 @@ describe("Gestão Celular ERP Adapter", () => {
       expect(res[0].unitAvailability).toBe("jardim");
     });
 
+    it("deve manter separados seminovos iguais com saúdes de bateria diferentes", () => {
+      const products = [
+        {
+          id: "battery-87",
+          name: "iPhone 13 128GB Midnight",
+          condition: "USED",
+          storage_capacity: "128GB",
+          color: "Midnight",
+          price: 2100,
+          battery_health: 87,
+          stock: 1,
+        },
+        {
+          id: "battery-80",
+          name: "iPhone 13 128GB Midnight",
+          condition: "USED",
+          storage_capacity: "128GB",
+          color: "Midnight",
+          price: 2100,
+          battery_health: 80,
+          stock: 1,
+        },
+      ];
+
+      const res = adaptErpCatalog(products, "all");
+      expect(res).toHaveLength(2);
+      expect(res.map((p) => p.variants[0].batteryHealth).sort()).toEqual(["80%", "87%"]);
+    });
+
     it("deve processar arrays e envelopes de dados da API", () => {
       const rawList: ErpRawProduct[] = [
         {

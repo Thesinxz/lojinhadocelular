@@ -123,6 +123,9 @@ export async function ensureTables() {
         photos_count INT NOT NULL DEFAULT 0,
         photos MEDIUMTEXT,
         status ENUM('pendente', 'atendimento', 'concluido', 'recusado') NOT NULL DEFAULT 'pendente',
+        notification_status VARCHAR(30) NOT NULL DEFAULT 'not_configured',
+        notification_error TEXT,
+        notified_at TIMESTAMP NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_evaluations_status (status),
         INDEX idx_evaluations_created_at (created_at)
@@ -134,6 +137,9 @@ export async function ensureTables() {
       await pool.query("ALTER TABLE `evaluations` MODIFY COLUMN `photos` LONGTEXT");
     } catch {}
     await ensureColumnExists(pool, "evaluations", "photos_count", "INT NOT NULL DEFAULT 0");
+    await ensureColumnExists(pool, "evaluations", "notification_status", "VARCHAR(30) NOT NULL DEFAULT 'not_configured'");
+    await ensureColumnExists(pool, "evaluations", "notification_error", "TEXT");
+    await ensureColumnExists(pool, "evaluations", "notified_at", "TIMESTAMP NULL");
     await ensureColumnExists(pool, "evaluations", "purchase_location", "VARCHAR(100) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "target_model", "VARCHAR(120) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "face_id", "VARCHAR(30) DEFAULT ''");

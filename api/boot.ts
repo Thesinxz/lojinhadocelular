@@ -12,6 +12,8 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
+import { ensureTables, getPool } from "./queries/connection";
+import { isEvaluationNotificationConfigured } from "./services/evaluationNotification";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -306,14 +308,31 @@ app.use("/api/trpc/admin.login*", async (c, next) => {
 app.get("/api/health", async (c) => {
   const { getErpCatalog } = await import("./erp/service");
   const catalog = await getErpCatalog();
-  const isHealthy = catalog.status === "ok" || (!env.erpCatalogEnabled && Boolean(env.databaseUrl));
+  let databaseStatus: "connected" | "not_configured" | "error" = "not_configured";
+
+  if (env.databaseUrl) {
+    try {
+      const pool = getPool();
+      await ensureTables();
+      await pool?.query("SELECT COUNT(*) AS total FROM evaluations");
+      databaseStatus = "connected";
+    } catch (err) {
+      console.error("Health-check do banco de avaliações falhou:", err);
+      databaseStatus = "error";
+    }
+  }
+
+  const isHealthy =
+    (catalog.status === "ok" || !env.erpCatalogEnabled) && databaseStatus === "connected";
 
   return c.json({
     status: isHealthy ? "healthy" : "degraded",
     timestamp: new Date().toISOString(),
     services: {
       erp: env.erpCatalogEnabled ? catalog.status : "disabled",
-      database: env.databaseUrl ? "connected" : "not_configured",
+      database: databaseStatus,
+      evaluations: databaseStatus === "connected" ? "available" : "unavailable",
+      notification: isEvaluationNotificationConfigured() ? "configured" : "not_configured",
     },
   });
 });

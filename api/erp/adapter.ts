@@ -538,8 +538,9 @@ export function adaptErpCatalog(items: unknown, unitFilter = env.erpUnitId): Sho
     const mainV = adapted.variants[0];
     const storageKey = (mainV?.storage || "").toLowerCase().trim();
     const colorKey = (mainV?.color || "").toLowerCase().trim();
+    const batteryKey = (mainV?.batteryHealth || "").toLowerCase().trim();
     const priceKey = mainV?.priceCash || 0;
-    const key = `${adapted.name.toLowerCase().trim()}__${adapted.condition}__${storageKey}__${colorKey}__${priceKey}`;
+    const key = `${adapted.name.toLowerCase().trim()}__${adapted.condition}__${storageKey}__${colorKey}__${batteryKey}__${priceKey}`;
 
     if (mergedMap.has(key)) {
       const existing = mergedMap.get(key)!;

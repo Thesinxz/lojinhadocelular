@@ -9,6 +9,10 @@ import { env } from "./lib/env";
 import { getErpCatalog } from "./erp/service";
 import type { StoreUnitAvailability } from "./erp/types";
 import { getShopPublicSettings } from "./services/settingsStore";
+import {
+  notifyEvaluationCreated,
+  persistEvaluationNotificationStatus,
+} from "./services/evaluationNotification";
 
 const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.whatsappJardim,
@@ -412,17 +416,19 @@ export const shopRouter = createRouter({
         });
       }
 
+      const photosCount =
+        input.photos && input.photos.length > 0
+          ? input.photos.length
+          : (input.photosCount ?? 0);
+      const photosJson =
+        input.photos && input.photos.length > 0
+          ? JSON.stringify(input.photos)
+          : null;
+      let evaluationId = 0;
+
       try {
         const db = getDb();
         await ensureTables();
-        const photosCount =
-          input.photos && input.photos.length > 0
-            ? input.photos.length
-            : (input.photosCount ?? 0);
-        const photosJson =
-          input.photos && input.photos.length > 0
-            ? JSON.stringify(input.photos)
-            : null;
 
         const res = await db.insert(evaluations).values({
           name: input.name.trim(),
@@ -448,14 +454,16 @@ export const shopRouter = createRouter({
           photos: photosJson,
           status: "pendente",
         });
-        return { ok: true, id: Number(res[0]?.insertId ?? 0) };
+        evaluationId = Number(res[0]?.insertId ?? 0);
       } catch (err: any) {
-        console.error("Erro ao salvar avaliação via Drizzle, tentando fallback SQL:", err?.message || err);
+        console.error("Erro ao salvar avaliação via Drizzle, tentando fallback SQL:", {
+          code: err?.code,
+          errno: err?.errno,
+          sqlState: err?.sqlState,
+        });
         try {
           const pool = getPool();
           if (pool) {
-            const photosCount = input.photos?.length || input.photosCount || 0;
-            const photosJson = input.photos && input.photos.length > 0 ? JSON.stringify(input.photos) : null;
             const [res]: any = await pool.query(
               `INSERT INTO evaluations (
                 name, whatsapp, model, storage, color, purchase_location, target_model,
@@ -487,12 +495,48 @@ export const shopRouter = createRouter({
                 photosJson,
               ]
             );
-            return { ok: true, id: Number(res?.insertId ?? 0) };
+            evaluationId = Number(res?.insertId ?? 0);
           }
         } catch (sqlErr: any) {
-          console.error("Erro no fallback SQL de inserção:", sqlErr);
+          console.error("Erro no fallback SQL de inserção:", {
+            code: sqlErr?.code,
+            errno: sqlErr?.errno,
+            sqlState: sqlErr?.sqlState,
+          });
         }
-        return { ok: true, id: null };
       }
+
+      if (!evaluationId) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Não foi possível registrar a avaliação. Tente novamente em instantes.",
+        });
+      }
+
+      const notification = await notifyEvaluationCreated({
+        id: evaluationId,
+        name: input.name.trim(),
+        whatsapp: input.whatsapp.trim(),
+        model: input.model.trim(),
+        storage: (input.storage || "").trim(),
+        targetModel: (input.targetModel || "").trim(),
+        photosCount,
+      });
+
+      try {
+        await persistEvaluationNotificationStatus(evaluationId, notification);
+      } catch (notificationStorageError: any) {
+        console.error("Avaliação salva, mas não foi possível atualizar o status da notificação:", {
+          code: notificationStorageError?.code,
+          errno: notificationStorageError?.errno,
+          sqlState: notificationStorageError?.sqlState,
+        });
+      }
+
+      return {
+        ok: true,
+        id: evaluationId,
+        notificationStatus: notification.status,
+      };
     }),
 });

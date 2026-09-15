@@ -83,6 +83,27 @@ export const env = {
   get databaseUrl(): string {
     return optional("DATABASE_URL", "");
   },
+  get evaluationNotificationWebhookUrl(): string {
+    return optional("EVALUATION_NOTIFICATION_WEBHOOK_URL", "");
+  },
+  get whatsappCloudApiToken(): string {
+    return optional("WHATSAPP_CLOUD_API_TOKEN", "");
+  },
+  get whatsappCloudPhoneNumberId(): string {
+    return optional("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "");
+  },
+  get whatsappNotificationTo(): string {
+    return optional("WHATSAPP_NOTIFICATION_TO", "");
+  },
+  get whatsappNotificationTemplate(): string {
+    return optional("WHATSAPP_NOTIFICATION_TEMPLATE", "");
+  },
+  get whatsappNotificationLanguage(): string {
+    return optional("WHATSAPP_NOTIFICATION_LANGUAGE", "pt_BR");
+  },
+  get whatsappCloudApiVersion(): string {
+    return optional("WHATSAPP_CLOUD_API_VERSION", "v22.0");
+  },
   // ERP Gestão Celular — Storefront Catalog
   get erpApiUrl(): string {
     return _erpApiUrl !== null
@@ -125,4 +146,3 @@ export const env = {
     _erpUnitId = val;
   },
 };
-

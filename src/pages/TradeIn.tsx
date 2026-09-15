@@ -420,6 +420,10 @@ export default function TradeIn() {
   }
 
   async function submitEvaluation() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    const whatsappWindow = window.open("about:blank", "_blank", "noopener,noreferrer");
+
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
 
     // Processa fotos anexadas para envio e armazenamento
@@ -491,7 +495,7 @@ export default function TradeIn() {
 
     // 1. Salva no banco de dados via tRPC com fotos (garante upload completo no servidor)
     try {
-      await submitMutation.mutateAsync({
+      const result = await submitMutation.mutateAsync({
         name: data.name.trim(),
         whatsapp: data.whatsapp.trim(),
         model: data.model.trim(),
@@ -514,8 +518,14 @@ export default function TradeIn() {
         photosCount: photosPayload.length || filledPhotosCount,
         photos: photosPayload,
       });
+      if (!result.ok) {
+        throw new Error("O servidor não confirmou o registro da avaliação.");
+      }
     } catch (err) {
-      console.warn("Aviso ao salvar proposta via tRPC:", err);
+      console.error("Erro ao salvar proposta via tRPC:", err);
+      if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
+      setError("Não foi possível registrar sua avaliação agora. Confira sua conexão e tente novamente.");
+      return;
     } finally {
       setIsSubmitting(false);
     }
@@ -542,7 +552,12 @@ export default function TradeIn() {
     } catch {}
 
     // 3. Abre conversa com o atendente
-    window.open(waLink(destination, summaryText), "_blank", "noopener,noreferrer");
+    const whatsappUrl = waLink(destination, summaryText);
+    if (whatsappWindow && !whatsappWindow.closed) {
+      whatsappWindow.location.href = whatsappUrl;
+    } else {
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    }
     setSent(true);
   }
 
@@ -565,7 +580,7 @@ export default function TradeIn() {
             Pré-Avaliação Concluída!
           </h1>
           <p className="mt-2 max-w-sm text-xs sm:text-sm text-[#6e6e73]">
-            Sua proposta foi registrada no sistema e a conversa no WhatsApp foi iniciada.
+            Sua proposta foi registrada no sistema. Confirme o envio da mensagem no WhatsApp para concluir o contato com a equipe.
           </p>
 
           {/* CARD DE RESULTADO DA PRÉ-AVALIAÇÃO */}

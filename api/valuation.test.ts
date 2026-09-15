@@ -225,7 +225,7 @@ describe("valuationEngine", () => {
       },
     ];
 
-    const res = await caller.shop.submitEvaluation({
+    const submission = caller.shop.submitEvaluation({
       name: "Cliente Teste Fotos",
       whatsapp: "67992086012",
       model: "iPhone 14",
@@ -238,6 +238,14 @@ describe("valuationEngine", () => {
       photosCount: 4,
     });
 
+    if (!process.env.DATABASE_URL) {
+      await expect(submission).rejects.toMatchObject({
+        code: "INTERNAL_SERVER_ERROR",
+      });
+      return;
+    }
+
+    const res = await submission;
     expect(res.ok).toBe(true);
   });
 
@@ -358,4 +366,3 @@ describe("valuationEngine", () => {
     expect(evalIphone14.maxEstimatedValue).toBeLessThanOrEqual(1800);
   });
 });
-

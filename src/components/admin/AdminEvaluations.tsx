@@ -20,6 +20,7 @@ import {
   Upload,
   Plus,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/valuationEngine";
 
 type EvaluationStatus = "pendente" | "atendimento" | "concluido" | "recusado";
+type EvaluationNotificationStatus = "not_configured" | "sent" | "failed";
 
 interface LocalEvaluation {
   id?: number;
@@ -60,6 +62,9 @@ interface LocalEvaluation {
   photosCount?: number;
   photos?: string | EvaluationPhotoItem[] | null;
   status?: EvaluationStatus;
+  notificationStatus?: EvaluationNotificationStatus;
+  notificationError?: string | null;
+  notifiedAt?: string | Date | null;
   createdAt?: string | Date;
 }
 
@@ -143,8 +148,19 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     retry: 1,
   });
 
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, EvaluationStatus>>({});
+  const [localEvaluationVersion, setLocalEvaluationVersion] = useState(0);
+
   const updateStatus = trpc.admin.updateEvaluationStatus.useMutation({
     onSuccess: () => utils.admin.evaluations.invalidate(),
+    onError: (error, variables) => {
+      setStatusOverrides((current) => {
+        const next = { ...current };
+        delete next[String(variables.id)];
+        return next;
+      });
+      alert(`Não foi possível salvar o status: ${error.message}`);
+    },
   });
 
   const deleteMutation = trpc.admin.deleteEvaluation.useMutation({
@@ -162,6 +178,18 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
       alert("Erro ao salvar fotos: " + err.message);
       setUploadingEvaluationId(null);
     },
+  });
+
+  const retryNotificationMutation = trpc.admin.retryEvaluationNotification.useMutation({
+    onSuccess: (result) => {
+      utils.admin.evaluations.invalidate();
+      if (!result.ok && result.status === "not_configured") {
+        alert("A notificação automática ainda não está configurada no servidor.");
+      } else if (!result.ok) {
+        alert(`Não foi possível notificar a equipe: ${result.error || "erro desconhecido"}`);
+      }
+    },
+    onError: (error) => alert(`Erro ao tentar notificar a equipe: ${error.message}`),
   });
 
   const handleUploadPhotos = async (
@@ -294,7 +322,13 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
       createdAt: item.createdAt || new Date(),
     }));
 
-    if (dbList.length === 0) return formattedLocal;
+    const applyStatusOverrides = (list: LocalEvaluation[]) =>
+      list.map((item) => ({
+        ...item,
+        status: statusOverrides[String(item.id)] ?? item.status ?? "pendente",
+      }));
+
+    if (dbList.length === 0) return applyStatusOverrides(formattedLocal);
 
     // Se dbList tem dados, preserva itens do banco e mescla eventuais propostas locais pendentes
     const knownSignatures = new Set(
@@ -304,8 +338,8 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
       (l) => !knownSignatures.has(`${l.name?.toLowerCase().trim()}_${l.whatsapp?.replace(/\D/g, "")}`)
     );
 
-    return [...dbList, ...extraLocal];
-  }, [query.data]);
+    return applyStatusOverrides([...dbList, ...extraLocal]);
+  }, [query.data, localEvaluationVersion, statusOverrides]);
 
   const counts = useMemo(() => {
     return {
@@ -335,9 +369,40 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     });
   }, [evaluationsList, filterStatus, search]);
 
-  function handleStatusChange(id: number | undefined, nextStatus: EvaluationStatus) {
-    if (!id) return;
-    updateStatus.mutate({ id, status: nextStatus });
+  function handleStatusChange(item: LocalEvaluation, nextStatus: EvaluationStatus) {
+    if (!item.id) return;
+
+    setStatusOverrides((current) => ({
+      ...current,
+      [String(item.id)]: nextStatus,
+    }));
+
+    // Mantém o backup local sincronizado quando a avaliação ainda não existe no banco.
+    try {
+      const history = JSON.parse(
+        safeStorage.getItem("lojinha_evaluations_history") || "[]",
+      ) as LocalEvaluation[];
+      const updatedHistory = history.map((entry, index) => {
+        const entryId = entry.id || 9999 - index;
+        return entryId === item.id
+          ? { ...entry, status: nextStatus }
+          : entry;
+      });
+      safeStorage.setItem(
+        "lojinha_evaluations_history",
+        JSON.stringify(updatedHistory),
+      );
+      setLocalEvaluationVersion((version) => version + 1);
+    } catch {
+      // A alteração no servidor continua sendo tentada mesmo se o storage local estiver indisponível.
+    }
+
+    const existsInDatabase = (query.data ?? []).some(
+      (evaluation) => evaluation.id === item.id,
+    );
+    if (existsInDatabase) {
+      updateStatus.mutate({ id: item.id, status: nextStatus });
+    }
   }
 
   function handleDelete(id: number | undefined) {
@@ -580,6 +645,16 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                         >
                           {statusStyle.label}
                         </span>
+                        {item.notificationStatus === "sent" && (
+                          <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                            Aviso enviado
+                          </span>
+                        )}
+                        {item.notificationStatus === "failed" && (
+                          <span className="inline-flex items-center rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">
+                            Aviso pendente
+                          </span>
+                        )}
                         <span
                           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
                           title={`Pontuação técnica de conservação: ${valuation.score}/100`}
@@ -900,11 +975,24 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
                     </a>
 
                     <div className="flex items-center gap-2">
+                      {item.id && item.notificationStatus === "failed" && (
+                        <button
+                          type="button"
+                          onClick={() => retryNotificationMutation.mutate({ id: item.id as number })}
+                          disabled={retryNotificationMutation.isPending}
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                          title={item.notificationError || "Tentar enviar o aviso novamente"}
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${retryNotificationMutation.isPending ? "animate-spin" : ""}`} />
+                          Notificar
+                        </button>
+                      )}
+
                       <select
                         value={item.status || "pendente"}
                         onChange={(e) =>
                           handleStatusChange(
-                            item.id,
+                            item,
                             e.target.value as EvaluationStatus
                           )
                         }

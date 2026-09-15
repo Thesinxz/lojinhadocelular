@@ -96,6 +96,9 @@ export const evaluations = mysqlTable(
     photosCount: int("photos_count").notNull().default(0),
     photos: longtext("photos"),
     status: mysqlEnum("status", ["pendente", "atendimento", "concluido", "recusado"]).notNull().default("pendente"),
+    notificationStatus: varchar("notification_status", { length: 30 }).notNull().default("not_configured"),
+    notificationError: text("notification_error"),
+    notifiedAt: timestamp("notified_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -103,4 +106,3 @@ export const evaluations = mysqlTable(
     createdAtIdx: index("idx_evaluations_created_at").on(table.createdAt),
   }),
 );
-
