@@ -136,7 +136,14 @@ interface AdminEvaluationsProps {
 export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps = {}) {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [evaluationPage, setEvaluationPage] = useState(1);
   const utils = trpc.useUtils();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const settingsQuery = trpc.admin.getSettings.useQuery();
   const valuationConfig = useMemo(
@@ -144,15 +151,29 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     [settingsQuery.data]
   );
 
-  const query = trpc.admin.evaluations.useQuery(undefined, {
+  const query = trpc.admin.evaluationsPage.useQuery(
+    {
+      page: evaluationPage,
+      pageSize: 20,
+      status: filterStatus === "todos" ? undefined : (filterStatus as EvaluationStatus),
+      search,
+    },
+    {
     retry: 1,
+    staleTime: 1000 * 30,
+    },
+  );
+  const summaryQuery = trpc.admin.evaluationSummary.useQuery(undefined, {
+    staleTime: 1000 * 30,
   });
 
   const [statusOverrides, setStatusOverrides] = useState<Record<string, EvaluationStatus>>({});
-  const [localEvaluationVersion, setLocalEvaluationVersion] = useState(0);
 
   const updateStatus = trpc.admin.updateEvaluationStatus.useMutation({
-    onSuccess: () => utils.admin.evaluations.invalidate(),
+    onSuccess: () => {
+      utils.admin.evaluationsPage.invalidate();
+      utils.admin.evaluationSummary.invalidate();
+    },
     onError: (error, variables) => {
       setStatusOverrides((current) => {
         const next = { ...current };
@@ -164,14 +185,18 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
   });
 
   const deleteMutation = trpc.admin.deleteEvaluation.useMutation({
-    onSuccess: () => utils.admin.evaluations.invalidate(),
+    onSuccess: () => {
+      utils.admin.evaluationsPage.invalidate();
+      utils.admin.evaluationSummary.invalidate();
+    },
   });
 
   const [uploadingEvaluationId, setUploadingEvaluationId] = useState<number | null>(null);
 
   const addPhotosMutation = trpc.admin.addEvaluationPhotos.useMutation({
     onSuccess: () => {
-      utils.admin.evaluations.invalidate();
+      utils.admin.evaluationsPage.invalidate();
+      utils.admin.evaluationSummary.invalidate();
       setUploadingEvaluationId(null);
     },
     onError: (err) => {
@@ -182,7 +207,8 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
 
   const migratePhotosMutation = trpc.admin.migrateEvaluationPhotosToS3.useMutation({
     onSuccess: (result) => {
-      utils.admin.evaluations.invalidate();
+      utils.admin.evaluationsPage.invalidate();
+      utils.admin.evaluationSummary.invalidate();
       alert(`${result.migrated} foto(s) armazenada(s) no R2/S3.`);
     },
     onError: (err) => {
@@ -192,7 +218,8 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
 
   const retryNotificationMutation = trpc.admin.retryEvaluationNotification.useMutation({
     onSuccess: (result) => {
-      utils.admin.evaluations.invalidate();
+      utils.admin.evaluationsPage.invalidate();
+      utils.admin.evaluationSummary.invalidate();
       if (!result.ok && result.status === "not_configured") {
         alert("A notificação automática ainda não está configurada no servidor.");
       } else if (!result.ok) {
@@ -318,7 +345,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
 
   // Mescla banco com backup local para máxima resiliência
   const evaluationsList: LocalEvaluation[] = useMemo(() => {
-    const dbList = (query.data ?? []) as LocalEvaluation[];
+    const dbList = (query.data?.items ?? []) as LocalEvaluation[];
     let localList: LocalEvaluation[] = [];
     try {
       localList = JSON.parse(
@@ -350,17 +377,15 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     );
 
     return applyStatusOverrides([...dbList, ...extraLocal]);
-  }, [query.data, localEvaluationVersion, statusOverrides]);
+  }, [query.data?.items, statusOverrides]);
 
-  const counts = useMemo(() => {
-    return {
-      todos: evaluationsList.length,
-      pendente: evaluationsList.filter((e) => (e.status || "pendente") === "pendente").length,
-      atendimento: evaluationsList.filter((e) => e.status === "atendimento").length,
-      concluido: evaluationsList.filter((e) => e.status === "concluido").length,
-      recusado: evaluationsList.filter((e) => e.status === "recusado").length,
-    };
-  }, [evaluationsList]);
+  const counts = {
+    todos: summaryQuery.data?.total ?? evaluationsList.length,
+    pendente: summaryQuery.data?.pending ?? evaluationsList.filter((e) => (e.status || "pendente") === "pendente").length,
+    atendimento: summaryQuery.data?.atendimento ?? evaluationsList.filter((e) => e.status === "atendimento").length,
+    concluido: summaryQuery.data?.concluido ?? evaluationsList.filter((e) => e.status === "concluido").length,
+    recusado: summaryQuery.data?.recusado ?? evaluationsList.filter((e) => e.status === "recusado").length,
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -403,12 +428,11 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
         "lojinha_evaluations_history",
         JSON.stringify(updatedHistory),
       );
-      setLocalEvaluationVersion((version) => version + 1);
     } catch {
       // A alteração no servidor continua sendo tentada mesmo se o storage local estiver indisponível.
     }
 
-    const existsInDatabase = (query.data ?? []).some(
+    const existsInDatabase = (query.data?.items ?? []).some(
       (evaluation) => evaluation.id === item.id,
     );
     if (existsInDatabase) {
@@ -500,7 +524,10 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-[#f5f5f7] p-1 border border-[#e5e5e7]">
           <button
-            onClick={() => setFilterStatus("todos")}
+            onClick={() => {
+              setFilterStatus("todos");
+              setEvaluationPage(1);
+            }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               filterStatus === "todos"
                 ? "bg-white text-[#1d1d1f] shadow-xs"
@@ -510,7 +537,10 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
             Todas ({counts.todos})
           </button>
           <button
-            onClick={() => setFilterStatus("pendente")}
+            onClick={() => {
+              setFilterStatus("pendente");
+              setEvaluationPage(1);
+            }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               filterStatus === "pendente"
                 ? "bg-white text-amber-700 shadow-xs"
@@ -520,7 +550,10 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
             Pendentes ({counts.pendente})
           </button>
           <button
-            onClick={() => setFilterStatus("atendimento")}
+            onClick={() => {
+              setFilterStatus("atendimento");
+              setEvaluationPage(1);
+            }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               filterStatus === "atendimento"
                 ? "bg-white text-blue-700 shadow-xs"
@@ -530,7 +563,10 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
             Em Atendimento ({counts.atendimento})
           </button>
           <button
-            onClick={() => setFilterStatus("concluido")}
+            onClick={() => {
+              setFilterStatus("concluido");
+              setEvaluationPage(1);
+            }}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               filterStatus === "concluido"
                 ? "bg-white text-emerald-700 shadow-xs"
@@ -545,8 +581,11 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#86868b]" />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setEvaluationPage(1);
+            }}
             placeholder="Buscar por cliente, fone ou modelo..."
             className="h-10 w-full rounded-xl border border-[#e5e5e7] bg-white pl-9 pr-3 text-xs text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 transition"
           />
@@ -1046,6 +1085,32 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!query.isLoading && (query.data?.total ?? 0) > 20 && (
+        <div className="flex items-center justify-between rounded-xl border border-[#e5e5e7] bg-white px-3 py-2 text-xs text-[#6e6e73]">
+          <span>
+            Página {evaluationPage} de {Math.max(1, Math.ceil((query.data?.total ?? 0) / 20))}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setEvaluationPage(page => Math.max(1, page - 1))}
+              disabled={evaluationPage === 1 || query.isFetching}
+              className="rounded-lg border border-[#e5e5e7] px-3 py-1.5 font-semibold text-[#1d1d1f] disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              onClick={() => setEvaluationPage(page => page + 1)}
+              disabled={!query.data?.hasMore || query.isFetching}
+              className="rounded-lg border border-[#e5e5e7] px-3 py-1.5 font-semibold text-[#1d1d1f] disabled:opacity-40"
+            >
+              Próxima
+            </button>
+          </div>
         </div>
       )}
 

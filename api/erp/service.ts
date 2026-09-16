@@ -9,6 +9,7 @@ let cache: {
   data: ShopProduct[];
   cachedAt: number;
 } | null = null;
+let inFlight: Promise<ErpFetchResult> | null = null;
 
 export function clearErpCache() {
   cache = null;
@@ -21,7 +22,7 @@ export function setErpCacheForTesting(products: ShopProduct[], cachedAt = Date.n
   };
 }
 
-export async function getErpCatalog(): Promise<ErpFetchResult> {
+async function loadErpCatalog(): Promise<ErpFetchResult> {
   // Se o ERP não estiver habilitado
   if (!env.erpCatalogEnabled) {
     return {
@@ -147,3 +148,17 @@ export async function getErpCatalog(): Promise<ErpFetchResult> {
   }
 }
 
+/**
+ * Compartilha a mesma requisição quando catálogo/status/admin são carregados
+ * simultaneamente. Sem isso, o primeiro acesso ao painel consultava o ERP
+ * duas ou três vezes antes de o cache ser preenchido.
+ */
+export async function getErpCatalog(): Promise<ErpFetchResult> {
+  if (inFlight) return inFlight;
+  inFlight = loadErpCatalog();
+  try {
+    return await inFlight;
+  } finally {
+    inFlight = null;
+  }
+}

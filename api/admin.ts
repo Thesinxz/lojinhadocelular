@@ -1,7 +1,7 @@
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables, getPool } from "./queries/connection";
 import { products, variants, evaluations } from "../db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -42,6 +42,38 @@ async function hydrateEvaluationRecord<T extends { photos?: unknown }>(record: T
   return {
     ...record,
     photos: await hydrateEvaluationPhotos(photos),
+  };
+}
+
+function mapEvaluationSqlRow(r: any) {
+  return {
+    id: Number(r.id),
+    name: String(r.name || ""),
+    whatsapp: String(r.whatsapp || ""),
+    model: String(r.model || ""),
+    storage: String(r.storage || ""),
+    color: String(r.color || ""),
+    purchaseLocation: String(r.purchase_location || ""),
+    targetModel: String(r.target_model || ""),
+    faceId: String(r.face_id || ""),
+    screenOriginal: String(r.screen_original || ""),
+    batteryOriginal: String(r.battery_original || ""),
+    camerasOk: String(r.cameras_ok || ""),
+    audioOk: String(r.audio_ok || ""),
+    chargingPortOk: String(r.charging_port_ok || ""),
+    openedBefore: String(r.opened_before || ""),
+    hasBox: String(r.has_box || ""),
+    visualCondition: String(r.visual_condition || ""),
+    condition: String(r.condition || "Em análise"),
+    battery: String(r.battery || ""),
+    notes: r.notes ? String(r.notes) : null,
+    photosCount: Number(r.photos_count || 0),
+    photos: r.photos ? String(r.photos) : null,
+    status: (r.status as any) || "pendente",
+    notificationStatus: String(r.notification_status || "not_configured"),
+    notificationError: r.notification_error ? String(r.notification_error) : null,
+    notifiedAt: r.notified_at ? new Date(r.notified_at) : null,
+    createdAt: r.created_at ? new Date(r.created_at) : new Date(),
   };
 }
 
@@ -218,35 +250,7 @@ export const adminRouter = createRouter({
             "SELECT * FROM evaluations ORDER BY created_at DESC"
           );
           if (Array.isArray(rows)) {
-            const mapped = rows.map((r: any) => ({
-              id: Number(r.id),
-              name: String(r.name || ""),
-              whatsapp: String(r.whatsapp || ""),
-              model: String(r.model || ""),
-              storage: String(r.storage || ""),
-              color: String(r.color || ""),
-              purchaseLocation: String(r.purchase_location || ""),
-              targetModel: String(r.target_model || ""),
-              faceId: String(r.face_id || ""),
-              screenOriginal: String(r.screen_original || ""),
-              batteryOriginal: String(r.battery_original || ""),
-              camerasOk: String(r.cameras_ok || ""),
-              audioOk: String(r.audio_ok || ""),
-              chargingPortOk: String(r.charging_port_ok || ""),
-              openedBefore: String(r.opened_before || ""),
-              hasBox: String(r.has_box || ""),
-              visualCondition: String(r.visual_condition || ""),
-              condition: String(r.condition || "Em análise"),
-              battery: String(r.battery || ""),
-              notes: r.notes ? String(r.notes) : null,
-              photosCount: Number(r.photos_count || 0),
-              photos: r.photos ? String(r.photos) : null,
-              status: (r.status as any) || "pendente",
-              notificationStatus: String(r.notification_status || "not_configured"),
-              notificationError: r.notification_error ? String(r.notification_error) : null,
-              notifiedAt: r.notified_at ? new Date(r.notified_at) : null,
-              createdAt: r.created_at ? new Date(r.created_at) : new Date(),
-            }));
+            const mapped = rows.map(mapEvaluationSqlRow);
             return await Promise.all(mapped.map(row => hydrateEvaluationRecord(row)));
           }
         }
@@ -256,6 +260,121 @@ export const adminRouter = createRouter({
       return [];
     }
   }),
+
+  evaluationSummary: publicQuery.query(async ({ ctx }) => {
+    requireAdmin(ctx.req);
+    try {
+      const db = getDb();
+      await ensureTables();
+      const rows = await db
+        .select({ id: evaluations.id, status: evaluations.status })
+        .from(evaluations);
+      return {
+        total: rows.length,
+        pending: rows.filter(row => row.status === "pendente").length,
+        atendimento: rows.filter(row => row.status === "atendimento").length,
+        concluido: rows.filter(row => row.status === "concluido").length,
+        recusado: rows.filter(row => row.status === "recusado").length,
+      };
+    } catch (error) {
+      console.error("Erro ao consultar resumo das avaliações:", error);
+      return { total: 0, pending: 0, atendimento: 0, concluido: 0, recusado: 0 };
+    }
+  }),
+
+  evaluationsPage: publicQuery
+    .input(
+      z.object({
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(30).default(20),
+        status: z.enum(["pendente", "atendimento", "concluido", "recusado"]).optional(),
+        search: z.string().max(100).optional().default(""),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      requireAdmin(ctx.req);
+      const offset = (input.page - 1) * input.pageSize;
+      const searchTerm = input.search.trim();
+      const filters = [];
+      if (input.status) filters.push(eq(evaluations.status, input.status));
+      if (searchTerm) {
+        const pattern = `%${searchTerm}%`;
+        filters.push(
+          or(
+            like(evaluations.name, pattern),
+            like(evaluations.whatsapp, pattern),
+            like(evaluations.model, pattern),
+            like(evaluations.color, pattern),
+            like(evaluations.storage, pattern),
+          ),
+        );
+      }
+      const where = filters.length > 0 ? and(...filters) : undefined;
+      const sqlFilters: string[] = [];
+      const sqlParams: unknown[] = [];
+      if (input.status) {
+        sqlFilters.push("status = ?");
+        sqlParams.push(input.status);
+      }
+      if (searchTerm) {
+        sqlFilters.push("(name LIKE ? OR whatsapp LIKE ? OR model LIKE ? OR color LIKE ? OR storage LIKE ?)");
+        const pattern = `%${searchTerm}%`;
+        sqlParams.push(pattern, pattern, pattern, pattern, pattern);
+      }
+      const sqlWhere = sqlFilters.length ? ` WHERE ${sqlFilters.join(" AND ")}` : "";
+      try {
+        const db = getDb();
+        await ensureTables();
+        const [rows, totals] = await Promise.all([
+          db
+            .select()
+            .from(evaluations)
+            .where(where)
+            .orderBy(desc(evaluations.createdAt))
+            .limit(input.pageSize)
+            .offset(offset),
+          db.select({ total: count() }).from(evaluations).where(where),
+        ]);
+        const total = Number(totals[0]?.total || 0);
+        return {
+          items: await Promise.all(rows.map(row => hydrateEvaluationRecord(row))),
+          total,
+          page: input.page,
+          pageSize: input.pageSize,
+          hasMore: offset + rows.length < total,
+        };
+      } catch (err: any) {
+        console.warn("Consulta paginada de avaliações via Drizzle falhou:", err?.message || err);
+        try {
+          const pool = getPool();
+          if (!pool) throw new Error("Pool do banco indisponível");
+          const [rows]: any = await pool.query(
+            `SELECT * FROM evaluations${sqlWhere} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            [...sqlParams, input.pageSize, offset],
+          );
+          const [totals]: any = await pool.query(
+            `SELECT COUNT(*) AS total FROM evaluations${sqlWhere}`,
+            sqlParams,
+          );
+          const total = Number(totals?.[0]?.total || 0);
+          const items = await Promise.all(
+            (Array.isArray(rows) ? rows : []).map((row: any) =>
+              hydrateEvaluationRecord(mapEvaluationSqlRow(row)),
+            ),
+          );
+          return {
+            items,
+            total,
+            page: input.page,
+            pageSize: input.pageSize,
+            hasMore: offset + items.length < total,
+          };
+        } catch (sqlErr: any) {
+          console.error("Erro fatal na consulta paginada de avaliações:", sqlErr?.message || sqlErr);
+          return { items: [], total: 0, page: input.page, pageSize: input.pageSize, hasMore: false };
+        }
+      }
+    }),
 
   updateEvaluationStatus: publicQuery
     .input(

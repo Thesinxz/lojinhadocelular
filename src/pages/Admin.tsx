@@ -86,23 +86,22 @@ export default function Admin() {
   });
 
   const products = trpc.admin.products.useQuery(undefined, {
-    enabled: !!token,
+    enabled: !!token && tab === "produtos",
     retry: 1,
   });
 
   const catalogStatusQuery = trpc.shop.catalogStatus.useQuery(undefined, {
+    enabled: !!token && tab === "produtos",
     staleTime: 1000 * 30,
   });
 
-  const evaluationsQuery = trpc.admin.evaluations.useQuery(undefined, {
+  const evaluationSummaryQuery = trpc.admin.evaluationSummary.useQuery(undefined, {
     enabled: !!token,
     retry: 1,
-    refetchInterval: 30000,
+    staleTime: 1000 * 30,
   });
 
-  const pendingEvaluationsCount = (evaluationsQuery.data ?? []).filter(
-    (e) => (e.status || "pendente") === "pendente"
-  ).length;
+  const pendingEvaluationsCount = evaluationSummaryQuery.data?.pending ?? 0;
 
 
   useEffect(() => {
@@ -548,7 +547,13 @@ export default function Admin() {
                         }`}
                       >
                         {p.imageUrl ? (
-                          <img src={p.imageUrl} alt="" className="h-16 w-16 rounded-xl border border-[#e5e5e7] object-contain p-1 bg-[#fbfbfd]" />
+                          <img
+                            src={p.imageUrl}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="h-16 w-16 rounded-xl border border-[#e5e5e7] object-contain p-1 bg-[#fbfbfd]"
+                          />
                         ) : (
                           <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#f5f5f7] border border-[#e5e5e7] text-xs font-medium text-[#86868b]">
                             Sem foto
