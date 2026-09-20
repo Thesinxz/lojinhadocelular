@@ -6,6 +6,7 @@ type SEOProps = {
   image?: string;
   url?: string;
   type?: string;
+  noindex?: boolean;
   jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
 };
 
@@ -15,6 +16,7 @@ export default function SEO({
   image,
   url,
   type = "website",
+  noindex = false,
   jsonLd,
 }: SEOProps) {
   const jsonLdString = jsonLd ? JSON.stringify(jsonLd) : "";
@@ -39,9 +41,34 @@ export default function SEO({
     setOgMeta("og:description", metaDesc);
     setOgMeta("og:type", type);
 
-    // Canonical & OG URL
-    const canonicalUrl =
-      url || (typeof window !== "undefined" ? window.location.href.split("?")[0] : "");
+    // Meta Robots (Indexação / Noindex)
+    if (noindex) {
+      setMeta("robots", "noindex, nofollow");
+    } else {
+      setMeta(
+        "robots",
+        "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      );
+    }
+
+    // Canonical & OG URL limpas (remove hash fragments e query strings indesejadas)
+    let canonicalUrl = "";
+    if (url) {
+      canonicalUrl = url.split("#")[0].split("?")[0];
+    } else if (typeof window !== "undefined") {
+      const isLocal =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+      const domain = isLocal
+        ? window.location.origin
+        : "https://lojinhadocelular.com";
+      const cleanPath =
+        window.location.pathname === "/index.html"
+          ? "/"
+          : window.location.pathname;
+      canonicalUrl = `${domain}${cleanPath}`;
+    }
+
     if (canonicalUrl) {
       setCanonical(canonicalUrl);
       setOgMeta("og:url", canonicalUrl);
@@ -71,7 +98,7 @@ export default function SEO({
     } else if (scriptEl) {
       scriptEl.remove();
     }
-  }, [title, description, image, url, type, jsonLdString]);
+  }, [title, description, image, url, type, noindex, jsonLdString]);
 
   return null;
 }

@@ -46,25 +46,27 @@ export function replaceOrInjectMeta(
     url: string;
     ogType: string;
     origin: string;
+    canonicalUrl?: string;
+    noindex?: boolean;
   },
 ): string {
   // Remove título anterior
   let content = html.replace(/<title>[\s\S]*?<\/title>/gi, "");
 
-  // Remove meta tags anteriores de og:, twitter: e description
+  // Remove meta tags anteriores de og:, twitter:, description e robots
   content = content.replace(
-    /<meta\s+[^>]*(?:property|name)=["'](?:og:[^"']+|twitter:[^"']+|description)["'][^>]*\/?>/gi,
+    /<meta\s+[^>]*(?:property|name)=["'](?:og:[^"']+|twitter:[^"']+|description|robots)["'][^>]*\/?>/gi,
     "",
   );
 
-  // Remove link rel="image_src" anterior se houver
-  content = content.replace(/<link\s+[^>]*rel=["']image_src["'][^>]*\/?>/gi, "");
+  // Remove link rel="image_src" e link rel="canonical" anteriores se houver
+  content = content.replace(/<link\s+[^>]*rel=["'](?:image_src|canonical)["'][^>]*\/?>/gi, "");
 
   const safeTitle = escapeHtml(tags.title);
   const safeDesc = escapeHtml(tags.desc);
   const safeImg = escapeHtml(tags.img);
-  const safeUrl = escapeHtml(tags.url);
   const safeType = escapeHtml(tags.ogType);
+  const safeCanonical = escapeHtml(tags.canonicalUrl || tags.url);
 
   // WhatsApp e redes sociais recomendam 1200x630 para banners e 600x600 para produtos individuais
   const isProduct = tags.ogType === "product";
@@ -73,9 +75,15 @@ export function replaceOrInjectMeta(
   const isJpg = tags.img.toLowerCase().includes(".jpg") || tags.img.toLowerCase().includes(".jpeg");
   const imgType = isJpg ? "image/jpeg" : "image/png";
 
+  const robotsTag = tags.noindex
+    ? '<meta name="robots" content="noindex, nofollow" />'
+    : '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />';
+
   const metaBlock = `
     <title>${safeTitle}</title>
     <meta name="description" content="${safeDesc}" />
+    ${robotsTag}
+    <link rel="canonical" href="${safeCanonical}" />
 
     <!-- OpenGraph / WhatsApp / Facebook / Instagram -->
     <meta property="og:site_name" content="Lojinha do Celular" />
@@ -87,7 +95,7 @@ export function replaceOrInjectMeta(
     <meta property="og:image:width" content="${imgWidth}" />
     <meta property="og:image:height" content="${imgHeight}" />
     <meta property="og:image:alt" content="${safeTitle}" />
-    <meta property="og:url" content="${safeUrl}" />
+    <meta property="og:url" content="${safeCanonical}" />
     <meta property="og:type" content="${safeType}" />
     <meta property="og:locale" content="pt_BR" />
     <link rel="image_src" href="${safeImg}" />
@@ -139,6 +147,29 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
   }
   let content = fs.readFileSync(indexPath, "utf-8");
 
+  // 1. Redirecionamentos 301 permanentes para URLs canônicas limpas (evita "Página com redirecionamento" ou duplicatas no GSC)
+  if (pathname === "/index.html") {
+    return c.redirect("/", 301);
+  }
+  if (pathname === "/catalogo" || pathname === "/catalogo/") {
+    return c.redirect("/#vitrine", 301);
+  }
+  if (pathname === "/troca" || pathname === "/troca/") {
+    return c.redirect("/avaliacao", 301);
+  }
+  if (
+    pathname === "/termos" ||
+    pathname === "/termos/" ||
+    pathname === "/termos-e-privacidade" ||
+    pathname === "/termos-e-privacidade/" ||
+    pathname === "/lgpd" ||
+    pathname === "/lgpd/" ||
+    pathname === "/cookies" ||
+    pathname === "/cookies/"
+  ) {
+    return c.redirect("/privacidade", 301);
+  }
+
   // Detecta o protocolo e domínio real da requisição (mesmo atrás de reverse proxy / Cloudflare)
   const proto = c.req.header("x-forwarded-proto") || "https";
   const host =
@@ -146,44 +177,47 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     c.req.header("host") ||
     "lojinhadocelular.com";
   const origin = `${proto}://${host}`;
+  const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
+  const canonicalDomain = isLocal ? origin : "https://lojinhadocelular.com";
 
   let title = "Lojinha do Celular — iPhones, Smartphones & Assistência Técnica";
   let desc =
     "Seu próximo smartphone com até 1 ano de garantia e procedência. Pronta entrega e assistência técnica em Jardim e Guia Lopes da Laguna - MS. CNPJ: 61.874.839/0001-43. WhatsApp: (67) 99208-6012.";
   let img = `${origin}/images/og-preview.jpg?v=3`;
   let ogType = "website";
+  let canonicalUrl = `${canonicalDomain}/`;
+  let noindex = false;
+  let httpStatus: 200 | 404 = 200;
   const currentUrl =
     pathname === "/index.html" || pathname === "" ? `${origin}/` : `${origin}${pathname}`;
 
-  // ROTA DO CATÁLOGO (/catalogo)
-  if (pathname.startsWith("/catalogo")) {
-    title = "Loja de iPhone & Celulares em Jardim-MS — Catálogo Lojinha do Celular";
-    desc =
-      "Confira nossa loja de celular com iPhones lacrados e seminovos com até 1 ano de garantia, Xiaomi, Redmi, POCO, Samsung, Realme, iPad e acessórios com pronta entrega em Jardim e Guia Lopes da Laguna. Fale no WhatsApp (67) 99208-6012!";
-    img = `${origin}/images/og-preview.jpg?v=3`;
+  // ROTA HOME (/)
+  if (pathname === "/" || pathname === "") {
+    canonicalUrl = `${canonicalDomain}/`;
   }
-  // ROTA DE AVALIAÇÃO / TROCA FÁCIL
-  else if (
-    pathname.startsWith("/avaliacao") ||
-    pathname.startsWith("/troca") ||
-    host.includes("trocafacil")
-  ) {
+  // ROTA DE AVALIAÇÃO / TROCA FÁCIL (/avaliacao)
+  else if (pathname === "/avaliacao" || pathname.startsWith("/avaliacao/")) {
     title = "Avaliação e Troca de Celular — Troca Fácil Lojinha do Celular";
     desc =
       "Venda ou troque seu celular e iPhone usado com segurança e melhor avaliação de mercado. Use como desconto na compra do seu novo aparelho na Lojinha do Celular em Jardim-MS. WhatsApp: (67) 99208-6012.";
     img = `${origin}/images/og-preview.jpg?v=3`;
+    canonicalUrl = `${canonicalDomain}/avaliacao`;
   }
-  // ROTA DE PRIVACIDADE, TERMOS E LGPD
-  else if (
-    pathname.startsWith("/privacidade") ||
-    pathname.startsWith("/termos") ||
-    pathname.startsWith("/lgpd") ||
-    pathname.startsWith("/cookies")
-  ) {
+  // ROTA DE PRIVACIDADE (/privacidade)
+  else if (pathname === "/privacidade" || pathname.startsWith("/privacidade/")) {
     title = "Termos de Privacidade, LGPD & Cookies — Lojinha do Celular";
     desc =
       "Transparência e segurança com seus dados. Conheça nossos termos de uso, política de privacidade e cookies em total conformidade com a LGPD (Lei nº 13.709/2018).";
     img = `${origin}/images/og-preview.jpg?v=3`;
+    canonicalUrl = `${canonicalDomain}/privacidade`;
+  }
+  // ROTAS INTERNAS E PAINEL (ADMIN / TV)
+  else if (pathname.startsWith("/admin") || pathname.startsWith("/tv")) {
+    title = pathname.startsWith("/admin")
+      ? "Painel Administrativo — Lojinha do Celular"
+      : "TV Vitrine — Lojinha do Celular";
+    noindex = true; // Nunca indexar painel administrativo ou modo TV no Google
+    canonicalUrl = `${canonicalDomain}${pathname}`;
   }
   // ROTA DE PRODUTO ESPECÍFICO (/produto/:id)
   else {
@@ -192,6 +226,8 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
       const rawId = productMatch[1];
       const productIdStr = decodeURIComponent(rawId).trim();
       let foundProduct: {
+        id: string | number;
+        externalId?: string | null;
         name: string;
         description?: string | null;
         imageUrl?: string | null;
@@ -220,13 +256,18 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
             const extMatch =
               p.externalId &&
               p.externalId.trim().toLowerCase() === productIdStr.toLowerCase();
+            const altMatch =
+              Array.isArray(p.alternateIds) &&
+              p.alternateIds.some(
+                (alt) => alt.trim().toLowerCase() === productIdStr.toLowerCase(),
+              );
             const pWithSku = p as { sku?: unknown };
             const skuMatch =
               typeof pWithSku.sku === "string" &&
               pWithSku.sku.trim().toLowerCase() === productIdStr.toLowerCase();
-            return idMatch || extMatch || skuMatch;
+            return idMatch || extMatch || altMatch || skuMatch;
           });
-          if (match) {
+          if (match && match.active !== false) {
             foundProduct = match;
           }
         }
@@ -245,7 +286,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
               where: (prod, { eq }) => eq(prod.id, numericId),
               with: { variants: true },
             });
-            if (p) {
+            if (p && p.active !== false) {
               foundProduct = p;
             }
           }
@@ -268,6 +309,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
 
       if (foundProduct) {
         ogType = "product";
+        canonicalUrl = `${canonicalDomain}/produto/${encodeURIComponent(String(foundProduct.id || foundProduct.externalId || productIdStr))}`;
         const firstVariant = foundProduct.variants?.[0];
         const validCashPrices = (foundProduct.variants || [])
           .filter((v) => v.available !== false && (v.priceCash ?? 0) > 0)
@@ -331,7 +373,21 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
         } else if (resolvedImage && resolvedImage.startsWith("http")) {
           img = resolvedImage;
         }
+      } else {
+        // PRODUTO NÃO ENCONTRADO NO ESTOQUE OU DELETADO => RETORNA HTTP 404 REAL (PREVINE ERRO SOFT 404 NO GSC)
+        httpStatus = 404;
+        noindex = true;
+        title = "Produto não encontrado — Lojinha do Celular";
+        desc = "O produto que você tentou acessar não está mais disponível ou foi removido do nosso catálogo.";
+        canonicalUrl = `${canonicalDomain}${pathname}`;
       }
+    } else {
+      // ROTA DESCONHECIDA => RETORNA HTTP 404 REAL (PREVINE ERRO SOFT 404 NO GSC)
+      httpStatus = 404;
+      noindex = true;
+      title = "Página não encontrada (404) — Lojinha do Celular";
+      desc = "A página que você tentou acessar não existe ou foi movida. Visite nossa vitrine para conferir os aparelhos disponíveis.";
+      canonicalUrl = `${canonicalDomain}${pathname}`;
     }
   }
 
@@ -340,6 +396,8 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     desc,
     img,
     url: currentUrl,
+    canonicalUrl,
+    noindex,
     ogType,
     origin,
   });
@@ -352,7 +410,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     c.header("Expires", "0");
   }
 
-  return c.html(content);
+  return c.html(content, httpStatus);
 }
 
 export function serveStaticFiles(app: App) {
@@ -367,6 +425,6 @@ export function serveStaticFiles(app: App) {
   // 2. Servir arquivos estáticos da pasta dist/public
   app.use("*", serveStatic({ root: staticRoot }));
 
-  // 3. Fallback SPA para rotas dinâmicas (/produto/:id, /catalogo, /avaliacao, /privacidade, etc.)
+  // 3. Fallback SPA para rotas dinâmicas (/produto/:id, /avaliacao, /privacidade, etc.)
   app.notFound(renderEnrichedHtml);
 }

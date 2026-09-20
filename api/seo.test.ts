@@ -38,6 +38,7 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(enriched).toContain('<meta property="og:title" content="iPhone 17 Pro Max - Silver 256GB por R$ 7.219,00 no Pix — Lojinha do Celular" />');
     expect(enriched).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/iphones/iphone-17-pro-max-silver.png" />');
     expect(enriched).toContain('<meta property="og:type" content="product" />');
+    expect(enriched).toContain('<link rel="canonical" href="https://lojinhadocelular.com/produto/50e70d25-bc76-4b76-a76b-6cc3918e830e" />');
     expect(enriched).not.toContain("Título Antigo");
     expect(enriched).not.toContain("OG Antigo");
   });
@@ -104,7 +105,7 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(html).toContain("Lacrado");
   });
 
-  it("deve responder 200 com OpenGraph para rotas SPA como /catalogo para crawlers", async () => {
+  it("deve responder 301 redirecionando /catalogo para a vitrine na Home", async () => {
     const app = new Hono();
     serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
 
@@ -116,10 +117,8 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
       },
     });
 
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("Loja de iPhone &amp; Celulares em Jardim-MS — Catálogo Lojinha do Celular");
-    expect(html).toContain("/images/og-preview.jpg?v=3");
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/#vitrine");
   });
 
   it("deve responder 200 com OpenGraph dedicado para /privacidade e termos da LGPD", async () => {
@@ -174,7 +173,7 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(ogTitleIndex).toBeLessThan(bodyIndex);
   });
 
-  it("deve responder 200 com OpenGraph na rota /index.html", async () => {
+  it("deve responder 301 redirecionando /index.html para a rota canônica /", async () => {
     const app = new Hono();
     serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
 
@@ -186,10 +185,8 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
       },
     });
 
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain('<meta property="og:url" content="https://lojinhadocelular.com/" />');
-    expect(html).toContain('<meta property="og:image" content="https://lojinhadocelular.com/images/og-preview.jpg?v=3" />');
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/");
   });
 
   it("deve retornar 404 JSON para arquivos estáticos ausentes (.js, .css)", async () => {
@@ -207,6 +204,56 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(body).toEqual({ error: "Not Found" });
   });
 
+  it("deve retornar 404 com noindex para produto inexistente", async () => {
+    const app = new Hono();
+    serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
+
+    const res = await app.request("/produto/id-inexistente-12345", {
+      headers: {
+        accept: "text/html",
+        host: "lojinhadocelular.com",
+      },
+    });
+
+    expect(res.status).toBe(404);
+    const html = await res.text();
+    expect(html).toContain("Produto não encontrado");
+    expect(html).toContain('name="robots" content="noindex, nofollow"');
+  });
+
+  it("deve retornar 404 com noindex para rota desconhecida (prevenção de Soft 404)", async () => {
+    const app = new Hono();
+    serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
+
+    const res = await app.request("/rota-completamente-inexistente-xyz", {
+      headers: {
+        accept: "text/html",
+        host: "lojinhadocelular.com",
+      },
+    });
+
+    expect(res.status).toBe(404);
+    const html = await res.text();
+    expect(html).toContain("Página não encontrada");
+    expect(html).toContain('name="robots" content="noindex, nofollow"');
+  });
+
+  it("deve redirecionar rotas legadas e aliases via 301", async () => {
+    const { default: app } = await import("./boot");
+
+    const resCatalogo = await app.request("https://lojinhadocelular.com/catalogo");
+    expect(resCatalogo.status).toBe(301);
+    expect(resCatalogo.headers.get("location")).toBe("/#vitrine");
+
+    const resTermos = await app.request("https://lojinhadocelular.com/termos");
+    expect(resTermos.status).toBe(301);
+    expect(resTermos.headers.get("location")).toBe("/privacidade");
+
+    const resTroca = await app.request("https://lojinhadocelular.com/troca");
+    expect(resTroca.status).toBe(301);
+    expect(resTroca.headers.get("location")).toBe("/avaliacao");
+  });
+
   it("deve retornar robots.txt com regras seguras e sitemap", async () => {
     const { default: app } = await import("./boot");
     const res = await app.request("https://lojinhadocelular.com/robots.txt");
@@ -218,14 +265,19 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(text).toContain("Sitemap: https://lojinhadocelular.com/sitemap.xml");
   });
 
-  it("deve retornar sitemap.xml com namespace de imagem e URLs válidas", async () => {
+  it("deve retornar sitemap.xml limpo contendo apenas páginas canônicas 200 (sem /catalogo e sem /termos)", async () => {
     const { default: app } = await import("./boot");
     const res = await app.request("https://lojinhadocelular.com/sitemap.xml");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/xml");
     const text = await res.text();
     expect(text).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
-    expect(text).toContain("<loc>https://lojinhadocelular.com/catalogo</loc>");
+    expect(text).toContain("<loc>https://lojinhadocelular.com/</loc>");
+    expect(text).toContain("<loc>https://lojinhadocelular.com/avaliacao</loc>");
+    expect(text).toContain("<loc>https://lojinhadocelular.com/privacidade</loc>");
+    // Não deve conter páginas duplicadas ou redirecionadas
+    expect(text).not.toContain("<loc>https://lojinhadocelular.com/catalogo</loc>");
+    expect(text).not.toContain("<loc>https://lojinhadocelular.com/termos</loc>");
     expect(text).toContain("<image:image>");
     expect(text).toContain("<image:loc>");
   });

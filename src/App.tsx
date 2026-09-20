@@ -16,6 +16,7 @@ import TvMode from "./pages/TvMode";
 // Carregados sob demanda (não pesam no primeiro carregamento)
 const Admin = lazy(() => import("./pages/Admin"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 /** Rola até a âncora (#sobre, #unidades...) após a navegação */
 function ScrollToHash() {
@@ -118,7 +119,7 @@ export default function App() {
               <Route path="/lgpd" element={<Privacidade />} />
               <Route path="/cookies" element={<Privacidade />} />
               <Route path="/admin" element={<Admin />} />
-              <Route path="*" element={<Home />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </main>

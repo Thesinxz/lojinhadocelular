@@ -363,16 +363,24 @@ Sitemap: ${origin}/sitemap.xml
 `);
 });
 
+// Redirecionamentos 301 permanentes para URLs canônicas limpas (evita erros de canônica e redirecionamento no GSC)
+app.get("/catalogo", c => c.redirect("/#vitrine", 301));
+app.get("/catalogo/*", c => c.redirect("/#vitrine", 301));
+app.get("/troca", c => c.redirect("/avaliacao", 301));
+app.get("/troca/*", c => c.redirect("/avaliacao", 301));
+app.get("/termos", c => c.redirect("/privacidade", 301));
+app.get("/termos-e-privacidade", c => c.redirect("/privacidade", 301));
+app.get("/lgpd", c => c.redirect("/privacidade", 301));
+app.get("/cookies", c => c.redirect("/privacidade", 301));
+
 // SEO: sitemap.xml dinâmico com suporte a Google Images
 app.get("/sitemap.xml", async c => {
   const origin = new URL(c.req.url).origin;
   try {
     const staticPaths = [
-      { path: "", priority: "1.0", freq: "daily" },
-      { path: "/catalogo", priority: "0.9", freq: "daily" },
+      { path: "/", priority: "1.0", freq: "daily" },
       { path: "/avaliacao", priority: "0.9", freq: "weekly" },
       { path: "/privacidade", priority: "0.5", freq: "monthly" },
-      { path: "/termos", priority: "0.5", freq: "monthly" },
     ];
 
     let productUrls: { loc: string; lastmod?: string; title?: string; image?: string }[] = [];

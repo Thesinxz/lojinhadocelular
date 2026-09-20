@@ -354,6 +354,11 @@ export default function Produto() {
   if (!isValidId) {
     return (
       <div className="min-h-screen bg-white text-neutral-900 pt-6 pb-16 px-4">
+        <SEO
+          title="Produto não encontrado (404)"
+          description="O produto procurado não está disponível ou foi descontinuado."
+          noindex={true}
+        />
         <div className="mx-auto max-w-5xl text-center py-20">
           <p className="font-display text-xl font-bold text-neutral-700">
             Endereço de produto inválido
@@ -426,6 +431,11 @@ export default function Produto() {
   if (!product || !derived) {
     return (
       <div className="min-h-screen bg-white text-neutral-900 pt-6 pb-16 px-4">
+        <SEO
+          title="Produto não encontrado (404)"
+          description="O produto procurado não está mais disponível ou foi removido do nosso catálogo."
+          noindex={true}
+        />
         <div className="mx-auto max-w-5xl text-center py-20">
           <p className="font-display text-xl font-bold text-neutral-700">
             Produto não encontrado
