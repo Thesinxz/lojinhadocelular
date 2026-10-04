@@ -9,6 +9,7 @@ import { RequireCap } from "./RequireCap";
 
 const DashboardPage = lazy(() => import("./DashboardPage"));
 const EvaluationsPage = lazy(() => import("./EvaluationsPage"));
+const EvaluationDetailPage = lazy(() => import("./EvaluationDetailPage"));
 const ProductsPage = lazy(() => import("./ProductsPage"));
 const UsersPage = lazy(() => import("./UsersPage"));
 const SettingsPage = lazy(() => import("./SettingsPage"));
@@ -92,6 +93,14 @@ function AdminGate() {
             element={
               <Suspense fallback={<PageFallback />}>
                 <EvaluationsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="avaliacoes/:id"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <EvaluationDetailPage />
               </Suspense>
             }
           />

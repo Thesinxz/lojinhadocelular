@@ -32,6 +32,8 @@ import {
   getDeviceColorHex,
   normalizeKey,
 } from "@/lib/valuationEngine";
+import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
+import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
 
 export default function AdminSettings() {
   const utils = trpc.useUtils();
@@ -47,6 +49,7 @@ export default function AdminSettings() {
   const [pricingViewMode, setPricingViewMode] = useState<"models" | "all">("models");
   const [onlyCustomFilter, setOnlyCustomFilter] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
+  const [templates, setTemplates] = useState<WhatsappTemplate[]>([]);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -54,6 +57,7 @@ export default function AdminSettings() {
     onSuccess: () => {
       utils.admin.getSettings.invalidate();
       utils.shop.settings.invalidate();
+      utils.admin.evaluationConfig.invalidate();
       setSaveError(null);
       setSaved(true);
       toast.success("Configurações salvas.");
@@ -68,6 +72,7 @@ export default function AdminSettings() {
   useEffect(() => {
     if (query.data && Object.keys(values).length === 0) {
       setValues(query.data);
+      setTemplates(parseTemplates(query.data[SETTING_KEYS.whatsappTemplates]));
       const parsed = parseFees(query.data[SETTING_KEYS.installmentFees]);
       setFees(
         Object.fromEntries(
@@ -940,6 +945,13 @@ export default function AdminSettings() {
         </div>
       </section>
 
+      <EvaluationSettingsSection
+        slaHours={values[SETTING_KEYS.evaluationSlaHours] ?? "2"}
+        templates={templates}
+        onSlaChange={(value) => setValues((v) => ({ ...v, [SETTING_KEYS.evaluationSlaHours]: value }))}
+        onTemplatesChange={setTemplates}
+      />
+
       {/* Popup */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
         <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Popup de boas-vindas</h3>
@@ -988,6 +1000,18 @@ export default function AdminSettings() {
 
       <button
         onClick={() => {
+          const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
+          if (!Number.isFinite(slaHours) || slaHours <= 0 || slaHours > 720) {
+            toast.error("Prazo de resposta inválido: informe um número de horas entre 0 e 720.");
+            return;
+          }
+          const cleanTemplates = templates
+            .map((t) => ({ ...t, label: t.label.trim(), body: t.body.trim() }))
+            .filter((t) => t.label && t.body);
+          if (cleanTemplates.length !== templates.length) {
+            toast.error("Preencha o título e o texto de todas as mensagens prontas (ou remova as vazias).");
+            return;
+          }
           const feesJson = JSON.stringify(
             Object.fromEntries(
               Object.entries(fees).map(([k, v]) => [
@@ -1004,6 +1028,8 @@ export default function AdminSettings() {
                 heroText.split("\n").map((u) => u.trim()).filter(Boolean),
               ),
               [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
+              [SETTING_KEYS.evaluationSlaHours]: String(slaHours),
+              [SETTING_KEYS.whatsappTemplates]: JSON.stringify(cleanTemplates),
             },
           });
         }}
