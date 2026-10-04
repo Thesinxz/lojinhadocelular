@@ -29,6 +29,7 @@ import type { ShopProduct } from "../../api/erp/types";
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState(() => safeStorage.getItem("admin_token") ?? "");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [editingErpProduct, setEditingErpProduct] = useState<ShopProduct | null>(null);
@@ -114,7 +115,7 @@ export default function Admin() {
       if (isUnauthorized) {
         safeStorage.removeItem("admin_token");
         setToken("");
-        setError("Sessão expirada. Digite a senha para entrar.");
+        setError("Sessão expirada. Entre novamente com seu usuário e senha.");
       }
     }
   }, [products.error]);
@@ -157,7 +158,7 @@ export default function Admin() {
     safeStorage.removeItem("admin_token");
     setToken("");
     setError("");
-    login.mutate({ password: password.trim() });
+    login.mutate({ username: username.trim().toLowerCase(), password: password.trim() });
   }
 
   // ===== TELA DE LOGIN =====
@@ -181,7 +182,28 @@ export default function Admin() {
           <div className="mt-6">
             <label className="block">
               <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-                Senha de administrador
+                Usuário
+              </span>
+              <div className="group flex h-12 items-center rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Ex.: dono"
+                  autoFocus
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="username"
+                  className="w-full bg-transparent text-[15px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
+                />
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
+                Senha
               </span>
               <div className="group flex h-12 items-center rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
                 <input
@@ -189,7 +211,7 @@ export default function Admin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite sua senha"
-                  autoFocus
+                  autoComplete="current-password"
                   className="w-full bg-transparent text-[15px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
                 />
               </div>
@@ -204,7 +226,7 @@ export default function Admin() {
 
           <button
             type="submit"
-            disabled={login.isPending || !password}
+            disabled={login.isPending || !password || !username.trim()}
             className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-[#1d1d1f] hover:bg-black font-display font-semibold text-white transition-all shadow-[0_10px_25px_-10px_rgba(0,0,0,0.3)] active:scale-[0.99] disabled:opacity-50"
           >
             {login.isPending ? "Entrando..." : "Acessar Painel"}

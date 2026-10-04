@@ -4,11 +4,9 @@ import {
   verifyPasswordHash,
   createToken,
   verifyToken,
-  checkPassword,
   secret,
+  tokenFromRequest,
 } from "./auth";
-import { SETTING_KEYS } from "../contracts/types";
-import { saveSingleSetting } from "./services/settingsStore";
 
 describe("Segurança de Autenticação", () => {
   const originalEnv = { ...process.env };
@@ -30,26 +28,17 @@ describe("Segurança de Autenticação", () => {
     expect(verifyPasswordHash("senha-incorreta", hashed)).toBe(false);
   });
 
-  it("deve criar e validar tokens admin", () => {
-    const token = createToken();
+  it("deve criar e validar tokens admin por usuário (v2)", () => {
+    const token = createToken(7);
     expect(typeof token).toBe("string");
-    expect(verifyToken(token)).toBe(true);
-    expect(verifyToken("token-invalido-forjado")).toBe(false);
+    expect(verifyToken(token)).toEqual({ userId: 7 });
+    expect(verifyToken("token-invalido-forjado")).toBeNull();
   });
 
-  it("deve bloquear senhas antigas/backdoors ('admin', 'lojinha123') quando uma nova senha for definida", async () => {
-    const novaSenha = "NovaSenhaForte@2026";
-    const novoHash = hashPassword(novaSenha);
-    await saveSingleSetting(SETTING_KEYS.adminPassword, novoHash);
-
-    // Senha correta deve autenticar
-    const ok = await checkPassword(novaSenha);
-    expect(ok).toBe(true);
-
-    // Backdoors estáticos anteriores devem ser expressamente rejeitados
-    expect(await checkPassword("admin")).toBe(false);
-    expect(await checkPassword("lojinha123")).toBe(false);
-    expect(await checkPassword("qualquer-outra")).toBe(false);
+  it("deve extrair o token Bearer do cabeçalho Authorization", () => {
+    const req = new Request("http://localhost", { headers: { authorization: "Bearer abc.def" } });
+    expect(tokenFromRequest(req)).toBe("abc.def");
+    expect(tokenFromRequest(new Request("http://localhost"))).toBeNull();
   });
 
   it("deve exigir APP_SECRET com no mínimo 32 caracteres em produção", () => {

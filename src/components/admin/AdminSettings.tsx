@@ -1042,19 +1042,19 @@ export default function AdminSettings() {
           <KeyRound className="h-5 w-5 text-[#0071e3]" /> Trocar senha do painel
         </h3>
         <p className="mt-1 text-xs text-[#86868b]">
-          Altere a senha de acesso a este painel administrativo.
+          Altere a sua senha de acesso a este painel administrativo.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Nova senha (mín. 4 caracteres)"
+            placeholder="Nova senha (mín. 6 caracteres)"
             className={`${inputCls} max-w-xs`}
           />
           <button
-            onClick={() => newPassword.length >= 4 && changePassword.mutate({ password: newPassword })}
-            disabled={newPassword.length < 4 || changePassword.isPending}
+            onClick={() => newPassword.length >= 6 && changePassword.mutate({ password: newPassword })}
+            disabled={newPassword.length < 6 || changePassword.isPending}
             className="rounded-xl bg-[#1d1d1f] hover:bg-black px-5 py-2.5 text-sm font-semibold text-white transition shadow-sm disabled:opacity-50"
           >
             Trocar senha

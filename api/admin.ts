@@ -4,14 +4,8 @@ import { products, variants, evaluations } from "../db/schema";
 import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  checkPassword,
-  createToken,
-  verifyToken,
-  tokenFromRequest,
-  hashPassword,
-} from "./auth";
-import { SETTING_KEYS } from "../contracts/types";
+import { authenticate, createToken, getSessionUser } from "./auth";
+import { setUserPassword, toSessionUser, touchLastLogin } from "./services/userStore";
 import { env } from "./lib/env";
 import { getErpCatalog, clearErpCache } from "./erp/service";
 import { getErpOverride, saveErpOverride } from "./erp/overrides";
@@ -29,11 +23,12 @@ import {
   prepareEvaluationPhotosForStorage,
 } from "./services/evaluationPhotoStorage";
 
-function requireAdmin(req: Request) {
-  const token = tokenFromRequest(req);
-  if (!token || !verifyToken(token)) {
+async function requireAdmin(req: Request) {
+  const user = await getSessionUser(req);
+  if (!user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Não autorizado" });
   }
+  return user;
 }
 
 async function hydrateEvaluationRecord<T extends { photos?: unknown }>(record: T): Promise<T> {
@@ -112,26 +107,31 @@ const productInput = z.object({
 
 export const adminRouter = createRouter({
   login: publicQuery
-    .input(z.object({ password: z.string().min(1).max(128) }))
+    .input(
+      z.object({
+        username: z.string().min(1).max(40),
+        password: z.string().min(1).max(128),
+      }),
+    )
     .mutation(async ({ input }) => {
-      const ok = await checkPassword(input.password);
-      if (!ok) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha incorreta" });
+      const user = await authenticate(input.username, input.password);
+      if (!user) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Usuário ou senha incorretos" });
       }
-      return { token: createToken() };
+      await touchLastLogin(user.id);
+      return { token: createToken(user.id), user: toSessionUser(user) };
     }),
 
   changePassword: publicQuery
-    .input(z.object({ password: z.string().min(4).max(128) }))
+    .input(z.object({ password: z.string().min(6).max(128) }))
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
-      const hashedPassword = hashPassword(input.password);
-      await saveSettings({ [SETTING_KEYS.adminPassword]: hashedPassword });
+      const user = await requireAdmin(ctx.req);
+      await setUserPassword(user.id, input.password);
       return { ok: true };
     }),
 
   products: publicQuery.query(async ({ ctx }) => {
-    requireAdmin(ctx.req);
+    await requireAdmin(ctx.req);
     // Se o ERP estiver ativado, o catálogo oficial vem do ERP
     if (env.erpCatalogEnabled) {
       const erp = await getErpCatalog();
@@ -157,7 +157,7 @@ export const adminRouter = createRouter({
   upsertProduct: publicQuery
     .input(productInput)
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       const { variants: variantList, id, ...data } = input;
@@ -212,7 +212,7 @@ export const adminRouter = createRouter({
   deleteProduct: publicQuery
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await db.delete(variants).where(eq(variants.productId, input.id));
       await db.delete(products).where(eq(products.id, input.id));
@@ -220,19 +220,19 @@ export const adminRouter = createRouter({
     }),
 
   getSettings: publicQuery.query(async ({ ctx }) => {
-    requireAdmin(ctx.req);
+    await requireAdmin(ctx.req);
     return await getAdminSettings();
   }),
 
   updateSettings: publicQuery
     .input(z.object({ values: z.record(z.string(), z.string()) }))
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       return await saveSettings(input.values);
     }),
 
   evaluations: publicQuery.query(async ({ ctx }) => {
-    requireAdmin(ctx.req);
+    await requireAdmin(ctx.req);
     try {
       const db = getDb();
       await ensureTables();
@@ -262,7 +262,7 @@ export const adminRouter = createRouter({
   }),
 
   evaluationSummary: publicQuery.query(async ({ ctx }) => {
-    requireAdmin(ctx.req);
+    await requireAdmin(ctx.req);
     try {
       const db = getDb();
       await ensureTables();
@@ -292,7 +292,7 @@ export const adminRouter = createRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const offset = (input.page - 1) * input.pageSize;
       const searchTerm = input.search.trim();
       const filters = [];
@@ -384,7 +384,7 @@ export const adminRouter = createRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       await db
@@ -397,7 +397,7 @@ export const adminRouter = createRouter({
   deleteEvaluation: publicQuery
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       const evaluation = await db.query.evaluations.findFirst({
@@ -435,7 +435,7 @@ export const adminRouter = createRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       const currentEvaluation = await db.query.evaluations.findFirst({
@@ -480,7 +480,7 @@ export const adminRouter = createRouter({
   migrateEvaluationPhotosToS3: publicQuery
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       if (!isEvaluationPhotoStorageConfigured()) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -515,7 +515,7 @@ export const adminRouter = createRouter({
   retryEvaluationNotification: publicQuery
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       const evaluation = await db.query.evaluations.findFirst({
@@ -556,7 +556,7 @@ export const adminRouter = createRouter({
   erpOverride: publicQuery
     .input(z.object({ externalId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       return await getErpOverride(input.externalId);
     }),
 
@@ -576,7 +576,7 @@ export const adminRouter = createRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const { externalId, ...data } = input;
       await saveErpOverride(externalId, data);
       clearErpCache();
@@ -591,7 +591,7 @@ export const adminRouter = createRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       const strId = String(input.id);
@@ -613,7 +613,7 @@ export const adminRouter = createRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      requireAdmin(ctx.req);
+      await requireAdmin(ctx.req);
       const db = getDb();
       await ensureTables();
       const strId = String(input.id);
@@ -628,7 +628,7 @@ export const adminRouter = createRouter({
     }),
 
   refreshErpCatalog: publicQuery.mutation(async ({ ctx }) => {
-    requireAdmin(ctx.req);
+    await requireAdmin(ctx.req);
     clearErpCache();
     const res = await getErpCatalog();
     return {

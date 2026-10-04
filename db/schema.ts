@@ -70,6 +70,37 @@ export const settings = mysqlTable("settings", {
   value: text("value"),
 });
 
+export const adminUsers = mysqlTable("admin_users", {
+  id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+  username: varchar("username", { length: 40 }).notNull().unique(), // minúsculo, [a-z0-9._-]
+  name: varchar("name", { length: 80 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(), // scrypt:<salt>:<hash>
+  role: mysqlEnum("role", ["dono", "vendedor"]).notNull().default("vendedor"),
+  unit: varchar("unit", { length: 10 }), // jardim | gll | NULL (= todas)
+  canEditPrices: boolean("can_edit_prices").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const auditLogs = mysqlTable(
+  "audit_logs",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    userId: int("user_id", { unsigned: true }),
+    userName: varchar("user_name", { length: 80 }).notNull().default(""),
+    action: varchar("action", { length: 60 }).notNull(), // ex: product.update, auth.login
+    entityType: varchar("entity_type", { length: 30 }).notNull(), // product | erp_product | evaluation | user | settings
+    entityId: varchar("entity_id", { length: 60 }),
+    summary: text("summary").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index("idx_audit_logs_created_at").on(table.createdAt),
+    entityIdx: index("idx_audit_logs_entity").on(table.entityType, table.entityId),
+  }),
+);
+
 export const evaluations = mysqlTable(
   "evaluations",
   {

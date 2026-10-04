@@ -99,6 +99,37 @@ export async function ensureTables() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(40) NOT NULL,
+        name VARCHAR(80) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role ENUM('dono', 'vendedor') NOT NULL DEFAULT 'vendedor',
+        unit VARCHAR(10) NULL,
+        can_edit_prices BOOLEAN NOT NULL DEFAULT FALSE,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        last_login_at TIMESTAMP NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_admin_users_username (username)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id INT UNSIGNED NULL,
+        user_name VARCHAR(80) NOT NULL DEFAULT '',
+        action VARCHAR(60) NOT NULL,
+        entity_type VARCHAR(30) NOT NULL,
+        entity_id VARCHAR(60) NULL,
+        summary TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_audit_logs_created_at (created_at),
+        INDEX idx_audit_logs_entity (entity_type, entity_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS evaluations (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(120) NOT NULL,
