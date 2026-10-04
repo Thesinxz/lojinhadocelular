@@ -182,6 +182,28 @@ export async function ensureTables() {
     await ensureColumnExists(pool, "evaluations", "opened_before", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "has_box", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "visual_condition", "VARCHAR(100) DEFAULT ''");
+    // Fluxo de atendimento (Etapa 3)
+    await ensureColumnExists(pool, "evaluations", "unit", "VARCHAR(10) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "assigned_user_id", "INT UNSIGNED NULL");
+    await ensureColumnExists(pool, "evaluations", "assigned_user_name", "VARCHAR(80) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "assigned_at", "TIMESTAMP NULL");
+    await ensureColumnExists(pool, "evaluations", "first_response_at", "TIMESTAMP NULL");
+    await ensureColumnExists(pool, "evaluations", "status_changed_at", "TIMESTAMP NULL");
+    await ensureColumnExists(pool, "evaluations", "offered_value", "INT NULL");
+    await ensureColumnExists(pool, "evaluations", "closed_value", "INT NULL");
+    await ensureColumnExists(pool, "evaluations", "refusal_reason", "VARCHAR(30) DEFAULT ''");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS evaluation_notes (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        evaluation_id INT UNSIGNED NOT NULL,
+        user_id INT UNSIGNED NULL,
+        user_name VARCHAR(80) NOT NULL DEFAULT '',
+        body TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_evaluation_notes_evaluation (evaluation_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
 
     tablesEnsured = true;
   } catch (err) {

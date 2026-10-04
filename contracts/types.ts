@@ -34,6 +34,8 @@ export const SETTING_KEYS = {
   heroImages: "hero_images", // JSON array de URLs para o carrossel da página inicial
   warrantyBadgeText: "warranty_badge_text", // Mensagem de garantia e procedência na página do produto
   valuationConfig: "valuation_config", // JSON: Configuração do motor de avaliação inteligente
+  evaluationSlaHours: "evaluation_sla_hours", // horas até uma avaliação pendente ficar "Atrasada"
+  whatsappTemplates: "whatsapp_templates", // JSON: [{ id, label, body }] mensagens prontas do atendimento
   adminPassword: "admin_password", // nunca exposta publicamente
 } as const;
 
@@ -85,6 +87,58 @@ export const DEFAULT_VALUATION_CONFIG: ValuationConfig = {
   hidePricesToClient: true, // Padrão seguro solicitado pelo lojista para evitar divergências ou erros
 };
 
+// ===== Avaliações (Troca Fácil) =====
+
+export const EVALUATION_STATUSES = ["pendente", "atendimento", "concluido", "recusado"] as const;
+export type EvaluationStatus = (typeof EVALUATION_STATUSES)[number];
+
+export const EVALUATION_STATUS_LABELS: Record<EvaluationStatus, string> = {
+  pendente: "Pendente",
+  atendimento: "Em atendimento",
+  concluido: "Concluído",
+  recusado: "Recusado",
+};
+
+export const REFUSAL_REASONS = [
+  { value: "preco", label: "Preço não agradou" },
+  { value: "defeito", label: "Aparelho com defeito/peças" },
+  { value: "sem_resposta", label: "Cliente não respondeu" },
+  { value: "desistiu", label: "Cliente desistiu" },
+  { value: "outro", label: "Outro" },
+] as const;
+export type RefusalReason = (typeof REFUSAL_REASONS)[number]["value"];
+
+export const DEFAULT_EVALUATION_SLA_HOURS = 2;
+
+export interface WhatsappTemplate {
+  id: string;
+  label: string;
+  body: string;
+}
+
+export const DEFAULT_WHATSAPP_TEMPLATES: WhatsappTemplate[] = [
+  {
+    id: "recebemos",
+    label: "Recebemos sua avaliação",
+    body: "Olá {nome}! Aqui é {vendedor} da Lojinha do Celular {loja}. Recebemos a avaliação do seu {modelo} e já estamos analisando. Em instantes te passo a proposta 😊",
+  },
+  {
+    id: "proposta",
+    label: "Proposta",
+    body: "Olá {nome}! Analisamos seu {modelo}. Conseguimos oferecer {valor_oferecido} na troca, sujeito à conferência presencial. Podemos agendar sua visita?",
+  },
+  {
+    id: "convite",
+    label: "Convite para a loja",
+    body: "{nome}, te esperamos na Lojinha do Celular {loja}: {endereco}. É só trazer o aparelho para a conferência final!",
+  },
+  {
+    id: "fotos",
+    label: "Pedir mais fotos",
+    body: "Olá {nome}! Para fechar a avaliação do seu {modelo}, pode nos enviar mais algumas fotos da tela e da traseira?",
+  },
+];
+
 export const DEFAULT_SETTINGS: Record<string, string> = {
   whatsapp_jardim: "5567992086012",
   whatsapp_gll: "5567998206533",
@@ -104,6 +158,8 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   ]),
   warranty_badge_text: "Garantia e procedência verificada.",
   valuation_config: JSON.stringify(DEFAULT_VALUATION_CONFIG),
+  evaluation_sla_hours: String(DEFAULT_EVALUATION_SLA_HOURS),
+  whatsapp_templates: JSON.stringify(DEFAULT_WHATSAPP_TEMPLATES),
   admin_password: "lojinha123",
 };
 

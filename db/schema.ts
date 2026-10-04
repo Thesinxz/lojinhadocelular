@@ -130,10 +130,35 @@ export const evaluations = mysqlTable(
     notificationStatus: varchar("notification_status", { length: 30 }).notNull().default("not_configured"),
     notificationError: text("notification_error"),
     notifiedAt: timestamp("notified_at"),
+    // Fluxo de atendimento (Etapa 3)
+    unit: varchar("unit", { length: 10 }).default(""), // "jardim" | "gll" | ""
+    assignedUserId: int("assigned_user_id", { unsigned: true }),
+    assignedUserName: varchar("assigned_user_name", { length: 80 }).default(""),
+    assignedAt: timestamp("assigned_at"),
+    firstResponseAt: timestamp("first_response_at"),
+    statusChangedAt: timestamp("status_changed_at"),
+    offeredValue: int("offered_value"), // centavos
+    closedValue: int("closed_value"), // centavos
+    refusalReason: varchar("refusal_reason", { length: 30 }).default(""),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
     statusIdx: index("idx_evaluations_status").on(table.status),
     createdAtIdx: index("idx_evaluations_created_at").on(table.createdAt),
+  }),
+);
+
+export const evaluationNotes = mysqlTable(
+  "evaluation_notes",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    evaluationId: int("evaluation_id", { unsigned: true }).notNull(),
+    userId: int("user_id", { unsigned: true }),
+    userName: varchar("user_name", { length: 80 }).notNull().default(""),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    evaluationIdx: index("idx_evaluation_notes_evaluation").on(table.evaluationId),
   }),
 );

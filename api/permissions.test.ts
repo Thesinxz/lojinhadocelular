@@ -30,6 +30,7 @@ const vendedorComPreco: SessionUser = { ...vendedor, id: 3, canEditPrices: true 
 
 const ALL_CAPS: Capability[] = [
   "evaluations.manage",
+  "evaluations.assign",
   "products.editMedia",
   "products.editPrice",
   "products.manage",
@@ -79,6 +80,7 @@ describe("can()", () => {
 
   it("vendedor gerencia avaliações e mídia, mas não administra", () => {
     expect(can(vendedor, "evaluations.manage")).toBe(true);
+    expect(can(vendedor, "evaluations.assign")).toBe(false);
     expect(can(vendedor, "products.editMedia")).toBe(true);
     expect(can(vendedor, "products.editPrice")).toBe(false);
     expect(can(vendedor, "products.manage")).toBe(false);

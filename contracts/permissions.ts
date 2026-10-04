@@ -22,6 +22,7 @@ export interface SessionUser {
 
 export type Capability =
   | "evaluations.manage" // todos
+  | "evaluations.assign" // dono: atribuir avaliação a outro usuário
   | "products.editMedia" // todos: fotos, vídeos, bateria, observações, disponível/quantidade, ocultar/mostrar
   | "products.editPrice" // dono, ou vendedor com canEditPrices
   | "products.manage" // dono: criar, excluir, destacar, dados cadastrais, variantes
