@@ -265,7 +265,9 @@ app.use(bodyLimit({ maxSize: 10 * 1024 * 1024 }));
 
 // Rate Limiter em memória para proteção contra força bruta no login admin
 const loginAttempts = new Map<string, { count: number; resetTime: number }>();
-const MAX_LOGIN_ATTEMPTS = 5;
+// Limite por IP (inclui logins bem-sucedidos). A equipe inteira costuma usar o mesmo
+// Wi-Fi da loja, então o teto é folgado; o limite fino por IP+usuário fica em admin.login.
+const MAX_LOGIN_ATTEMPTS = 30;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutos
 
 app.use("/api/trpc/admin.login*", async (c, next) => {

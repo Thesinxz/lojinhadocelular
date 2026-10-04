@@ -22,6 +22,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { safeStorage } from "@/lib/storage";
@@ -145,7 +146,8 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  const settingsQuery = trpc.admin.getSettings.useQuery();
+  // Configuração pública: vendedores não têm acesso a admin.getSettings.
+  const settingsQuery = trpc.shop.settings.useQuery();
   const valuationConfig = useMemo(
     () => parseValuationConfig(settingsQuery.data?.[SETTING_KEYS.valuationConfig]),
     [settingsQuery.data]
@@ -180,7 +182,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
         delete next[String(variables.id)];
         return next;
       });
-      alert(`Não foi possível salvar o status: ${error.message}`);
+      toast.error(`Não foi possível salvar o status: ${error.message}`);
     },
   });
 
@@ -200,7 +202,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
       setUploadingEvaluationId(null);
     },
     onError: (err) => {
-      alert("Erro ao salvar fotos: " + err.message);
+      toast.error("Erro ao salvar fotos: " + err.message);
       setUploadingEvaluationId(null);
     },
   });
@@ -209,10 +211,10 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
     onSuccess: (result) => {
       utils.admin.evaluationsPage.invalidate();
       utils.admin.evaluationSummary.invalidate();
-      alert(`${result.migrated} foto(s) armazenada(s) no R2/S3.`);
+      toast.success(`${result.migrated} foto(s) armazenada(s) no R2/S3.`);
     },
     onError: (err) => {
-      alert("Não foi possível migrar as fotos para o R2/S3: " + err.message);
+      toast.error("Não foi possível migrar as fotos para o R2/S3: " + err.message);
     },
   });
 
@@ -221,12 +223,12 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
       utils.admin.evaluationsPage.invalidate();
       utils.admin.evaluationSummary.invalidate();
       if (!result.ok && result.status === "not_configured") {
-        alert("A notificação automática ainda não está configurada no servidor.");
+        toast.warning("A notificação automática ainda não está configurada no servidor.");
       } else if (!result.ok) {
-        alert(`Não foi possível notificar a equipe: ${result.error || "erro desconhecido"}`);
+        toast.error(`Não foi possível notificar a equipe: ${result.error || "erro desconhecido"}`);
       }
     },
-    onError: (error) => alert(`Erro ao tentar notificar a equipe: ${error.message}`),
+    onError: (error) => toast.error(`Erro ao tentar notificar a equipe: ${error.message}`),
   });
 
   const handleUploadPhotos = async (
@@ -266,7 +268,7 @@ export default function AdminEvaluations({ onOpenConfig }: AdminEvaluationsProps
         photos: [...existingPhotos, ...newPhotos],
       });
     } catch (err: any) {
-      alert("Falha ao processar imagens: " + (err?.message || err));
+      toast.error("Falha ao processar imagens: " + (err?.message || err));
       setUploadingEvaluationId(null);
     }
   };

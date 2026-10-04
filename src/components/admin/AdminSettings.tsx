@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import {
   Save,
-  KeyRound,
   CreditCard,
   ShieldCheck,
   Check,
@@ -16,6 +15,7 @@ import {
   ListFilter,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import {
   SETTING_KEYS,
@@ -49,7 +49,6 @@ export default function AdminSettings() {
   const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState("");
 
   const update = trpc.admin.updateSettings.useMutation({
     onSuccess: () => {
@@ -57,20 +56,12 @@ export default function AdminSettings() {
       utils.shop.settings.invalidate();
       setSaveError(null);
       setSaved(true);
+      toast.success("Configurações salvas.");
       setTimeout(() => setSaved(false), 3000);
     },
     onError: (err) => {
       setSaveError(err.message || "Erro ao salvar configurações");
-    },
-  });
-
-  const changePassword = trpc.admin.changePassword.useMutation({
-    onSuccess: () => {
-      setNewPassword("");
-      alert("Senha alterada com sucesso!");
-    },
-    onError: (err) => {
-      alert(`Erro ao alterar senha: ${err.message || "Erro desconhecido"}`);
+      toast.error(err.message || "Erro ao salvar configurações");
     },
   });
 
@@ -1036,31 +1027,6 @@ export default function AdminSettings() {
         </div>
       )}
 
-      {/* Senha */}
-      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
-        <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[#1d1d1f]">
-          <KeyRound className="h-5 w-5 text-[#0071e3]" /> Trocar senha do painel
-        </h3>
-        <p className="mt-1 text-xs text-[#86868b]">
-          Altere a sua senha de acesso a este painel administrativo.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Nova senha (mín. 6 caracteres)"
-            className={`${inputCls} max-w-xs`}
-          />
-          <button
-            onClick={() => newPassword.length >= 6 && changePassword.mutate({ password: newPassword })}
-            disabled={newPassword.length < 6 || changePassword.isPending}
-            className="rounded-xl bg-[#1d1d1f] hover:bg-black px-5 py-2.5 text-sm font-semibold text-white transition shadow-sm disabled:opacity-50"
-          >
-            Trocar senha
-          </button>
-        </div>
-      </section>
     </div>
   );
 }

@@ -363,20 +363,6 @@ export const adminRouter = createRouter({
       return { ok: true };
     }),
 
-  /** @deprecated Use `changeOwnPassword`. Mantido para o painel atual até a Etapa 2. */
-  changePassword: adminProcedure
-    .input(z.object({ password: z.string().min(6).max(128) }))
-    .mutation(async ({ ctx, input }) => {
-      await setUserPassword(ctx.user.id, input.password);
-      await logAction(ctx.user, {
-        action: "user.changePassword",
-        entityType: "user",
-        entityId: ctx.user.id,
-        summary: `${ctx.user.name} trocou a própria senha`,
-      });
-      return { ok: true };
-    }),
-
   users: adminUsersRouter,
 
   auditLog: adminProcedure
@@ -434,6 +420,13 @@ export const adminRouter = createRouter({
       const db = getDb();
       await ensureTables();
 
+      const before = id ? await loadProductForCheck(id) : null;
+      if (id && !before) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Produto não encontrado" });
+      }
+      const beforeVariantIds = new Set((before?.variants ?? []).map((v) => v.id));
+      const beforeVariantById = new Map((before?.variants ?? []).map((v) => [v.id, v]));
+
       const productPayload = {
         name: data.name.trim(),
         brand: data.brand.trim(),
@@ -442,16 +435,11 @@ export const adminRouter = createRouter({
         description: data.description ? data.description.trim() : null,
         imageUrl: data.imageUrl ? data.imageUrl.trim() : null,
         videoUrl: data.videoUrl ? data.videoUrl.trim() : null,
-        warranty: data.warranty ? data.warranty.trim() : "1 ano de garantia",
+        // Sem garantia informada, mantém a atual (edição) ou usa o padrão (criação)
+        warranty: data.warranty ? data.warranty.trim() : (before?.warranty ?? "1 ano de garantia"),
         featured: data.featured,
         active: data.active,
       };
-
-      const before = id ? await loadProductForCheck(id) : null;
-      if (id && !before) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Produto não encontrado" });
-      }
-      const beforeVariantIds = new Set((before?.variants ?? []).map((v) => v.id));
 
       const variantRows = variantList.map((v) => ({
         // Mantém o id das variantes existentes para que fiquem estáveis entre edições
@@ -459,7 +447,11 @@ export const adminRouter = createRouter({
         version: v.version || "",
         storage: v.storage,
         color: v.color,
-        colorHex: v.colorHex ?? "#111111",
+        // Sem cor informada, mantém a da variante existente (ou o padrão)
+        colorHex:
+          v.colorHex ??
+          (typeof v.id === "number" ? beforeVariantById.get(v.id)?.colorHex : undefined) ??
+          "#111111",
         imageUrl: v.imageUrl || null,
         videoUrl: v.videoUrl || null,
         sku: v.sku ? v.sku.trim() : "",

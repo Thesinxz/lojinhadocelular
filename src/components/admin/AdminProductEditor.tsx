@@ -11,11 +11,15 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
+import { useAdminSession } from "@/lib/adminSession";
 import { CATEGORIES, BRANDS } from "@contracts/types";
 import { IPHONE_CATALOG, detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 
 export type FormVariant = {
+  /** Id da variante já salva (mantém a identidade entre edições). */
+  id?: number;
   version: string;
   storage: string;
   color: string;
@@ -149,6 +153,13 @@ export default function AdminProductEditor({
   const utils = trpc.useUtils();
   const draftKey = `admin_product_draft_${productId ?? "novo"}`;
 
+  // Permissões: o servidor valida tudo; aqui só bloqueamos o que a pessoa não pode mudar.
+  const { can } = useAdminSession();
+  const canManage = can("products.manage");
+  const isExisting = productId != null;
+  const lockManage = isExisting && !canManage;
+  const lockPrice = isExisting && !can("products.editPrice");
+
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState("");
   const [showNameDropdown, setShowNameDropdown] = useState(false);
@@ -251,10 +262,12 @@ export default function AdminProductEditor({
       } catch {
         // ignore
       }
+      toast.success("Produto salvo.");
       onClose();
     },
     onError: (err) => {
       setError(err.message || "Erro ao salvar produto");
+      toast.error(err.message || "Erro ao salvar produto");
     },
   });
 
@@ -276,6 +289,7 @@ export default function AdminProductEditor({
           featured: p.featured,
           active: p.active,
           variants: p.variants.map((v) => ({
+            id: Number(v.id),
             version: v.version,
             storage: v.storage,
             color: v.color,
@@ -306,7 +320,8 @@ export default function AdminProductEditor({
             parsed.form.description ||
             parsed.form.variants?.some((v: Record<string, unknown>) => v.priceReais || v.color);
           if (hasContent) {
-            const sanitizedVariants = (parsed.form.variants || []).map((v: Record<string, unknown>) => ({
+            const sanitizedVariants: FormVariant[] = (parsed.form.variants || []).map((v: Record<string, unknown>) => ({
+              id: typeof v.id === "number" ? v.id : undefined,
               version: String(v.version ?? ""),
               storage: String(v.storage ?? "128GB"),
               color: String(v.color ?? "Preto"),
@@ -322,6 +337,17 @@ export default function AdminProductEditor({
               quantity: typeof v.quantity === "number" ? v.quantity : 1,
               available: v.available ?? true,
             }));
+
+            // Rascunhos antigos não guardavam o id das variantes: recupera pela posição
+            if (
+              productId != null &&
+              baseForm.variants.length === sanitizedVariants.length &&
+              sanitizedVariants.every((v) => v.id === undefined)
+            ) {
+              sanitizedVariants.forEach((v, idx) => {
+                v.id = baseForm.variants[idx]?.id;
+              });
+            }
 
             setForm({
               ...parsed.form,
@@ -396,6 +422,7 @@ export default function AdminProductEditor({
           featured: p.featured,
           active: p.active,
           variants: p.variants.map((v) => ({
+            id: Number(v.id),
             version: v.version,
             storage: v.storage,
             color: v.color,
@@ -463,7 +490,19 @@ export default function AdminProductEditor({
       }
     }
 
+    const original = isExisting ? products.data?.find((x) => x.id === productId) : undefined;
+    // O formulário só conhece "lacrado"/"seminovo"; preserva o valor salvo (ex.: "seminovo_eua")
+    // quando a pessoa não trocou a condição.
+    const savedCondition = (v: FormVariant): string => {
+      const prev = original?.variants.find((ov) => Number(ov.id) === v.id);
+      if (prev?.condition && (prev.condition === "lacrado" ? "lacrado" : "seminovo") === v.condition) {
+        return prev.condition;
+      }
+      return v.condition;
+    };
+
     const cleanedVariants = form.variants.map((v) => ({
+      ...(typeof v.id === "number" ? { id: v.id } : {}),
       version: v.version || "",
       storage: v.storage.trim(),
       color: v.color.trim(),
@@ -473,7 +512,7 @@ export default function AdminProductEditor({
       sku: v.sku?.trim() || "",
       batteryHealth: v.condition === "lacrado" ? "" : (v.batteryHealth?.trim() || ""),
       warranty: v.warranty?.trim() || (v.condition === "lacrado" ? "1 ano de garantia" : "6 meses de garantia"),
-      condition: v.condition,
+      condition: savedCondition(v),
       notes: v.notes?.trim() || "",
       priceCash: parsePrice(v.priceReais),
       quantity: typeof v.quantity === "number" ? Math.max(0, v.quantity) : 1,
@@ -481,26 +520,62 @@ export default function AdminProductEditor({
     }));
 
     // Determina a condição principal pelo mix das variantes
-    const mainCondition = cleanedVariants.every((v) => v.condition === "lacrado")
+    const mainCondition = form.variants.every((v) => v.condition === "lacrado")
       ? "lacrado"
-      : cleanedVariants.every((v) => v.condition === "seminovo")
+      : form.variants.every((v) => v.condition === "seminovo")
         ? "seminovo"
         : "hibrido";
 
-    upsert.mutate({
+    const payload = {
       ...(productId != null ? { id: productId } : {}),
       name: form.name.trim(),
       brand: form.brand.trim(),
       category: form.category,
-      condition: mainCondition,
+      condition: mainCondition as string,
       description: form.description.trim() || undefined,
       imageUrl: form.imageUrl.trim() || cleanedVariants[0]?.imageUrl || undefined,
       videoUrl: form.videoUrl.trim() || undefined,
-      warranty: cleanedVariants[0]?.warranty || form.warranty,
+      warranty: (cleanedVariants[0]?.warranty || form.warranty) as string | undefined,
       featured: form.featured,
       active: form.active,
       variants: cleanedVariants,
-    });
+    };
+
+    // Sem permissão total, reenvia exatamente os valores salvos dos campos bloqueados
+    // (evita que padrões do formulário pareçam alterações e o servidor recuse).
+    if (original && (lockManage || lockPrice)) {
+      const keep = (value: string | null | undefined) => value ?? undefined;
+      if (lockManage) {
+        payload.name = original.name;
+        payload.brand = original.brand;
+        payload.category = original.category;
+        payload.condition = original.condition;
+        payload.warranty = keep(original.warranty);
+        payload.description = keep(original.description);
+        payload.featured = original.featured;
+      }
+      payload.variants = cleanedVariants.map((v) => {
+        const prev = original.variants.find((ov) => Number(ov.id) === v.id);
+        if (!prev) return v;
+        return {
+          ...v,
+          ...(lockManage
+            ? {
+                version: prev.version,
+                storage: prev.storage,
+                color: prev.color,
+                colorHex: keep(prev.colorHex),
+                sku: keep(prev.sku) ?? "",
+                warranty: keep(prev.warranty) ?? "",
+                condition: keep(prev.condition) ?? "",
+              }
+            : {}),
+          ...(lockPrice ? { priceCash: Number(prev.priceCash) } : {}),
+        };
+      });
+    }
+
+    upsert.mutate(payload);
   }
 
   function setVariant(i: number, patch: Partial<FormVariant>) {
@@ -578,6 +653,14 @@ export default function AdminProductEditor({
         </p>
       </div>
 
+      {(lockManage || lockPrice) && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-medium text-amber-900">
+          🔒 Você pode atualizar fotos, vídeos, bateria, observações, quantidade e visibilidade.
+          {lockManage && " Nome, categoria, cor, armazenamento, garantia, código e variantes: apenas o dono pode alterar."}
+          {lockPrice && " Preços: apenas o dono (ou quem tiver permissão) pode alterar."}
+        </div>
+      )}
+
       {/* ERRO NO TOPO SE HOUVER */}
       {error && (
         <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
@@ -600,6 +683,7 @@ export default function AdminProductEditor({
             <Field label="Nome do produto *">
               <input
                 value={form.name}
+                disabled={lockManage}
                 onFocus={() => setShowNameDropdown(true)}
                 onBlur={() => setTimeout(() => setShowNameDropdown(false), 250)}
                 onChange={(e) => {
@@ -613,8 +697,9 @@ export default function AdminProductEditor({
                 }`}
               />
             </Field>
+            {lockManage && <LockHint />}
 
-            {showNameDropdown && matchedModels.length > 0 && (
+            {showNameDropdown && !lockManage && matchedModels.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-[#e5e5e7] bg-white shadow-2xl animate-in fade-in-50">
                 <div className="bg-[#f5f5f7] px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
                   Sugestões da Apple (clique para autocompletar):
@@ -642,6 +727,7 @@ export default function AdminProductEditor({
           <Field label="Marca *">
             <select
               value={form.brand}
+              disabled={lockManage}
               onChange={(e) => setForm({ ...form, brand: e.target.value })}
               className={inputCls}
             >
@@ -649,11 +735,13 @@ export default function AdminProductEditor({
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
+            {lockManage && <LockHint />}
           </Field>
 
           <Field label="Categoria no Catálogo *">
             <select
               value={form.category}
+              disabled={lockManage}
               onChange={(e) => {
                 const cat = e.target.value as FormState["category"];
                 setForm((f) => ({ ...f, category: cat }));
@@ -664,6 +752,7 @@ export default function AdminProductEditor({
                 <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>
+            {lockManage && <LockHint />}
           </Field>
 
           {/* FOTO PRINCIPAL */}
@@ -758,11 +847,13 @@ export default function AdminProductEditor({
             <Field label="Descrição / Informações Adicionais (Opcional)">
               <textarea
                 value={form.description}
+                disabled={lockManage}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={2}
                 placeholder="Detalhes sobre a procedência, acessórios inclusos, estado geral..."
                 className={inputCls}
               />
+              {lockManage && <LockHint />}
             </Field>
           </div>
         </div>
@@ -774,11 +865,15 @@ export default function AdminProductEditor({
             onChange={(v) => setForm({ ...form, active: v })}
             label="Visível no site"
           />
-          <Toggle
-            checked={form.featured}
-            onChange={(v) => setForm({ ...form, featured: v })}
-            label="🔥 Produto em Promoção / Destaque"
-          />
+          <div>
+            <Toggle
+              checked={form.featured}
+              disabled={lockManage}
+              onChange={(v) => setForm({ ...form, featured: v })}
+              label="🔥 Produto em Promoção / Destaque"
+            />
+            {lockManage && <LockHint />}
+          </div>
         </div>
       </div>
 
@@ -796,6 +891,7 @@ export default function AdminProductEditor({
             </p>
           </div>
 
+          {canManage && (
           <button
             type="button"
             onClick={() => {
@@ -827,10 +923,11 @@ export default function AdminProductEditor({
           >
             <Plus className="h-4 w-4" /> Adicionar Variante
           </button>
+          )}
         </div>
 
         {/* CORES OFICIAIS DO MODELO SE FOR IPHONE */}
-        {selectedModel && (
+        {selectedModel && canManage && (
           <div className="mt-4 rounded-2xl border border-neutral-200 bg-[#fbfbfd] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-bold uppercase tracking-wider text-neutral-600">
@@ -934,13 +1031,15 @@ export default function AdminProductEditor({
                     )}
                   </div>
 
-                  {/* AÇÕES DA VARIANTE */}
+                  {/* AÇÕES DA VARIANTE (somente dono) */}
+                  {canManage && (
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         const dup: FormVariant = {
                           ...v,
+                          id: undefined, // nova unidade
                           sku: "", // limpa o SKU para a nova unidade
                           notes: v.notes ? `${v.notes} (Unidade duplicada)` : "",
                         };
@@ -969,12 +1068,13 @@ export default function AdminProductEditor({
                       </button>
                     )}
                   </div>
+                  )}
                 </div>
 
                 {/* ====================================================== */}
                 {/* LINHA 1: TOGGLE DE CONDIÇÃO (LACRADO OU SEMINOVO) */}
                 {/* ====================================================== */}
-                <div className="mb-4">
+                <fieldset disabled={lockManage} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60 mb-4">
                   <span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">
                     Condição desta Unidade:
                   </span>
@@ -1016,14 +1116,15 @@ export default function AdminProductEditor({
                       <span>🔄</span> Seminovo
                     </button>
                   </div>
-                </div>
+                  {lockManage && <LockHint />}
+                </fieldset>
 
                 {/* ====================================================== */}
                 {/* LINHA 2: ARMAZENAMENTO & COR */}
                 {/* ====================================================== */}
                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {/* ARMAZENAMENTO */}
-                  <div>
+                  <fieldset disabled={lockManage} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
                     <Field label="Armazenamento *">
                       <input
                         value={v.storage}
@@ -1058,10 +1159,11 @@ export default function AdminProductEditor({
                         </button>
                       ))}
                     </div>
-                  </div>
+                    {lockManage && <LockHint />}
+                  </fieldset>
 
                   {/* COR DO APARELHO */}
-                  <div>
+                  <fieldset disabled={lockManage} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
                     <Field label="Cor do Aparelho *">
                       <div className="flex items-center gap-2">
                         <input
@@ -1130,10 +1232,11 @@ export default function AdminProductEditor({
                         </button>
                       ))}
                     </div>
-                  </div>
+                    {lockManage && <LockHint />}
+                  </fieldset>
 
                   {/* PREÇO À VISTA (R$) */}
-                  <div>
+                  <fieldset disabled={lockPrice} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
                     <Field label="Preço à Vista no Pix (R$) *">
                       <div className="relative">
                         <span className="absolute left-3.5 top-2.5 text-xs font-bold text-neutral-400">
@@ -1161,7 +1264,8 @@ export default function AdminProductEditor({
                     <p className="mt-1.5 text-[11px] text-neutral-500">
                       As parcelas no cartão são calculadas automaticamente conforme as taxas da maquininha.
                     </p>
-                  </div>
+                    {lockPrice && <LockHint />}
+                  </fieldset>
                 </div>
 
                 {/* ====================================================== */}
@@ -1245,7 +1349,7 @@ export default function AdminProductEditor({
                     </div>
 
                     {/* GARANTIA */}
-                    <div>
+                    <fieldset disabled={lockManage} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
                       <Field label="🛡️ Garantia desta Unidade">
                         <input
                           value={v.warranty ?? ""}
@@ -1276,10 +1380,11 @@ export default function AdminProductEditor({
                           ))}
                         </div>
                       </Field>
-                    </div>
+                      {lockManage && <LockHint />}
+                    </fieldset>
 
                     {/* CÓDIGO DO APARELHO / SKU (CONFORME ETIQUETA DA FOTO DO USUÁRIO) */}
-                    <div>
+                    <fieldset disabled={lockManage} className="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
                       <Field label="🏷️ Código do Aparelho (SKU / Etiqueta)">
                         <div className="relative">
                           <span className="absolute left-3 top-2.5 text-xs font-mono text-neutral-400">
@@ -1296,7 +1401,8 @@ export default function AdminProductEditor({
                           Código de controle interno ou etiqueta colada no aparelho.
                         </p>
                       </Field>
-                    </div>
+                      {lockManage && <LockHint />}
+                    </fieldset>
                   </div>
                 </div>
 
@@ -1470,7 +1576,7 @@ export default function AdminProductEditor({
 }
 
 const inputCls =
-  "w-full rounded-xl border border-[#e5e5e7] bg-white px-3.5 py-2.5 text-sm font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/15 transition-all";
+  "w-full rounded-xl border border-[#e5e5e7] bg-white px-3.5 py-2.5 text-sm font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/15 transition-all disabled:cursor-not-allowed disabled:bg-[#f5f5f7] disabled:opacity-70";
 
 function Field({
   label,
@@ -1491,20 +1597,27 @@ function Field({
   );
 }
 
+function LockHint() {
+  return <p className="mt-1 text-[11px] font-medium text-amber-700">🔒 Apenas o dono pode alterar</p>;
+}
+
 function Toggle({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-2.5 cursor-pointer"
+      className="flex items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span
         className={`flex h-6 w-11 items-center rounded-full transition-colors duration-200 p-0.5 ${

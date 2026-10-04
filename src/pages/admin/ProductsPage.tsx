@@ -1,48 +1,40 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router";
 import {
-  Lock,
-  LogOut,
   Plus,
   Pencil,
   Trash2,
   Eye,
   EyeOff,
-  Settings,
   Package,
   RefreshCw,
-  Smartphone,
   Search,
   ExternalLink,
   Flame,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import { formatBRL, CATEGORIES } from "@contracts/types";
 import { minPrice } from "@/lib/shop";
-import { safeStorage } from "@/lib/storage";
+import { useAdminSession } from "@/lib/adminSession";
 import AdminProductEditor from "@/components/admin/AdminProductEditor";
 import { AdminErpProductEditor } from "@/components/admin/AdminErpProductEditor";
-import AdminSettings from "@/components/admin/AdminSettings";
-import AdminEvaluations from "@/components/admin/AdminEvaluations";
-import type { ShopProduct } from "../../api/erp/types";
+import type { ShopProduct } from "../../../api/erp/types";
 
-export default function Admin() {
+export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [token, setToken] = useState(() => safeStorage.getItem("admin_token") ?? "");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const { can } = useAdminSession();
+  const canManage = can("products.manage");
   const [editingErpProduct, setEditingErpProduct] = useState<ShopProduct | null>(null);
   const [productSearch, setProductSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | "visiveis" | "ocultos" | "destaques">("todos");
 
-  const tab =
-    (searchParams.get("tab") as "produtos" | "avaliacoes" | "config") ||
-    "produtos";
   const editingRaw = searchParams.get("editing");
   const editing: number | string | "novo" | null =
     editingRaw === "novo"
-      ? "novo"
+      ? canManage
+        ? "novo"
+        : null
       : editingRaw
         ? Number.isNaN(Number(editingRaw))
           ? editingRaw
@@ -64,182 +56,54 @@ export default function Admin() {
     );
   }
 
-  function setTab(t: "produtos" | "avaliacoes" | "config") {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("tab", t);
-        return next;
-      },
-      { replace: true }
-    );
-  }
-
-
   const utils = trpc.useUtils();
-  const login = trpc.admin.login.useMutation({
-    onSuccess: (data) => {
-      safeStorage.setItem("admin_token", data.token);
-      setToken(data.token);
-      setError("");
-    },
-    onError: (err) => setError(err.message || "Senha incorreta. Tente novamente."),
-  });
 
   const products = trpc.admin.products.useQuery(undefined, {
-    enabled: !!token && tab === "produtos",
     retry: 1,
   });
 
   const catalogStatusQuery = trpc.shop.catalogStatus.useQuery(undefined, {
-    enabled: !!token && tab === "produtos",
     staleTime: 1000 * 30,
   });
-
-  const evaluationSummaryQuery = trpc.admin.evaluationSummary.useQuery(undefined, {
-    enabled: !!token,
-    retry: 1,
-    staleTime: 1000 * 30,
-  });
-
-  const pendingEvaluationsCount = evaluationSummaryQuery.data?.pending ?? 0;
-
-
-  useEffect(() => {
-    if (products.error) {
-      const isUnauthorized =
-        (products.error as { data?: { httpStatus?: number } })?.data?.httpStatus === 401 ||
-        products.error.message.includes("UNAUTHORIZED") ||
-        products.error.message.includes("Não autorizado");
-
-      if (isUnauthorized) {
-        safeStorage.removeItem("admin_token");
-        setToken("");
-        setError("Sessão expirada. Entre novamente com seu usuário e senha.");
-      }
-    }
-  }, [products.error]);
 
   const deleteProduct = trpc.admin.deleteProduct.useMutation({
-    onSuccess: () => utils.admin.products.invalidate(),
+    onSuccess: () => {
+      toast.success("Produto excluído.");
+      utils.admin.products.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
   });
 
+  const invalidateCatalog = () => {
+    utils.admin.products.invalidate();
+    utils.shop.products.invalidate();
+    utils.shop.featured.invalidate();
+  };
+
   const toggleActiveMutation = trpc.admin.toggleActive.useMutation({
-    onSuccess: () => {
-      utils.admin.products.invalidate();
-      utils.shop.products.invalidate();
-      utils.shop.featured.invalidate();
-    },
+    onSuccess: invalidateCatalog,
+    onError: (err) => toast.error(err.message),
   });
 
   const toggleFeaturedMutation = trpc.admin.toggleFeatured.useMutation({
-    onSuccess: () => {
-      utils.admin.products.invalidate();
-      utils.shop.products.invalidate();
-      utils.shop.featured.invalidate();
-    },
+    onSuccess: invalidateCatalog,
+    onError: (err) => toast.error(err.message),
   });
 
   const refreshErpMutation = trpc.admin.refreshErpCatalog.useMutation({
     onSuccess: () => {
+      toast.success("Catálogo do ERP sincronizado.");
       utils.admin.products.invalidate();
       utils.shop.products.invalidate();
       utils.shop.catalogStatus.invalidate();
     },
+    onError: (err) => toast.error(err.message),
   });
-
-  function logout() {
-    safeStorage.removeItem("admin_token");
-    setToken("");
-  }
-
-  function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    safeStorage.removeItem("admin_token");
-    setToken("");
-    setError("");
-    login.mutate({ username: username.trim().toLowerCase(), password: password.trim() });
-  }
-
-  // ===== TELA DE LOGIN =====
-  if (!token) {
-    return (
-      <div className="flex min-h-[75dvh] items-center justify-center px-4 py-12 bg-[#fbfbfd]">
-        <form
-          onSubmit={handleLogin}
-          className="w-full max-w-md rounded-3xl border border-[#e5e5e7] bg-white p-8 sm:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07)]"
-        >
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1d1d1f] text-white shadow-md">
-            <Lock className="h-6 w-6" />
-          </div>
-          <h1 className="mt-5 text-center font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f]">
-            Painel da Loja
-          </h1>
-          <p className="mt-1.5 text-center text-sm text-[#86868b]">
-            Área de administração restrita da Lojinha do Celular.
-          </p>
-
-          <div className="mt-6">
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-                Usuário
-              </span>
-              <div className="group flex h-12 items-center rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Ex.: dono"
-                  autoFocus
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoComplete="username"
-                  className="w-full bg-transparent text-[15px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
-                />
-              </div>
-            </label>
-          </div>
-
-          <div className="mt-4">
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold tracking-wide text-[#6e6e73]">
-                Senha
-              </span>
-              <div className="group flex h-12 items-center rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-4 transition-all duration-200 focus-within:border-[#0071e3] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0071e3]/15">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Digite sua senha"
-                  autoComplete="current-password"
-                  className="w-full bg-transparent text-[15px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:outline-none focus:ring-0 border-none shadow-none ring-0"
-                />
-              </div>
-            </label>
-          </div>
-
-          {error && (
-            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700 animate-fadeIn">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={login.isPending || !password || !username.trim()}
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-[#1d1d1f] hover:bg-black font-display font-semibold text-white transition-all shadow-[0_10px_25px_-10px_rgba(0,0,0,0.3)] active:scale-[0.99] disabled:opacity-50"
-          >
-            {login.isPending ? "Entrando..." : "Acessar Painel"}
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   // ===== EDITOR ABERTO =====
   if (editing !== null) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="mx-auto max-w-4xl">
         <AdminProductEditor
           productId={typeof editing === "number" ? editing : null}
           onClose={() => {
@@ -251,92 +115,24 @@ export default function Admin() {
     );
   }
 
-  // ===== PAINEL =====
+  // ===== LISTA =====
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f]">
-            Painel da Loja
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[#86868b]">
-            Gerencie o catálogo de produtos, estoque e dados de atendimento.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/tv"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#e5e5e7] bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-[#1d1d1f] shadow-2xs hover:bg-[#f5f5f7] transition active:scale-[0.98]"
-          >
-            📺 Modo TV
-          </a>
-          <button
-            onClick={logout}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e5e7] bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#6e6e73] hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition"
-          >
-            <LogOut className="h-4 w-4" /> Sair
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="mt-6 flex items-center justify-between border-b border-[#e5e5e7] pb-4">
-        <div className="inline-flex rounded-xl bg-[#f5f5f7] p-1 border border-[#e5e5e7]">
-          <button
-            onClick={() => setTab("produtos")}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs sm:text-sm font-semibold transition-all ${
-              tab === "produtos"
-                ? "bg-white text-[#1d1d1f] shadow-xs"
-                : "text-[#6e6e73] hover:text-[#1d1d1f]"
-            }`}
-          >
-            <Package className="h-4 w-4" /> Produtos
-          </button>
-          <button
-            onClick={() => setTab("avaliacoes")}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs sm:text-sm font-semibold transition-all ${
-              tab === "avaliacoes"
-                ? "bg-white text-[#1d1d1f] shadow-xs"
-                : "text-[#6e6e73] hover:text-[#1d1d1f]"
-            }`}
-          >
-            <Smartphone className="h-4 w-4" /> Avaliações
-            {pendingEvaluationsCount > 0 && (
-              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                {pendingEvaluationsCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("config")}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs sm:text-sm font-semibold transition-all ${
-              tab === "config"
-                ? "bg-white text-[#1d1d1f] shadow-xs"
-                : "text-[#6e6e73] hover:text-[#1d1d1f]"
-            }`}
-          >
-            <Settings className="h-4 w-4" /> Configurações
-          </button>
-        </div>
-
-        {tab === "produtos" && (
+    <div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-[#86868b]">
+          Gerencie o catálogo de produtos, fotos, vídeos e visibilidade na vitrine.
+        </p>
+        {canManage && (
           <button
             onClick={() => setEditing("novo")}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-4 sm:px-5 py-2 sm:py-2.5 font-display text-xs sm:text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1d1d1f] px-5 font-display text-sm font-semibold text-white shadow-sm transition-all hover:bg-black active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" /> Adicionar produto
           </button>
         )}
       </div>
 
-      {tab === "config" ? (
-        <AdminSettings />
-      ) : tab === "avaliacoes" ? (
-        <AdminEvaluations onOpenConfig={() => setTab("config")} />
-      ) : (
-        <div className="mt-6">
+      <div>
           {catalogStatusQuery.data?.erpEnabled && (
             <div
               className={`mb-5 rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs transition-all ${
@@ -619,7 +415,8 @@ export default function Admin() {
                               )}
                             </button>
 
-                            {/* Botão de Toggle Rápido de Promoção / Destaque */}
+                            {/* Botão de Toggle Rápido de Promoção / Destaque (somente dono) */}
+                            {canManage ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -647,6 +444,13 @@ export default function Admin() {
                               />
                               {p.featured ? "🔥 Em Promoção" : "☆ Ativar Promoção"}
                             </button>
+                            ) : (
+                              p.featured && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2.5 py-0.5 text-[10px] font-semibold text-red-700">
+                                  <Flame className="h-3 w-3 fill-red-600 text-red-600" /> Em Promoção
+                                </span>
+                              )
+                            )}
                             {(() => {
                               const b = p.variants?.[0]?.batteryHealth || (p as { batteryHealth?: string | null })?.batteryHealth;
                               if (!b) return null;
@@ -705,6 +509,7 @@ export default function Admin() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </button>
+                              {canManage && (
                               <button
                                 onClick={() => {
                                   if (confirm(`Excluir "${p.name}"? Essa ação não pode ser desfeita.`)) {
@@ -717,6 +522,7 @@ export default function Admin() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -735,8 +541,7 @@ export default function Admin() {
               </>
             );
           })()}
-        </div>
-      )}
+      </div>
 
       {editingErpProduct && (
         <AdminErpProductEditor

@@ -14,7 +14,7 @@ import { getMainStoreUrl } from "./lib/shop";
 import TvMode from "./pages/TvMode";
 
 // Carregados sob demanda (não pesam no primeiro carregamento)
-const Admin = lazy(() => import("./pages/Admin"));
+const AdminApp = lazy(() => import("./pages/admin/AdminApp"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -38,7 +38,7 @@ function ScrollToHash() {
 export default function App() {
   const location = useLocation();
   const isTv = location.pathname.startsWith("/tv");
-  const isAdmin = location.pathname.startsWith("/admin");
+  const isAdmin = location.pathname === "/admin" || location.pathname.startsWith("/admin/");
   const isPrivacyPath =
     location.pathname === "/privacidade" ||
     location.pathname === "/termos" ||
@@ -85,6 +85,23 @@ export default function App() {
     );
   }
 
+  // Painel administrativo: layout próprio, fora do cabeçalho/rodapé da loja.
+  if (isAdmin) {
+    return (
+      <Suspense
+        fallback={
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[#fbfbfd]">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#e5e5e7] border-t-[#1d1d1f]" />
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   if (isTradeIn) {
     return (
       <Routes>
@@ -118,7 +135,6 @@ export default function App() {
               <Route path="/termos-e-privacidade" element={<Privacidade />} />
               <Route path="/lgpd" element={<Privacidade />} />
               <Route path="/cookies" element={<Privacidade />} />
-              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

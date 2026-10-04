@@ -238,6 +238,25 @@ describe("SEO & WhatsApp OpenGraph Dynamic Preview", () => {
     expect(html).toContain('name="robots" content="noindex, nofollow"');
   });
 
+  it("deve servir rotas profundas do painel (/admin/*) com 200 e noindex", async () => {
+    const app = new Hono();
+    serveStaticFiles(app as unknown as Parameters<typeof serveStaticFiles>[0]);
+
+    for (const path of ["/admin", "/admin/usuarios", "/admin/produtos?editing=3"]) {
+      const res = await app.request(path, {
+        headers: {
+          accept: "text/html",
+          host: "lojinhadocelular.com",
+        },
+      });
+
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('name="robots" content="noindex, nofollow"');
+      expect(html).toContain('id="root"');
+    }
+  });
+
   it("deve redirecionar rotas legadas e aliases via 301", async () => {
     const { default: app } = await import("./boot");
 

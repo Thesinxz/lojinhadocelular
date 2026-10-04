@@ -13,7 +13,9 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
+import { useAdminSession } from "@/lib/adminSession";
 import { CATEGORIES, formatBRL } from "@contracts/types";
 import { detectIphoneModel } from "@/lib/iphoneCatalog";
 import type { ShopProduct } from "../../../api/erp/types";
@@ -54,6 +56,9 @@ export function AdminErpProductEditor({
   onSaved,
 }: AdminErpProductEditorProps) {
   const externalId = product.externalId || String(product.id);
+  // Nome, categoria, garantia e destaque: só o dono (o servidor também valida).
+  const { can } = useAdminSession();
+  const locked = !can("products.manage");
   const mainVariant = product.variants?.[0];
 
   const [imageUrl, setImageUrl] = useState(product.imageUrl || "");
@@ -74,6 +79,7 @@ export function AdminErpProductEditor({
   const saveMutation = trpc.admin.saveErpOverride.useMutation({
     onSuccess: () => {
       setSaveSuccess(true);
+      toast.success("Alterações salvas.");
       utils.admin.products.invalidate();
       utils.shop.products.invalidate();
       utils.shop.featured.invalidate();
@@ -85,6 +91,7 @@ export function AdminErpProductEditor({
     },
     onError: (err) => {
       setErrorMessage(err.message || "Erro ao salvar alterações.");
+      toast.error(err.message || "Erro ao salvar alterações.");
     },
   });
 
@@ -144,15 +151,20 @@ export function AdminErpProductEditor({
     const normalizedBattery = normalizeBatteryStr(batteryHealth);
     saveMutation.mutate({
       externalId,
-      customName: customName.trim() || undefined,
-      category: category as (typeof CATEGORIES)[number]["value"],
       imageUrl: imageUrl.trim() || undefined,
       videoUrl: videoUrl.trim() || undefined,
       batteryHealth: normalizedBattery || undefined,
-      warranty: warranty.trim() || undefined,
       description: description.trim() || undefined,
-      featured,
       active,
+      // Campos omitidos mantêm o valor salvo; quem não é dono não os envia.
+      ...(locked
+        ? {}
+        : {
+            customName: customName.trim() || undefined,
+            category: category as (typeof CATEGORIES)[number]["value"],
+            warranty: warranty.trim() || undefined,
+            featured,
+          }),
     });
   };
 
@@ -301,8 +313,9 @@ export function AdminErpProductEditor({
               </label>
               <select
                 value={category}
+                disabled={locked}
                 onChange={(e) => setCategory(e.target.value as (typeof CATEGORIES)[number]["value"])}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition"
+                className="disabled:cursor-not-allowed disabled:opacity-60 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -310,6 +323,7 @@ export function AdminErpProductEditor({
                   </option>
                 ))}
               </select>
+              {locked && <p className="mt-1 text-[11px] font-medium text-amber-700">🔒 Apenas o dono pode alterar</p>}
             </div>
 
             <div>
@@ -317,6 +331,7 @@ export function AdminErpProductEditor({
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600">
                   Título Exibido na Vitrine
                 </label>
+                {!locked && (
                 <button
                   type="button"
                   onClick={() => setCustomName(cleanCommercialName(product.name))}
@@ -325,14 +340,17 @@ export function AdminErpProductEditor({
                 >
                   <Sparkles className="h-3 w-3" /> Limpar Nome
                 </button>
+                )}
               </div>
               <input
                 type="text"
                 value={customName}
+                disabled={locked}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder={cleanCommercialName(product.name)}
-                className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition font-medium"
+                className="disabled:cursor-not-allowed disabled:opacity-60 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition font-medium"
               />
+              {locked && <p className="mt-1 text-[11px] font-medium text-amber-700">🔒 Apenas o dono pode alterar</p>}
             </div>
           </div>
 
@@ -374,7 +392,7 @@ export function AdminErpProductEditor({
               </div>
             </div>
 
-            <div>
+            <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0 disabled:opacity-60">
               <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2 flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-amber-600" /> Garantia
               </label>
@@ -397,7 +415,8 @@ export function AdminErpProductEditor({
                   </button>
                 ))}
               </div>
-            </div>
+              {locked && <p className="mt-1 text-[11px] font-medium text-amber-700">🔒 Apenas o dono pode alterar</p>}
+            </fieldset>
           </div>
 
           {/* Seção 5: Descrição & Observações */}
@@ -416,17 +435,19 @@ export function AdminErpProductEditor({
 
           {/* Seção 6: Destaques e Visibilidade */}
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-3">
-            <label className="flex items-center justify-between cursor-pointer">
+            <label className={`flex items-center justify-between ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
               <div className="flex items-center gap-2">
                 <Flame className={`h-4 w-4 ${featured ? "text-red-600 fill-red-600" : "text-neutral-400"}`} />
                 <div>
                   <span className="text-xs font-bold text-neutral-900 block">🔥 Produto em Promoção / Destaque</span>
                   <span className="text-[11px] text-neutral-500">Exibe a etiqueta vermelha "PROMOÇÃO" no card, prioriza no topo da vitrine e exibe na TV</span>
+                  {locked && <span className="mt-0.5 block text-[11px] font-medium text-amber-700">🔒 Apenas o dono pode alterar</span>}
                 </div>
               </div>
               <input
                 type="checkbox"
                 checked={featured}
+                disabled={locked}
                 onChange={(e) => setFeatured(e.target.checked)}
                 className="h-4 w-4 rounded border-neutral-300 text-red-600 focus:ring-red-600"
               />
