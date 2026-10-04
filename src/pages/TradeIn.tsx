@@ -32,6 +32,7 @@ import {
   parseValuationConfig,
 } from "@/lib/valuationEngine";
 import { compressImage, formatFileSize } from "@/lib/imageCompressor";
+import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -125,6 +126,7 @@ type EvaluationData = {
   hasBox: string;
   visualCondition: string;
   notes: string;
+  unit: StoreUnit | "";
 };
 
 const INITIAL_EVALUATION: EvaluationData = {
@@ -147,6 +149,7 @@ const INITIAL_EVALUATION: EvaluationData = {
   hasBox: "",
   visualCondition: "",
   notes: "",
+  unit: "",
 };
 
 function formatPhoneInput(value: string): string {
@@ -160,7 +163,7 @@ function formatPhoneInput(value: string): string {
 
 export default function TradeIn() {
   const settings = useShopSettings();
-  const destination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
+  const fallbackDestination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
   const submitMutation = trpc.shop.submitEvaluation.useMutation();
   const preparePhotoUploadMutation = trpc.shop.prepareEvaluationPhotoUpload.useMutation();
   const [step, setStep] = useState(0);
@@ -236,6 +239,12 @@ export default function TradeIn() {
 
   const gradeConfig = useMemo(() => getGradeBadgeConfig(valuation.grade), [valuation.grade]);
   const hidePrices = valuationConfig.hidePricesToClient !== false;
+
+  // WhatsApp da loja escolhida pelo cliente (cai no padrão se não houver número)
+  const unitWhatsapp =
+    data.unit === "jardim" ? settings.whatsappJardim : data.unit === "gll" ? settings.whatsappGll : "";
+  const destination = unitWhatsapp || fallbackDestination;
+  const unitLabel = STORE_UNITS.find(u => u.value === data.unit)?.label ?? "";
 
   function updateField<K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) {
     const finalValue =
@@ -503,6 +512,7 @@ export default function TradeIn() {
       `🏬 *Onde comprou:* ${data.purchaseLocation || "Não informado"}`,
       `🔋 *Saúde da bateria:* ${batteryText}`,
       `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
+      `📍 *Loja:* ${unitLabel || "Não informada"}`,
       "",
       `✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`,
       ...(hidePrices
@@ -560,6 +570,7 @@ export default function TradeIn() {
         notes: data.notes.trim() || undefined,
         photosCount: photosPayload.length,
         photos: photosPayload,
+        unit: data.unit || undefined,
       });
       if (!result.ok) {
         throw new Error("O servidor não confirmou o registro da avaliação.");
@@ -770,8 +781,8 @@ export default function TradeIn() {
     );
   }
 
-  // Progresso relativo (etapas 0 a 15)
-  const totalSteps = 16;
+  // Progresso relativo (etapas 0 a 16)
+  const totalSteps = 17;
   const progressPercent = Math.min(100, Math.round(((step + 1) / totalSteps) * 100));
 
   return (
@@ -1530,9 +1541,68 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 15: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO)                  */}
+          {/* ETAPA 15: QUAL LOJA FICA MELHOR?                                          */}
           {/* ========================================================================= */}
           {step === 15 && (
+            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                Qual loja fica melhor pra você?
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
+                É lá que vamos conferir o aparelho e fechar a troca.
+              </p>
+
+              <div className="mt-5 space-y-2.5">
+                {STORE_UNITS.map(opt => {
+                  const isSelected = data.unit === opt.value;
+                  const isAnimating = animatingSelection === opt.value;
+                  const address = opt.value === "jardim" ? settings.addressJardim : settings.addressGll;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => autoAdvance("unit", opt.value)}
+                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left text-sm font-semibold transition-all ${
+                        isSelected || isAnimating
+                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
+                          : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
+                      }`}
+                    >
+                      <span className="flex flex-col">
+                        <span>{opt.label}</span>
+                        {address && (
+                          <span
+                            className={`mt-0.5 text-[11px] font-normal ${
+                              isSelected || isAnimating ? "text-white/75" : "text-[#86868b]"
+                            }`}
+                          >
+                            {address}
+                          </span>
+                        )}
+                      </span>
+                      {(isSelected || isAnimating) && <Check className="h-4 w-4 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPA 16: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO)                  */}
+          {/* ========================================================================= */}
+          {step === 16 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 Última olhada antes de enviar
@@ -1560,6 +1630,7 @@ export default function TradeIn() {
                   highlight
                 />
                 <SummaryRow label="Estado" value={data.visualCondition || "Em análise"} />
+                <SummaryRow label="Loja" value={unitLabel || "Não informada"} />
                 <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
               </div>
 

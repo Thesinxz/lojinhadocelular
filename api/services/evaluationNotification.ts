@@ -1,5 +1,6 @@
 import { env } from "../lib/env";
 import { getPool } from "../queries/connection";
+import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
 
 export type EvaluationNotificationStatus = "not_configured" | "sent" | "failed";
 
@@ -11,6 +12,8 @@ export interface EvaluationNotificationInput {
   storage?: string | null;
   targetModel?: string | null;
   photosCount?: number | null;
+  /** Loja escolhida pelo cliente (vai só no webhook; o template do Cloud tem parâmetros fixos). */
+  unit?: StoreUnit | "" | null;
 }
 
 export interface EvaluationNotificationResult {
@@ -38,6 +41,8 @@ function notificationPayload(input: EvaluationNotificationInput) {
       storage: input.storage || "",
       targetModel: input.targetModel || "",
       photosCount: input.photosCount || 0,
+      unit: input.unit || "",
+      unitLabel: STORE_UNITS.find((u) => u.value === input.unit)?.label ?? "",
     },
   };
 }

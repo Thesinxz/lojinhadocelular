@@ -526,6 +526,7 @@ export const evaluationProcedures = {
       storage: evaluation.storage,
       targetModel: evaluation.targetModel,
       photosCount: evaluation.photosCount,
+      unit: evaluation.unit === "jardim" || evaluation.unit === "gll" ? evaluation.unit : "",
     });
     try {
       await persistEvaluationNotificationStatus(evaluation.id, result);

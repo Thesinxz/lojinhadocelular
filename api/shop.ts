@@ -183,6 +183,46 @@ export function resetEvaluationRateLimitForTesting() {
   evaluationSubmissions.clear();
 }
 
+/** Entrada do formulário do Troca Fácil (exportada para testes). */
+export const submitEvaluationInput = z.object({
+  name: z.string().min(1).max(120),
+  whatsapp: z.string().min(1).max(30),
+  model: z.string().min(1).max(120),
+  storage: z.string().max(30).optional().default(""),
+  color: z.string().max(60).optional().default(""),
+  purchaseLocation: z.string().max(100).optional().default(""),
+  targetModel: z.string().max(120).optional().default(""),
+  faceId: z.string().max(30).optional().default(""),
+  screenOriginal: z.string().max(30).optional().default(""),
+  batteryOriginal: z.string().max(30).optional().default(""),
+  camerasOk: z.string().max(30).optional().default(""),
+  audioOk: z.string().max(30).optional().default(""),
+  chargingPortOk: z.string().max(30).optional().default(""),
+  openedBefore: z.string().max(30).optional().default(""),
+  hasBox: z.string().max(30).optional().default(""),
+  visualCondition: z.string().max(100).optional().default(""),
+  condition: z.string().min(1).max(60),
+  battery: z.string().min(1).max(60),
+  notes: z.string().max(1000).optional().default(""),
+  photosCount: z.number().int().min(0).max(50).optional().default(0),
+  photos: z
+    .array(
+      z.object({
+        key: z.string().max(40),
+        label: z.string().max(80),
+        url: z.string().max(10_000_000),
+        storage: z.enum(["inline", "s3"]).optional(),
+        objectKey: z.string().max(300).optional(),
+        name: z.string().max(120).optional(),
+        size: z.number().optional(),
+      }),
+    )
+    .optional()
+    .default([]),
+  /** Loja escolhida pelo cliente no Troca Fácil. */
+  unit: z.enum(["jardim", "gll"]).optional(),
+});
+
 export const shopRouter = createRouter({
   // Status de conexão e integridade do catálogo da loja
   catalogStatus: publicQuery.query(async () => {
@@ -394,44 +434,7 @@ export const shopRouter = createRouter({
 
   // Envio de proposta de avaliação de aparelho
   submitEvaluation: publicQuery
-    .input(
-      z.object({
-        name: z.string().min(1).max(120),
-        whatsapp: z.string().min(1).max(30),
-        model: z.string().min(1).max(120),
-        storage: z.string().max(30).optional().default(""),
-        color: z.string().max(60).optional().default(""),
-        purchaseLocation: z.string().max(100).optional().default(""),
-        targetModel: z.string().max(120).optional().default(""),
-        faceId: z.string().max(30).optional().default(""),
-        screenOriginal: z.string().max(30).optional().default(""),
-        batteryOriginal: z.string().max(30).optional().default(""),
-        camerasOk: z.string().max(30).optional().default(""),
-        audioOk: z.string().max(30).optional().default(""),
-        chargingPortOk: z.string().max(30).optional().default(""),
-        openedBefore: z.string().max(30).optional().default(""),
-        hasBox: z.string().max(30).optional().default(""),
-        visualCondition: z.string().max(100).optional().default(""),
-        condition: z.string().min(1).max(60),
-        battery: z.string().min(1).max(60),
-        notes: z.string().max(1000).optional().default(""),
-        photosCount: z.number().int().min(0).max(50).optional().default(0),
-        photos: z
-          .array(
-            z.object({
-              key: z.string().max(40),
-              label: z.string().max(80),
-              url: z.string().max(10_000_000),
-              storage: z.enum(["inline", "s3"]).optional(),
-              objectKey: z.string().max(300).optional(),
-              name: z.string().max(120).optional(),
-              size: z.number().optional(),
-            }),
-          )
-          .optional()
-          .default([]),
-      }),
-    )
+    .input(submitEvaluationInput)
     .mutation(async ({ input, ctx }) => {
       if (!checkEvaluationRateLimit(ctx.req)) {
         throw new TRPCError({
@@ -487,6 +490,7 @@ export const shopRouter = createRouter({
           photosCount,
           photos: photosJson,
           status: "pendente",
+          unit: input.unit ?? "",
         });
         evaluationId = Number(res[0]?.insertId ?? 0);
       } catch (err: any) {
@@ -503,8 +507,8 @@ export const shopRouter = createRouter({
                 name, whatsapp, model, storage, color, purchase_location, target_model,
                 face_id, screen_original, battery_original, cameras_ok, audio_ok,
                 charging_port_ok, opened_before, has_box, visual_condition, \`condition\`,
-                battery, notes, photos_count, photos, status
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+                battery, notes, photos_count, photos, status, unit
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`,
               [
                 input.name.trim(),
                 input.whatsapp.trim(),
@@ -527,6 +531,7 @@ export const shopRouter = createRouter({
                 (input.notes || "").trim() || null,
                 photosCount,
                 photosJson,
+                input.unit ?? "",
               ]
             );
             evaluationId = Number(res?.insertId ?? 0);
@@ -555,6 +560,7 @@ export const shopRouter = createRouter({
         storage: (input.storage || "").trim(),
         targetModel: (input.targetModel || "").trim(),
         photosCount,
+        unit: input.unit,
       });
 
       try {
