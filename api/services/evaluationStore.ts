@@ -8,6 +8,7 @@ import { evaluations } from "@db/schema";
 import type { EvaluationStatus } from "@contracts/types";
 import { ensureTables, getDb, getPool } from "../queries/connection";
 import type { EvaluationUnit, WorkflowState } from "../evaluationWorkflow";
+import type { EvalStatRow } from "../dashboard";
 
 export type EvaluationRecord = typeof evaluations.$inferSelect;
 
@@ -285,6 +286,50 @@ export async function findEvaluationStatusRows(
         createdAt: row.created_at ? new Date(row.created_at) : new Date(),
       };
     });
+  }
+}
+
+/** Colunas usadas pelos indicadores do dashboard (sem fotos). */
+export async function findEvaluationStatRows(unit?: "jardim" | "gll"): Promise<EvalStatRow[]> {
+  const pick = (r: EvaluationRecord): EvalStatRow => ({
+    status: r.status,
+    createdAt: r.createdAt,
+    firstResponseAt: r.firstResponseAt,
+    statusChangedAt: r.statusChangedAt,
+    assignedAt: r.assignedAt,
+    closedValue: r.closedValue,
+    assignedUserId: r.assignedUserId,
+    assignedUserName: r.assignedUserName,
+  });
+  if (isMemoryMode()) {
+    return memoryRows.filter((r) => !unit || r.unit === unit).map(pick);
+  }
+  try {
+    const db = getDb();
+    await ensureTables();
+    return await db
+      .select({
+        status: evaluations.status,
+        createdAt: evaluations.createdAt,
+        firstResponseAt: evaluations.firstResponseAt,
+        statusChangedAt: evaluations.statusChangedAt,
+        assignedAt: evaluations.assignedAt,
+        closedValue: evaluations.closedValue,
+        assignedUserId: evaluations.assignedUserId,
+        assignedUserName: evaluations.assignedUserName,
+      })
+      .from(evaluations)
+      .where(unit ? eq(evaluations.unit, unit) : undefined);
+  } catch (err) {
+    const pool = getPool();
+    if (!pool) throw err;
+    const [rows] = await pool.query(
+      `SELECT * FROM evaluations${unit ? " WHERE unit = ?" : ""}`,
+      unit ? [unit] : [],
+    );
+    return (Array.isArray(rows) ? (rows as Record<string, unknown>[]) : []).map((r) =>
+      pick(mapEvaluationSqlRow(r)),
+    );
   }
 }
 

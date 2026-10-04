@@ -29,12 +29,13 @@ import {
 import { can } from "@contracts/permissions";
 import { SETTING_KEYS } from "@contracts/types";
 import { adminUsersRouter } from "./adminUsers";
-import { env } from "./lib/env";
 import { getErpCatalog, clearErpCache } from "./erp/service";
 import { getErpOverride, saveErpOverride, type ErpProductOverride } from "./erp/overrides";
 import type { ShopProduct } from "./erp/types";
 import { getAdminSettings, saveSettings } from "./services/settingsStore";
 import { evaluationProcedures } from "./adminEvaluations";
+import { dashboardProcedures } from "./adminDashboard";
+import { getErpStatus, loadAdminProducts } from "./services/adminCatalog";
 
 function forbidden(message: string): TRPCError {
   return new TRPCError({ code: "FORBIDDEN", message });
@@ -325,26 +326,8 @@ export const adminRouter = createRouter({
 
   products: adminProcedure.query(async ({ ctx }) => {
     assertCan(ctx.user, "products.editMedia");
-    // Se o ERP estiver ativado, o catálogo oficial vem do ERP
-    if (env.erpCatalogEnabled) {
-      const erp = await getErpCatalog();
-      if (erp.status === "ok") {
-        return erp.products;
-      }
-      return [];
-    }
-
-    try {
-      const db = getDb();
-      await ensureTables();
-      return await db.query.products.findMany({
-        with: { variants: true },
-        orderBy: (p, { desc }) => [desc(p.createdAt)],
-      });
-    } catch (err) {
-      console.error("Erro ao consultar produtos admin:", err);
-      return [];
-    }
+    // ERP oficial quando ativado, senão banco local
+    return await loadAdminProducts();
   }),
 
   upsertProduct: adminProcedure
@@ -599,4 +582,9 @@ export const adminRouter = createRouter({
       count: res.products.length,
     };
   }),
+
+  /** Status do ERP com a última sincronização (painel). */
+  erpStatus: adminProcedure.query(async () => getErpStatus()),
+
+  ...dashboardProcedures,
 });
