@@ -92,8 +92,9 @@ export default function AdminLayout() {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const summary = trpc.admin.evaluationSummary.useQuery(undefined, {
-    enabled: !!user,
+  const { unit } = useAdminUnit();
+  const summary = trpc.admin.evaluationSummary.useQuery(unit === "todas" ? undefined : { unit }, {
+    enabled: !!user && can("evaluations.manage"),
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 60,
   });

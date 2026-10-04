@@ -20,6 +20,18 @@ import { useAdminSession } from "@/lib/adminSession";
 import AdminProductEditor from "@/components/admin/AdminProductEditor";
 import { AdminErpProductEditor } from "@/components/admin/AdminErpProductEditor";
 import type { ShopProduct } from "../../../api/erp/types";
+import {
+  computeCatalogIssues,
+  type CatalogIssueProduct,
+  type CatalogIssues,
+} from "@contracts/catalogIssues";
+
+/** Filtros vindos do dashboard (`/admin/produtos?filtro=...`). */
+const ISSUE_FILTERS: { value: string; key: keyof CatalogIssues; label: string }[] = [
+  { value: "sem-foto", key: "noPhoto", label: "produtos sem foto" },
+  { value: "sem-bateria", key: "noBattery", label: "seminovos sem bateria informada" },
+  { value: "esgotado-visivel", key: "soldOutVisible", label: "esgotados ainda visíveis" },
+];
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -233,7 +245,22 @@ export default function ProductsPage() {
             const hiddenCount = allProducts.filter((p) => p.active === false).length;
             const featuredCount = allProducts.filter((p) => p.featured).length;
 
+            const issueFilter = ISSUE_FILTERS.find((f) => f.value === searchParams.get("filtro")) ?? null;
+            const issueIds = issueFilter
+              ? new Set(
+                  computeCatalogIssues(allProducts as unknown as CatalogIssueProduct[])[issueFilter.key].map(
+                    (item) => item.id,
+                  ),
+                )
+              : null;
+            const clearIssueFilter = () => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("filtro");
+              setSearchParams(next, { replace: true });
+            };
+
             const filtered = allProducts.filter((p) => {
+              if (issueIds && !issueIds.has(String(p.id))) return false;
               if (statusFilter === "visiveis" && p.active === false) return false;
               if (statusFilter === "ocultos" && p.active !== false) return false;
               if (statusFilter === "destaques" && !p.featured) return false;
@@ -251,6 +278,20 @@ export default function ProductsPage() {
 
             return (
               <>
+                {issueFilter && (
+                  <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                    <span className="font-semibold">
+                      Mostrando: {issueFilter.label} ({issueIds?.size ?? 0})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearIssueFilter}
+                      className="ml-auto inline-flex items-center gap-1 rounded-full border border-amber-300 bg-white px-2.5 py-1 font-semibold transition hover:bg-amber-100"
+                    >
+                      Limpar filtro ✕
+                    </button>
+                  </div>
+                )}
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
