@@ -37,6 +37,8 @@ export interface ValuationInput {
   chargingPortOk?: string;
   openedBefore?: string;
   hasBox?: string;
+  /** "O aparelho está livre de bloqueio de iCloud?" Sim | Não | Não sei */
+  icloudFree?: string;
   notes?: string;
 }
 
@@ -55,6 +57,12 @@ export interface ValuationResult {
   loyaltyBonusApplied: boolean;
   highlights: string[];
   disclaimer: string;
+  /** `false` = modelo não reconhecido ou sem preço cadastrado: valores zerados, "sob consulta". */
+  priceable: boolean;
+  /** Itens respondidos "Não sei": a equipe precisa conferir na loja. */
+  pendingChecks: string[];
+  /** Motivos que impedem a compra (ex.: iCloud bloqueado). */
+  blockers: string[];
 }
 
 // Tabela de referência completa enviada pelo lojista (55 itens com modelo, capacidade, cor e valores em USD e BRL)
@@ -353,6 +361,62 @@ export function parseValuationConfig(json?: string | Partial<ValuationConfig> | 
   }
 }
 
+/**
+ * Reconhece o modelo de iPhone digitado e devolve uma chave canônica ("iphone 13 pro max").
+ * Aceita variações ("iPhone13ProMax", "13 pro max", "iPhone 16e 256GB") e devolve `null`
+ * quando não é um iPhone reconhecido, para nunca "adivinhar" um modelo parecido
+ * (ex.: "13 mini" não pode virar "13", nem "16e" virar "16").
+ */
+export function resolveIphoneModel(input?: string | null): { key: string } | null {
+  const compact = normalizeKey(input ?? "").replace(/[^a-z0-9]/g, "");
+  if (!compact) return null;
+  const rest = compact
+    .replace(/^apple/, "")
+    .replace(/^iphone/, "")
+    .replace(/\d+(gb|tb)$/, "");
+  if (!rest) return null;
+
+  if (rest === "air") return { key: "iphone air" };
+  if (rest === "x" || rest === "xr" || rest === "xs") return { key: `iphone ${rest}` };
+  if (rest === "xsmax") return { key: "iphone xs max" };
+
+  const se = /^se(\d{1,4})?(?:geracao|a)?$/.exec(rest);
+  if (se) {
+    const d = se[1];
+    if (d === "3" || d === "2022") return { key: "iphone se 3" };
+    if (d === "2" || d === "2020") return { key: "iphone se 2" };
+    if (d === "1" || d === "2016") return { key: "iphone se 1" };
+    return { key: "iphone se" };
+  }
+
+  const num = /^(\d{1,2})(promax|pro|plus|mini|e)?$/.exec(rest);
+  if (num) {
+    const gen = Number(num[1]);
+    if (gen < 6 || gen > 20) return null;
+    const suffix = { promax: " pro max", pro: " pro", plus: " plus", mini: " mini", e: "e" }[num[2] ?? ""] ?? "";
+    return { key: `iphone ${gen}${suffix}` };
+  }
+  return null;
+}
+
+function keyedByModel<T>(entries: Array<[string, T]>): Map<string, T> {
+  const map = new Map<string, T>();
+  for (const [name, value] of entries) {
+    const key = resolveIphoneModel(name)?.key;
+    if (key && !map.has(key)) map.set(key, value);
+  }
+  return map;
+}
+
+let baseByKey: Map<string, number> | null = null;
+let targetByKey: Map<string, number> | null = null;
+const referenceKeyCache = new Map<string, string | null>();
+
+function modelOfReference(item: IphoneReferencePrice): string | null {
+  if (!referenceKeyCache.has(item.model)) referenceKeyCache.set(item.model, resolveIphoneModel(item.model)?.key ?? null);
+  return referenceKeyCache.get(item.model) ?? null;
+}
+
 export function normalizeKey(str?: string): string {
   if (!str) return "";
   return str
@@ -387,34 +451,13 @@ export function findReferenceDevicePrice(
   capacity?: string,
   color?: string
 ): IphoneReferencePrice | null {
-  const normModel = normalizeKey(modelName);
-  if (!normModel) return null;
-
   const normCap = normalizeKey(capacity).replace(/\s+/g, "");
   const normColor = normalizeKey(color);
 
-  // 1. Tenta correspondência exata de modelo primeiro
-  let modelMatches = IPHONE_REFERENCE_PRICES.filter(
-    (item) => normalizeKey(item.model) === normModel
-  );
-
-  // 2. Se não houver correspondência exata, busca por substring ordenado pelo modelo mais longo/específico
-  // (evita que "iPhone 16 Pro Max" case falsamente com "iPhone 16 Pro" ou "iPhone 16")
-  if (modelMatches.length === 0) {
-    const sortedByLength = [...IPHONE_REFERENCE_PRICES].sort(
-      (a, b) => normalizeKey(b.model).length - normalizeKey(a.model).length
-    );
-    const bestMatch = sortedByLength.find((item) => {
-      const itemModel = normalizeKey(item.model);
-      return normModel.includes(itemModel) || itemModel.includes(normModel);
-    });
-    if (bestMatch) {
-      const matchedKey = normalizeKey(bestMatch.model);
-      modelMatches = IPHONE_REFERENCE_PRICES.filter(
-        (item) => normalizeKey(item.model) === matchedKey
-      );
-    }
-  }
+  // Casa pelo modelo reconhecido (nunca por "contém": "13 mini" não é "13", "16e" não é "16").
+  const resolved = resolveIphoneModel(modelName)?.key;
+  if (!resolved) return null;
+  const modelMatches = IPHONE_REFERENCE_PRICES.filter((item) => modelOfReference(item) === resolved);
 
   if (modelMatches.length === 0) return null;
 
@@ -451,53 +494,30 @@ export function getCustomBasePriceMatch(
   color?: string
 ): CustomPriceMatch | null {
   if (!customPrices) return null;
-  const normModel = normalizeKey(modelName);
-  if (!normModel) return null;
+  const modelKey = resolveIphoneModel(modelName)?.key;
+  if (!modelKey) return null;
 
   const normCap = normalizeKey(storage).replace(/\s+/g, "");
   const normColor = normalizeKey(color);
 
-  // 1. Chave exata de Modelo + Capacidade + Cor (ex: "iphone 14 pro_128gb_silver")
-  if (normCap && normColor) {
-    const fullKey = `${normModel}_${normCap}_${normColor}`;
-    for (const [key, val] of Object.entries(customPrices)) {
-      if (val > 0 && normalizeKey(key) === fullKey) {
-        return { price: val, isSpecificCapacity: true };
-      }
-    }
+  let byColor: CustomPriceMatch | null = null;
+  let byCapacity: CustomPriceMatch | null = null;
+  let byModel: CustomPriceMatch | null = null;
+
+  for (const [rawKey, val] of Object.entries(customPrices)) {
+    if (!(val > 0)) continue;
+    const [modelPart, capPart, ...colorParts] = normalizeKey(rawKey).split("_");
+    if (resolveIphoneModel(modelPart)?.key !== modelKey) continue;
+    const cap = (capPart ?? "").replace(/\s+/g, "");
+    const col = colorParts.join("_").trim();
+
+    if (!cap) byModel = { price: val, isSpecificCapacity: false };
+    else if (cap === normCap && !col) byCapacity = { price: val, isSpecificCapacity: true };
+    else if (cap === normCap && normColor && col === normColor) byColor = { price: val, isSpecificCapacity: true };
   }
 
-  // 2. Chave de Modelo + Capacidade (ex: "iphone 14 pro_256gb")
-  if (normCap) {
-    const capKey = `${normModel}_${normCap}`;
-    for (const [key, val] of Object.entries(customPrices)) {
-      if (val > 0 && normalizeKey(key) === capKey) {
-        return { price: val, isSpecificCapacity: true };
-      }
-    }
-  }
-
-  // 3. Chave geral por Modelo (ex: "iphone 14 pro")
-  for (const [key, val] of Object.entries(customPrices)) {
-    const kNorm = normalizeKey(key);
-    if (val > 0 && !kNorm.includes("_") && normModel === kNorm) {
-      return { price: val, isSpecificCapacity: false };
-    }
-  }
-
-  // 4. Substring mais específico por Modelo (para entradas livres)
-  const sortedCustom = Object.entries(customPrices)
-    .filter(([key]) => !normalizeKey(key).includes("_"))
-    .sort((a, b) => normalizeKey(b[0]).length - normalizeKey(a[0]).length);
-
-  for (const [key, val] of sortedCustom) {
-    const normKey = normalizeKey(key);
-    if (val > 0 && normModel.includes(normKey)) {
-      return { price: val, isSpecificCapacity: false };
-    }
-  }
-
-  return null;
+  // Prioridade: modelo + capacidade + cor > modelo + capacidade > modelo.
+  return byColor ?? byCapacity ?? byModel;
 }
 
 export function getCustomBasePrice(
@@ -510,84 +530,59 @@ export function getCustomBasePrice(
   return match ? match.price : null;
 }
 
+/** Preço base do modelo (128GB, grau A). `0` = modelo desconhecido ou sem preço: "sob consulta". */
 export function findBasePrice(modelName: string, customPrices?: Record<string, number>): number {
-  const norm = normalizeKey(modelName);
-  if (!norm) return 1500;
+  const resolved = resolveIphoneModel(modelName)?.key;
+  if (!resolved) return 0;
 
-  // 1. Verifica primeiro preços customizados configurados pelo lojista no Admin
   const custom = getCustomBasePrice(modelName, customPrices);
   if (custom !== null) return custom;
 
-  // 2. Match exato nos preços de referência tabelados
-  for (const [key, val] of Object.entries(BASE_IPHONE_VALUES)) {
-    if (norm === key) {
-      return val;
-    }
-  }
-
-  // 3. Substring ordenado do mais específico para o mais genérico (ex: "iphone 14 pro max" antes de "iphone 14")
-  const sortedDefault = Object.entries(BASE_IPHONE_VALUES).sort(
-    (a, b) => b[0].length - a[0].length
-  );
-  for (const [key, val] of sortedDefault) {
-    if (norm.includes(key)) {
-      return val;
-    }
-  }
-
-  // Fallback inteligente por geração caso seja um modelo escrito de forma livre
-  if (norm.includes("17 pro max")) return 5800;
-  if (norm.includes("17 pro")) return 5000;
-  if (norm.includes("17")) return 3700;
-  if (norm.includes("air")) return 3700;
-  if (norm.includes("16 pro max")) return 4100;
-  if (norm.includes("16 pro")) return 3350;
-  if (norm.includes("16 plus")) return 3100;
-  if (norm.includes("16")) return 2900;
-  if (norm.includes("16e")) return 2500;
-  if (norm.includes("15 pro max")) return 3000;
-  if (norm.includes("15 pro")) return 2600;
-  if (norm.includes("15 plus")) return 2150;
-  if (norm.includes("15")) return 2050;
-  if (norm.includes("14 pro max")) return 2600;
-  if (norm.includes("14 pro")) return 2100;
-  if (norm.includes("14 plus")) return 1600;
-  if (norm.includes("14")) return 1500;
-  if (norm.includes("13 pro max")) return 2250;
-  if (norm.includes("13 pro")) return 1850;
-  if (norm.includes("13 mini")) return 1250;
-  if (norm.includes("13")) return 1450;
-  if (norm.includes("12 pro max")) return 1650;
-  if (norm.includes("12 pro")) return 1400;
-  if (norm.includes("12 mini")) return 950;
-  if (norm.includes("12")) return 1150;
-  if (norm.includes("11 pro max")) return 1250;
-  if (norm.includes("11 pro")) return 1050;
-  if (norm.includes("11")) return 850;
-  if (norm.includes("xs max")) return 850;
-  return 1500;
+  baseByKey ??= keyedByModel(Object.entries(BASE_IPHONE_VALUES));
+  return baseByKey.get(resolved) ?? 0;
 }
 
 function findTargetPrice(targetModelName: string): number {
-  const norm = normalizeKey(targetModelName);
-  if (!norm) return 0;
-
-  for (const [key, val] of Object.entries(TARGET_STORE_VALUES)) {
-    if (norm === key) {
-      return val;
-    }
-  }
-
-  const sorted = Object.entries(TARGET_STORE_VALUES).sort(
-    (a, b) => b[0].length - a[0].length
-  );
-  for (const [key, val] of sorted) {
-    if (norm.includes(key)) {
-      return val;
-    }
-  }
-  return 0;
+  const resolved = resolveIphoneModel(targetModelName)?.key;
+  if (!resolved) return 0;
+  targetByKey ??= keyedByModel(Object.entries(TARGET_STORE_VALUES));
+  return targetByKey.get(resolved) ?? 0;
 }
+
+/**
+ * Multiplicador da bateria, contínuo (sem degraus): 100–90% = 1,00 → 85% = 0,96 → limite = 0,91,
+ * e daí cai de forma linear até o desconto máximo, 10 pontos abaixo do limite.
+ */
+export function batteryMultiplier(percent: number, threshold: number, penaltyFraction: number): number {
+  const floor = Math.max(0.4, 1 - penaltyFraction);
+  const anchors: Array<[number, number]> = [[100, 1]];
+  if (threshold < 90) anchors.push([90, 1]);
+  if (threshold < 85) anchors.push([85, 0.96]);
+  anchors.push([threshold, 0.91]);
+  anchors.push([threshold - 10, Math.min(floor, 0.91)]);
+
+  if (percent >= anchors[0][0]) return anchors[0][1];
+  for (let i = 1; i < anchors.length; i++) {
+    const [p1, m1] = anchors[i - 1];
+    const [p2, m2] = anchors[i];
+    if (percent >= p2) {
+      const t = p1 === p2 ? 1 : (p1 - percent) / (p1 - p2);
+      return m1 + (m2 - m1) * t;
+    }
+  }
+  return anchors[anchors.length - 1][1];
+}
+
+const PENDING_CHECK_LABELS: Array<[keyof ValuationInput, string]> = [
+  ["icloudFree", "iCloud / Buscar iPhone"],
+  ["faceId", "Face ID"],
+  ["screenOriginal", "Tela original"],
+  ["batteryOriginal", "Bateria original"],
+  ["camerasOk", "Câmeras"],
+  ["audioOk", "Áudio"],
+  ["chargingPortOk", "Conector de carga"],
+  ["openedBefore", "Se já foi aberto/reparado"],
+];
 
 export function evaluateDevice(input: ValuationInput, config?: ValuationConfig): ValuationResult {
   const cfg = config || DEFAULT_VALUATION_CONFIG;
@@ -643,7 +638,7 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     }
   } else {
     base = findBasePrice(input.model);
-    const storageNorm = (input.storage || "").toLowerCase();
+    const storageNorm = base > 0 ? (input.storage || "").toLowerCase() : "";
     if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
       storageBonus = Math.max(500, Math.round(base * 0.18));
       highlights.push("Capacidade alta de 1TB (+ valor)");
@@ -687,18 +682,15 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     score -= 5;
   } else if (typeof input.batteryPercent === "number") {
     const bat = input.batteryPercent;
+    multiplier *= batteryMultiplier(bat, batteryThreshold, penalty);
     if (bat >= 90) {
-      multiplier *= 1.0;
       highlights.push(`Bateria saudável (${bat}%)`);
     } else if (bat >= 85) {
-      multiplier *= 0.96;
       score -= 3;
       highlights.push(`Bateria boa (${bat}%)`);
     } else if (bat >= batteryThreshold) {
-      multiplier *= 0.91;
       score -= 8;
     } else {
-      multiplier *= Math.max(0.4, 1.0 - penalty);
       score -= 18;
       highlights.push(`Bateria abaixo de ${batteryThreshold}% (${bat}%) — requer substituição`);
     }
@@ -778,13 +770,21 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     gradeLabel = "Atenção / Reparo necessário";
   }
 
+  // Sem preço (modelo não reconhecido ou não cadastrado): nunca inventa valor, fica "sob consulta".
+  const priceable = base > 0;
+
   // Cálculo final com margem de segurança (mínimo e máximo)
   const adjustedBase = (base + storageBonus) * multiplier;
   const roundedEstimated = Math.round(adjustedBase / 50) * 50;
 
   // Faixa de -5% a +5% em torno da média estimada
-  const minEstimatedValue = Math.max(200, Math.round((roundedEstimated * 0.95) / 50) * 50);
-  const maxEstimatedValue = Math.max(minEstimatedValue + 100, Math.round((roundedEstimated * 1.05) / 50) * 50);
+  const minEstimatedValue = priceable ? Math.max(200, Math.round((roundedEstimated * 0.95) / 50) * 50) : 0;
+  const maxEstimatedValue = priceable ? Math.max(minEstimatedValue + 100, Math.round((roundedEstimated * 1.05) / 50) * 50) : 0;
+
+  // "Não sei" não muda o preço, mas a equipe precisa conferir.
+  const pendingChecks = PENDING_CHECK_LABELS.filter(([field]) => input[field] === "Não sei").map(([, label]) => label);
+  if (input.batteryUnknown) pendingChecks.push("Saúde da bateria");
+  const blockers = input.icloudFree === "Não" ? ["iCloud bloqueado: não compramos aparelho com bloqueio de conta"] : [];
 
   // Cálculo de Volta para o modelo desejado (se houver)
   let minTradeDelta: number | undefined;
@@ -797,7 +797,7 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
 
   if (target) {
     targetPrice = findTargetPrice(target);
-    if (targetPrice > 0) {
+    if (targetPrice > 0 && priceable) {
       // Diferença = Preço do aparelho novo - Valor pago no aparelho usado
       minTradeDelta = Math.max(0, targetPrice - maxEstimatedValue);
       maxTradeDelta = Math.max(0, targetPrice - minEstimatedValue);
@@ -822,6 +822,9 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
       cfg.disclaimerText ||
       DEFAULT_VALUATION_CONFIG.disclaimerText ||
       "Pré-avaliação online estimada. O valor exato é confirmado após a conferência física e testes rápidos na Lojinha do Celular.",
+    priceable,
+    pendingChecks,
+    blockers,
   };
 }
 
