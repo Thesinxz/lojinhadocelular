@@ -14,6 +14,9 @@ const ProductsPage = lazy(() => import("./ProductsPage"));
 const UsersPage = lazy(() => import("./UsersPage"));
 const SettingsPage = lazy(() => import("./SettingsPage"));
 const AccountPage = lazy(() => import("./AccountPage"));
+const ActivityPage = lazy(() => import("./ActivityPage"));
+const ErpPage = lazy(() => import("./ErpPage"));
+const ReportsPage = lazy(() => import("./ReportsPage"));
 
 function PageFallback() {
   return <div className="h-64 animate-pulse rounded-2xl border border-[#e5e5e7] bg-[#f5f5f7]" />;
@@ -110,6 +113,32 @@ function AdminGate() {
               <Suspense fallback={<PageFallback />}>
                 <ProductsPage />
               </Suspense>
+            }
+          />
+          <Route
+            path="atividade"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <ActivityPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="relatorios"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <ReportsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="erp"
+            element={
+              <RequireCap cap="products.editMedia">
+                <Suspense fallback={<PageFallback />}>
+                  <ErpPage />
+                </Suspense>
+              </RequireCap>
             }
           />
           <Route

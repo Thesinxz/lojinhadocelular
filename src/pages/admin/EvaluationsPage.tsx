@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Settings2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
-import { EVALUATION_STATUSES, type EvaluationStatus } from "@contracts/types";
+import { EVALUATION_STATUSES, REFUSAL_REASONS, type EvaluationStatus } from "@contracts/types";
 import { trpc } from "@/providers/trpc";
 import { useAdminSession, useAdminUnit } from "@/lib/adminSession";
 import EvaluationFilters from "@/components/admin/evaluations/EvaluationFilters";
@@ -84,6 +84,28 @@ export default function EvaluationsPage() {
     },
   });
 
+  const canAssign = can("evaluations.assign");
+  const usersQuery = trpc.admin.users.list.useQuery(undefined, { enabled: canAssign, staleTime: 1000 * 60 });
+  const [selected, setSelected] = useState<number[]>([]);
+  const [refuseReason, setRefuseReason] = useState("");
+  const [assignTo, setAssignTo] = useState("");
+  const batch = trpc.admin.evaluationBatch.useMutation({
+    onSuccess: (res) => {
+      if (res.failed.length) toast.error(`${res.done} atualizadas, ${res.failed.length} com erro: ${res.failed[0].message}`);
+      else toast.success(`${res.done} avaliação(ões) atualizada(s).`);
+      setSelected([]);
+      setRefuseReason("");
+      setAssignTo("");
+    },
+    onError: (error) => toast.error(error.message),
+    onSettled: () => {
+      utils.admin.evaluationsPage.invalidate();
+      utils.admin.evaluationSummary.invalidate();
+    },
+  });
+  const toggleSelect = (id: number) =>
+    setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= 50 ? cur : [...cur, id]));
+
   const items = listQuery.data?.items ?? [];
   const total = listQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -164,9 +186,88 @@ export default function EvaluationsPage() {
               currentUserId={user?.id ?? 0}
               claiming={claimingId === item.id}
               onClaim={(id) => claimMutation.mutate({ id })}
+              selected={selected.includes(item.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </ul>
+      )}
+
+      {selected.length > 0 && (
+        <div
+          role="region"
+          aria-label="Ações em lote"
+          className="sticky bottom-3 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-[#e5e5e7] bg-white p-3 shadow-lg"
+        >
+          <strong className="mr-1 text-sm text-[#1d1d1f]">{selected.length} selecionada(s)</strong>
+          <button
+            type="button"
+            disabled={batch.isPending}
+            onClick={() => batch.mutate({ action: "claim", ids: selected })}
+            className="min-h-11 rounded-xl bg-[#0071e3] px-3 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            Pegar para mim
+          </button>
+          {canAssign && (
+            <span className="flex items-center gap-1">
+              <label className="sr-only" htmlFor="batch-assign">Atribuir a</label>
+              <select
+                id="batch-assign"
+                value={assignTo}
+                onChange={(e) => setAssignTo(e.target.value)}
+                className="min-h-11 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-2 text-xs font-semibold"
+              >
+                <option value="">Atribuir a…</option>
+                {(usersQuery.data ?? [])
+                  .filter((u) => u.active)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                disabled={!assignTo || batch.isPending}
+                onClick={() => batch.mutate({ action: "assign", ids: selected, userId: Number(assignTo) })}
+                className="min-h-11 rounded-xl border border-[#e5e5e7] px-3 text-xs font-semibold text-[#1d1d1f] disabled:opacity-40"
+              >
+                Atribuir
+              </button>
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <label className="sr-only" htmlFor="batch-refuse">Motivo da recusa</label>
+            <select
+              id="batch-refuse"
+              value={refuseReason}
+              onChange={(e) => setRefuseReason(e.target.value)}
+              className="min-h-11 rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] px-2 text-xs font-semibold"
+            >
+              <option value="">Recusar por…</option>
+              {REFUSAL_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!refuseReason || batch.isPending}
+              onClick={() => {
+                if (window.confirm(`Recusar ${selected.length} avaliação(ões)? O cliente pode receber a mensagem de encerramento.`)) {
+                  batch.mutate({ action: "refuse", ids: selected, refusalReason: refuseReason });
+                }
+              }}
+              className="min-h-11 rounded-xl border border-red-200 px-3 text-xs font-semibold text-red-700 disabled:opacity-40"
+            >
+              Recusar
+            </button>
+          </span>
+          <button type="button" onClick={() => setSelected([])} className="ml-auto min-h-11 px-2 text-xs font-semibold text-[#6e6e73]">
+            Limpar
+          </button>
+        </div>
       )}
 
       {total > PAGE_SIZE && (

@@ -69,6 +69,21 @@ export default function ProductsPage() {
   }
 
   const utils = trpc.useUtils();
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const bulkMutation = trpc.admin.bulkSetProducts.useMutation({
+    onSuccess: (res) => {
+      if (res.failed.length) toast.error(`${res.done} atualizados, ${res.failed.length} com erro.`);
+      else toast.success(`${res.done} produto(s) atualizado(s).`);
+      setSelectedKeys([]);
+      utils.admin.products.invalidate();
+      utils.shop.products.invalidate();
+      utils.shop.featured.invalidate();
+      utils.shop.catalogStatus.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const toggleKey = (key: string) =>
+    setSelectedKeys((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : cur.length >= 100 ? cur : [...cur, key]));
 
   const products = trpc.admin.products.useQuery(undefined, {
     retry: 1,
@@ -382,12 +397,40 @@ export default function ProductsPage() {
                     </div>
                   )}
 
+                  {filtered.length > 0 && (
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 px-1 text-xs font-semibold text-[#6e6e73]">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={
+                          filtered.length > 0 &&
+                          filtered.slice(0, 100).every((p) => {
+                            const isErp = (p as unknown as { source?: string }).source === "erp";
+                            return selectedKeys.includes(String(isErp ? (p as unknown as ShopProduct).externalId || p.id : p.id));
+                          })
+                        }
+                        onChange={(e) =>
+                          setSelectedKeys(
+                            e.target.checked
+                              ? filtered.slice(0, 100).map((p) => {
+                                  const isErp = (p as unknown as { source?: string }).source === "erp";
+                                  return String(isErp ? (p as unknown as ShopProduct).externalId || p.id : p.id);
+                                })
+                              : [],
+                          )
+                        }
+                      />
+                      Selecionar todos os exibidos (máx. 100)
+                    </label>
+                  )}
+
                   {filtered.map((p) => {
                     const price = minPrice(p);
                     const isErpProduct = (p as unknown as { source?: string }).source === "erp";
                     const productIdOrExternal = isErpProduct
                       ? (p as unknown as ShopProduct).externalId || String(p.id)
                       : p.id;
+                    const rowKey = String(productIdOrExternal);
 
                     return (
                       <div
@@ -405,6 +448,14 @@ export default function ProductsPage() {
                             : "border-dashed border-neutral-300 bg-neutral-50/80 opacity-75 hover:opacity-100 hover:border-neutral-400"
                         }`}
                       >
+                        <input
+                          type="checkbox"
+                          aria-label={`Selecionar ${p.name}`}
+                          className="h-4 w-4 shrink-0"
+                          checked={selectedKeys.includes(rowKey)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleKey(rowKey)}
+                        />
                         {p.imageUrl ? (
                           <img
                             src={p.imageUrl}
@@ -583,6 +634,55 @@ export default function ProductsPage() {
             );
           })()}
       </div>
+
+      {selectedKeys.length > 0 && (
+        <div
+          role="region"
+          aria-label="Ações em lote"
+          className="sticky bottom-3 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#e5e5e7] bg-white p-3 shadow-lg"
+        >
+          <strong className="mr-1 text-sm text-[#1d1d1f]">{selectedKeys.length} selecionado(s)</strong>
+          <button
+            type="button"
+            disabled={bulkMutation.isPending}
+            onClick={() => bulkMutation.mutate({ ids: selectedKeys, active: true })}
+            className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+          >
+            Mostrar na vitrine
+          </button>
+          <button
+            type="button"
+            disabled={bulkMutation.isPending}
+            onClick={() => bulkMutation.mutate({ ids: selectedKeys, active: false })}
+            className="min-h-11 rounded-xl border border-neutral-300 bg-neutral-100 px-3 text-xs font-semibold text-neutral-700 disabled:opacity-50"
+          >
+            Ocultar
+          </button>
+          {canManage && (
+            <>
+              <button
+                type="button"
+                disabled={bulkMutation.isPending}
+                onClick={() => bulkMutation.mutate({ ids: selectedKeys, featured: true })}
+                className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700 disabled:opacity-50"
+              >
+                Destacar
+              </button>
+              <button
+                type="button"
+                disabled={bulkMutation.isPending}
+                onClick={() => bulkMutation.mutate({ ids: selectedKeys, featured: false })}
+                className="min-h-11 rounded-xl border border-[#e5e5e7] px-3 text-xs font-semibold text-[#6e6e73] disabled:opacity-50"
+              >
+                Tirar destaque
+              </button>
+            </>
+          )}
+          <button type="button" onClick={() => setSelectedKeys([])} className="ml-auto min-h-11 px-2 text-xs font-semibold text-[#6e6e73]">
+            Limpar
+          </button>
+        </div>
+      )}
 
       {editingErpProduct && (
         <AdminErpProductEditor

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { KeyRound, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import { KeyRound, LogOut, Pencil, Plus, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import type { RouterOutputs } from "@/providers/trpc";
 import { useAdminSession } from "@/lib/adminSession";
-import { ADMIN_ROLES, STORE_UNITS } from "@contracts/permissions";
-import type { AdminRole, StoreUnit } from "@contracts/permissions";
+import { ADMIN_ROLES, DELEGABLE_CAPABILITIES, STORE_UNITS } from "@contracts/permissions";
+import type { AdminRole, Capability, StoreUnit } from "@contracts/permissions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type AdminUserRow = RouterOutputs["admin"]["users"]["list"][number];
@@ -40,6 +40,7 @@ interface UserFormState {
   role: AdminRole;
   unit: StoreUnit | "";
   canEditPrices: boolean;
+  extraCaps: Capability[];
 }
 
 const EMPTY_FORM: UserFormState = {
@@ -49,6 +50,7 @@ const EMPTY_FORM: UserFormState = {
   role: "vendedor",
   unit: "",
   canEditPrices: false,
+  extraCaps: [],
 };
 
 function CheckboxRow({
@@ -100,6 +102,7 @@ function UserDialog({
           role: editing.role,
           unit: editing.unit ?? "",
           canEditPrices: editing.canEditPrices,
+          extraCaps: editing.extraCaps ?? [],
         }
       : EMPTY_FORM,
   );
@@ -132,8 +135,9 @@ function UserDialog({
     }
     const unit = form.unit === "" ? null : form.unit;
     const canEditPrices = form.role === "vendedor" ? form.canEditPrices : false;
+    const extraCaps = (form.role === "vendedor" ? form.extraCaps : []) as ("evaluations.assign" | "reports.team" | "products.manage")[];
     if (editing) {
-      update.mutate({ id: editing.id, name, role: form.role, unit, canEditPrices });
+      update.mutate({ id: editing.id, name, role: form.role, unit, canEditPrices, extraCaps });
       return;
     }
     const username = form.username.trim().toLowerCase();
@@ -145,7 +149,7 @@ function UserDialog({
       toast.error("A senha precisa ter pelo menos 6 caracteres.");
       return;
     }
-    create.mutate({ username, name, password: form.password, role: form.role, unit, canEditPrices });
+    create.mutate({ username, name, password: form.password, role: form.role, unit, canEditPrices, extraCaps });
   }
 
   return (
@@ -213,12 +217,25 @@ function UserDialog({
             </label>
           </div>
           {form.role === "vendedor" ? (
-            <CheckboxRow
-              checked={form.canEditPrices}
-              onChange={(v) => set("canEditPrices", v)}
-              label="Pode editar preços"
-              hint="Permite alterar o preço à vista dos produtos."
-            />
+            <div className="space-y-2">
+              <CheckboxRow
+                checked={form.canEditPrices}
+                onChange={(v) => set("canEditPrices", v)}
+                label="Pode editar preços"
+                hint="Permite alterar o preço à vista dos produtos."
+              />
+              {DELEGABLE_CAPABILITIES.map((cap) => (
+                <CheckboxRow
+                  key={cap.value}
+                  checked={form.extraCaps.includes(cap.value)}
+                  onChange={(v) =>
+                    set("extraCaps", v ? [...form.extraCaps, cap.value] : form.extraCaps.filter((c) => c !== cap.value))
+                  }
+                  label={cap.label}
+                  hint={cap.hint}
+                />
+              ))}
+            </div>
           ) : (
             <p className="rounded-xl bg-[#f5f5f7] px-3 py-2.5 text-xs text-[#6e6e73]">O dono tem acesso completo ao painel.</p>
           )}
@@ -314,6 +331,11 @@ export default function UsersPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  const revokeSessions = trpc.admin.users.revokeSessions.useMutation({
+    onSuccess: () => toast.success("Sessões encerradas. A pessoa precisa entrar de novo."),
+    onError: (err) => toast.error(err.message),
+  });
+
   function openDialog(target: AdminUserRow | null) {
     setEditing(target);
     setDialogKey((k) => k + 1);
@@ -332,6 +354,22 @@ export default function UsersPage() {
           <KeyRound className="h-4 w-4" />
           <span className="lg:sr-only">Senha</span>
         </button>
+        {!isSelf && (
+          <button
+            type="button"
+            className={secondaryButton}
+            disabled={revokeSessions.isPending}
+            onClick={() => {
+              if (window.confirm(`Encerrar todas as sessões de ${u.name}? A pessoa precisará entrar novamente.`)) {
+                revokeSessions.mutate({ id: u.id });
+              }
+            }}
+            title="Encerrar sessões"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="lg:sr-only">Encerrar sessões</span>
+          </button>
+        )}
         {!isSelf && (
           <button
             type="button"

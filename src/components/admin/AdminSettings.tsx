@@ -14,11 +14,16 @@ import {
   Layers,
   ListFilter,
   X,
+  Store,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import {
   SETTING_KEYS,
+  parseAutoMessages,
+  type AutoMessagesConfig,
+  DEFAULT_AUTO_MESSAGES,
   parseFees,
   type ValuationConfig,
   DEFAULT_VALUATION_CONFIG,
@@ -34,6 +39,24 @@ import {
 } from "@/lib/valuationEngine";
 import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
 import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
+import AutoMessagesSection from "@/components/admin/evaluations/AutoMessagesSection";
+
+const TABS = [
+  { id: "loja", label: "Loja", icon: Store },
+  { id: "tradein", label: "Trade-in e preços", icon: Sparkles },
+  { id: "pagamento", label: "Pagamento", icon: CreditCard },
+  { id: "mensagens", label: "Mensagens", icon: MessageCircle },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
+function initialTab(): TabId {
+  try {
+    const hash = window.location.hash.replace("#", "");
+    return TABS.some((t) => t.id === hash) ? (hash as TabId) : "loja";
+  } catch {
+    return "loja";
+  }
+}
 
 export default function AdminSettings() {
   const utils = trpc.useUtils();
@@ -50,11 +73,43 @@ export default function AdminSettings() {
   const [onlyCustomFilter, setOnlyCustomFilter] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
   const [templates, setTemplates] = useState<WhatsappTemplate[]>([]);
+  const [autoMessages, setAutoMessages] = useState<AutoMessagesConfig>(DEFAULT_AUTO_MESSAGES);
+  const [tab, setTabState] = useState<TabId>(initialTab);
+  const [baseline, setBaseline] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const setTab = (next: TabId) => {
+    setTabState(next);
+    try {
+      window.history.replaceState(null, "", `#${next}`);
+    } catch {}
+  };
+
+  // Tudo o que é editável nesta tela, para detectar alterações não salvas.
+  const snapshot = useMemo(
+    () => JSON.stringify({ values, fees, heroText, valuationConfig, templates, autoMessages }),
+    [values, fees, heroText, valuationConfig, templates, autoMessages],
+  );
+  const dirty = baseline !== null && snapshot !== baseline;
+
+  useEffect(() => {
+    if (baseline === null && query.data && Object.keys(values).length > 0) setBaseline(snapshot);
+  }, [baseline, query.data, values, snapshot]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   const update = trpc.admin.updateSettings.useMutation({
     onSuccess: () => {
+      setBaseline(snapshot);
       utils.admin.getSettings.invalidate();
       utils.shop.settings.invalidate();
       utils.admin.evaluationConfig.invalidate();
@@ -73,6 +128,7 @@ export default function AdminSettings() {
     if (query.data && Object.keys(values).length === 0) {
       setValues(query.data);
       setTemplates(parseTemplates(query.data[SETTING_KEYS.whatsappTemplates]));
+      setAutoMessages(parseAutoMessages(query.data[SETTING_KEYS.autoMessages]));
       const parsed = parseFees(query.data[SETTING_KEYS.installmentFees]);
       setFees(
         Object.fromEntries(
@@ -213,6 +269,25 @@ export default function AdminSettings() {
 
   return (
     <div className="mt-6 space-y-6">
+      <div role="tablist" aria-label="Seções das configurações" className="flex gap-1 overflow-x-auto rounded-2xl border border-[#e5e5e7] bg-white p-1.5">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
+              tab === t.id ? "bg-[#1d1d1f] text-white" : "text-[#6e6e73] hover:bg-[#f5f5f7]"
+            }`}
+          >
+            <t.icon className="h-4 w-4" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={tab === "loja" ? "space-y-6" : "hidden"}>
       {/* Lojas */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
         <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Unidades</h3>
@@ -239,6 +314,9 @@ export default function AdminSettings() {
         </div>
       </section>
 
+      </div>
+
+      <div className={tab === "tradein" ? "space-y-6" : "hidden"}>
       {/* Motor de Avaliação Inteligente */}
       <section id="avaliacao" className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e5e7] pb-4">
@@ -852,6 +930,9 @@ export default function AdminSettings() {
         </div>
       </section>
 
+      </div>
+
+      <div className={tab === "pagamento" ? "space-y-6" : "hidden"}>
       {/* Preços */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
         <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[#1d1d1f]">
@@ -945,13 +1026,19 @@ export default function AdminSettings() {
         </div>
       </section>
 
+      </div>
+
+      <div className={tab === "mensagens" ? "space-y-6" : "hidden"}>
       <EvaluationSettingsSection
         slaHours={values[SETTING_KEYS.evaluationSlaHours] ?? "2"}
         templates={templates}
         onSlaChange={(value) => setValues((v) => ({ ...v, [SETTING_KEYS.evaluationSlaHours]: value }))}
         onTemplatesChange={setTemplates}
       />
+        <AutoMessagesSection config={autoMessages} onChange={setAutoMessages} />
+      </div>
 
+      <div className={tab === "loja" ? "space-y-6" : "hidden"}>
       {/* Popup */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
         <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Popup de boas-vindas</h3>
@@ -998,6 +1085,8 @@ export default function AdminSettings() {
         )}
       </section>
 
+      </div>
+
       <button
         onClick={() => {
           const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
@@ -1030,6 +1119,7 @@ export default function AdminSettings() {
               [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
               [SETTING_KEYS.evaluationSlaHours]: String(slaHours),
               [SETTING_KEYS.whatsappTemplates]: JSON.stringify(cleanTemplates),
+              [SETTING_KEYS.autoMessages]: JSON.stringify(autoMessages),
             },
           });
         }}
@@ -1045,6 +1135,11 @@ export default function AdminSettings() {
         )}
         {update.isPending ? "Salvando configurações..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
       </button>
+      {dirty && !update.isPending && (
+        <p className="text-xs font-semibold text-amber-700" role="status">
+          Você tem alterações não salvas (vale para todas as abas).
+        </p>
+      )}
 
       {saveError && (
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">

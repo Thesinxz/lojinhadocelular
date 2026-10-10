@@ -24,6 +24,14 @@ export default function AccountPage() {
     onError: (err) => toast.error(err.message || "Não foi possível alterar a senha."),
   });
 
+  const endSessions = trpc.admin.endMySessions.useMutation({
+    onSuccess: () => {
+      toast.success("Você saiu de todos os dispositivos.");
+      logout();
+    },
+    onError: (err) => toast.error(err.message || "Não foi possível encerrar as sessões."),
+  });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -112,6 +120,19 @@ export default function AccountPage() {
           {changePassword.isPending ? "Salvando..." : "Salvar nova senha"}
         </button>
       </form>
+
+      <button
+        type="button"
+        disabled={endSessions.isPending}
+        onClick={() => {
+          if (window.confirm("Sair deste e de todos os outros dispositivos onde você entrou no painel?")) {
+            endSessions.mutate();
+          }
+        }}
+        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#e5e5e7] bg-white text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] disabled:opacity-50"
+      >
+        <LogOut className="h-4 w-4" /> Sair de todos os dispositivos
+      </button>
 
       <button
         type="button"

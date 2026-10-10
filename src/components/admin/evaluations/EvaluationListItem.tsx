@@ -10,16 +10,40 @@ interface EvaluationListItemProps {
   currentUserId: number;
   claiming: boolean;
   onClaim: (id: number) => void;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }
 
 /** Linha da lista: cliente, aparelho, unidade, tempo, atraso, responsável, valores e status. */
-export default function EvaluationListItem({ item, currentUserId, claiming, onClaim }: EvaluationListItemProps) {
+export default function EvaluationListItem({
+  item,
+  currentUserId,
+  claiming,
+  onClaim,
+  selected = false,
+  onToggleSelect,
+}: EvaluationListItemProps) {
   const status = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pendente;
   const thumbUrl = getIphoneModelColorImage(detectIphoneModel(item.model), item.color ?? undefined);
   const device = [item.model, item.storage, item.color].filter(Boolean).join(" · ");
 
   return (
-    <li className="relative rounded-2xl border border-[#e5e5e7] bg-white shadow-2xs transition hover:shadow-sm">
+    <li
+      className={`relative rounded-2xl border bg-white shadow-2xs transition hover:shadow-sm ${
+        selected ? "border-[#0071e3] ring-2 ring-[#0071e3]/20" : "border-[#e5e5e7]"
+      }`}
+    >
+      {onToggleSelect && (
+        <label className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center">
+          <span className="sr-only">Selecionar avaliação de {item.name}</span>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect(item.id)}
+            className="h-4 w-4 cursor-pointer"
+          />
+        </label>
+      )}
       <Link
         to={`/admin/avaliacoes/${item.id}`}
         className={`flex items-start gap-3 p-4 pr-10 sm:gap-4 ${

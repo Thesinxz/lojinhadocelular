@@ -1,18 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import {
+  History,
+  BarChart3,
+  Bell,
+  BellOff,
   Home,
   LogOut,
+  Plug,
   Menu,
   Package,
+  Search,
   Settings,
   Smartphone,
   Tv,
   UserCircle,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
+import AdminCommandPalette from "@/components/admin/AdminCommandPalette";
+import { useNewEvaluationAlert } from "@/hooks/useNewEvaluationAlert";
 import { useAdminSession, useAdminUnit } from "@/lib/adminSession";
 import type { UnitFilter } from "@/lib/adminSession";
 import { ADMIN_ROLES, STORE_UNITS } from "@contracts/permissions";
@@ -31,6 +40,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin", label: "Início", icon: Home, end: true },
   { to: "/admin/avaliacoes", label: "Avaliações", icon: Smartphone },
   { to: "/admin/produtos", label: "Produtos", icon: Package },
+  { to: "/admin/relatorios", label: "Relatórios", icon: BarChart3 },
+  { to: "/admin/erp", label: "Integração ERP", icon: Plug, cap: "products.editMedia" },
+  { to: "/admin/atividade", label: "Atividade", icon: History },
   { to: "/admin/usuarios", label: "Usuários", icon: Users, cap: "users.manage" },
   { to: "/admin/configuracoes", label: "Configurações", icon: Settings, cap: "settings.manage" },
 ];
@@ -38,6 +50,9 @@ const NAV_ITEMS: NavItem[] = [
 const PAGE_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/admin/avaliacoes", title: "Avaliações" },
   { prefix: "/admin/produtos", title: "Produtos" },
+  { prefix: "/admin/relatorios", title: "Relatórios" },
+  { prefix: "/admin/erp", title: "Integração ERP" },
+  { prefix: "/admin/atividade", title: "Atividade" },
   { prefix: "/admin/usuarios", title: "Usuários" },
   { prefix: "/admin/configuracoes", title: "Configurações" },
   { prefix: "/admin/conta", title: "Minha conta" },
@@ -91,6 +106,18 @@ export default function AdminLayout() {
   const title = usePageTitle();
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const { unit } = useAdminUnit();
   const summary = trpc.admin.evaluationSummary.useQuery(unit === "todas" ? undefined : { unit }, {
@@ -99,6 +126,9 @@ export default function AdminLayout() {
     refetchInterval: 1000 * 60,
   });
   const pending = summary.data?.pending ?? 0;
+  const { soundOn, toggleSound } = useNewEvaluationAlert(summary.data?.pending, (added) =>
+    toast.info(added === 1 ? "Chegou uma nova avaliação!" : `Chegaram ${added} novas avaliações!`),
+  );
 
   const items = NAV_ITEMS.filter((item) => !item.cap || can(item.cap));
   const roleLabel = ADMIN_ROLES.find((r) => r.value === user?.role)?.label ?? "";
@@ -166,6 +196,26 @@ export default function AdminLayout() {
         <header className="sticky top-0 z-20 border-b border-[#e5e5e7] bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 lg:h-16 lg:px-8">
             <h1 className="truncate font-display text-lg font-bold tracking-tight lg:text-xl">{title}</h1>
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              title="Buscar (⌘K / Ctrl+K)"
+              className="ml-auto flex h-11 items-center gap-2 rounded-xl border border-[#e5e5e7] px-3 text-sm font-medium text-[#6e6e73] hover:bg-[#f5f5f7]"
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">Buscar</span>
+              <kbd className="hidden rounded border border-[#e5e5e7] bg-[#f5f5f7] px-1.5 text-[10px] font-semibold lg:inline">⌘K</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-pressed={soundOn}
+              title={soundOn ? "Som de nova avaliação ligado" : "Som de nova avaliação desligado"}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e5e5e7] text-[#6e6e73] hover:bg-[#f5f5f7]"
+            >
+              {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+              <span className="sr-only">{soundOn ? "Desligar som de nova avaliação" : "Ligar som de nova avaliação"}</span>
+            </button>
             <div className="hidden lg:block">
               <UnitSelect />
             </div>
@@ -179,6 +229,13 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      <AdminCommandPalette
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        links={items.map((i) => ({ to: i.to, label: i.label, icon: i.icon }))}
+        canSeeEvaluations={can("evaluations.manage")}
+      />
 
       {/* Barra inferior (celular) */}
       <nav

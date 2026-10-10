@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { STORE_UNITS } from "@contracts/permissions";
-import { SETTING_KEYS, type EvaluationPhotoItem, type EvaluationStatus } from "@contracts/types";
+import { loyaltyApplies, declaredLojinhaPurchase } from "@contracts/loyalty";
+import { formatBRL, SETTING_KEYS, type EvaluationPhotoItem, type EvaluationStatus } from "@contracts/types";
 import { trpc } from "@/providers/trpc";
 import { useAdminSession } from "@/lib/adminSession";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
@@ -32,6 +33,9 @@ import AssigneeBadge from "@/components/admin/evaluations/AssigneeBadge";
 import EvaluationPhotos from "@/components/admin/evaluations/EvaluationPhotos";
 import NegotiationCard from "@/components/admin/evaluations/NegotiationCard";
 import NotesTimeline, { EvaluationAuditList } from "@/components/admin/evaluations/NotesTimeline";
+import LoyaltyCard from "@/components/admin/evaluations/LoyaltyCard";
+import ErpEntryCard from "@/components/admin/evaluations/ErpEntryCard";
+import SentMessagesCard from "@/components/admin/evaluations/SentMessagesCard";
 import WhatsappTemplatesCard from "@/components/admin/evaluations/WhatsappTemplatesCard";
 import {
   formatDateTime,
@@ -60,7 +64,11 @@ function ValuationBox({ item, configJson }: { item: EvaluationRow; configJson: s
         model: item.model,
         storage: item.storage ?? undefined,
         color: item.color ?? undefined,
-        purchaseLocation: item.purchaseLocation ?? undefined,
+        // O bônus de fidelidade só entra na estimativa depois de confirmado (ERP ou equipe).
+        purchaseLocation:
+          declaredLojinhaPurchase(item.purchaseLocation) && !loyaltyApplies(item.loyaltyStatus)
+            ? ""
+            : (item.purchaseLocation ?? undefined),
         batteryPercent: Number.isNaN(batteryNum) ? undefined : batteryNum,
         targetModel: item.targetModel ?? undefined,
         visualCondition: item.visualCondition || item.condition || undefined,
@@ -72,6 +80,8 @@ function ValuationBox({ item, configJson }: { item: EvaluationRow; configJson: s
         chargingPortOk: item.chargingPortOk ?? undefined,
         openedBefore: item.openedBefore ?? undefined,
         hasBox: item.hasBox ?? undefined,
+        icloudFree: item.icloudFree ?? undefined,
+        batteryUnknown: Number.isNaN(batteryNum) && /sei/i.test(item.battery ?? ""),
         notes: item.notes ?? undefined,
       },
       config,
@@ -96,24 +106,47 @@ function ValuationBox({ item, configJson }: { item: EvaluationRow; configJson: s
           {grade.iconText} {grade.label}
         </span>
       </div>
-      <p className="mt-1 font-display text-xl font-bold text-emerald-950">
-        {formatReais(valuation.minEstimatedValue)} a {formatReais(valuation.maxEstimatedValue)}
-      </p>
+      {valuation.blockers.length > 0 && (
+        <p className="mt-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs font-semibold text-red-800">
+          ⛔ {valuation.blockers.join(" · ")}. Recuse esta avaliação.
+        </p>
+      )}
+      {valuation.priceable ? (
+        <p className="mt-1 font-display text-xl font-bold text-emerald-950">
+          {formatReais(valuation.minEstimatedValue)} a {formatReais(valuation.maxEstimatedValue)}
+        </p>
+      ) : (
+        <p className="mt-1 text-sm font-semibold text-amber-800">
+          Sob consulta: modelo não reconhecido ou sem preço cadastrado. Avalie manualmente.
+        </p>
+      )}
+      {declaredLojinhaPurchase(item.purchaseLocation) && !loyaltyApplies(item.loyaltyStatus) && (
+        <p className="mt-2 text-xs text-purple-900">
+          🎁 Declarou compra na Lojinha: o bônus de fidelidade <b>não está nesta estimativa</b> até ser confirmado (veja o card abaixo).
+        </p>
+      )}
+      {valuation.pendingChecks.length > 0 && (
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+          <b>Conferir na loja (cliente respondeu “Não sei”):</b> {valuation.pendingChecks.join(", ")}.
+        </p>
+      )}
       {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
         <p className="mt-0.5 text-xs text-purple-900">
           Volta estimada ({valuation.targetModelName}): {formatReais(valuation.minTradeDelta)} a{" "}
           {formatReais(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
         </p>
       )}
-      <a
-        href={estimateLink}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-      >
-        <MessageCircle className="h-3.5 w-3.5" />
-        Enviar estimativa no WhatsApp
-      </a>
+      {valuation.priceable && (
+        <a
+          href={estimateLink}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          Enviar estimativa no WhatsApp
+        </a>
+      )}
     </div>
   );
 }
@@ -310,6 +343,26 @@ export default function EvaluationDetailPage() {
           </a>
         </div>
 
+        {(detailQuery.data?.related.length ?? 0) > 0 && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="font-semibold">
+              Cliente recorrente: {detailQuery.data!.related.length} outra(s) avaliação(ões) com este WhatsApp
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {detailQuery.data!.related.map((r) => (
+                <li key={r.id}>
+                  <Link to={`/admin/avaliacoes/${r.id}`} className="font-semibold underline">
+                    #{r.id}
+                  </Link>{" "}
+                  {[r.model, r.storage].filter(Boolean).join(" ")} · {STATUS_CONFIG[r.status]?.label ?? r.status} ·{" "}
+                  {formatDateTime(r.createdAt)}
+                  {r.closedValue !== null ? ` · fechado ${formatBRL(r.closedValue)}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="evaluation-unit" className="mb-1 flex items-center gap-1 text-xs font-semibold text-[#6e6e73]">
@@ -405,6 +458,7 @@ export default function EvaluationDetailPage() {
             <dl className="mt-3 divide-y divide-[#f0f0f2]">
               <Answer label="Quer trocar por" value={evaluation.targetModel || "Apenas vender"} />
               <Answer label="Onde comprou" value={evaluation.purchaseLocation} />
+              <Answer label="iCloud livre" value={evaluation.icloudFree} />
               <Answer label="Face ID" value={evaluation.faceId} />
               <Answer label="Tela original" value={evaluation.screenOriginal} />
               <Answer label="Bateria original" value={evaluation.batteryOriginal} />
@@ -477,6 +531,12 @@ export default function EvaluationDetailPage() {
               }
             }}
           />
+
+          <LoyaltyCard evaluation={evaluation} />
+
+          <ErpEntryCard evaluation={evaluation} />
+
+          <SentMessagesCard evaluationId={evaluation.id} />
 
           <EvaluationAuditList entries={detailQuery.data?.audit ?? []} />
         </div>
