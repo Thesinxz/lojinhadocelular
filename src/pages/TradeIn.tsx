@@ -33,6 +33,8 @@ import {
 } from "@/lib/valuationEngine";
 import { compressImage, formatFileSize } from "@/lib/imageCompressor";
 import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
+import { declaredLojinhaPurchase } from "@contracts/loyalty";
+import { isValidCpf, onlyDigits } from "@contracts/brDocs";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -124,6 +126,9 @@ type EvaluationData = {
   chargingPortOk: string;
   openedBefore: string;
   hasBox: string;
+  icloudFree: string;
+  /** Só para conferir o bônus de fidelidade no ERP. Nunca vai para o histórico local nem para o WhatsApp. */
+  cpf: string;
   visualCondition: string;
   notes: string;
   unit: StoreUnit | "";
@@ -147,10 +152,20 @@ const INITIAL_EVALUATION: EvaluationData = {
   chargingPortOk: "",
   openedBefore: "",
   hasBox: "",
+  icloudFree: "",
+  cpf: "",
   visualCondition: "",
   notes: "",
   unit: "",
 };
+
+function formatCpfInput(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
 
 function formatPhoneInput(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -230,6 +245,7 @@ export default function TradeIn() {
           chargingPortOk: data.chargingPortOk,
           openedBefore: data.openedBefore,
           hasBox: data.hasBox,
+          icloudFree: data.icloudFree,
           notes: data.notes,
         },
         valuationConfig
@@ -239,6 +255,16 @@ export default function TradeIn() {
 
   const gradeConfig = useMemo(() => getGradeBadgeConfig(valuation.grade), [valuation.grade]);
   const hidePrices = valuationConfig.hidePricesToClient !== false;
+  // Só mostra valor quando a loja permite E o modelo tem preço cadastrado; senão fica "cotação em andamento".
+  const showPrices = !hidePrices && valuation.priceable;
+  // Com valores ocultos, o cliente não vê nada que revele a conta (R$, %, bônus, "tabela oficial").
+  const customerHighlights = useMemo(
+    () =>
+      hidePrices
+        ? valuation.highlights.filter(hl => !/R\$|%\s*(na|de)|\+\s*\d|tabela oficial|personalizada|b[ôo]nus|\+ valor/i.test(hl) || /^Bateria/i.test(hl))
+        : valuation.highlights,
+    [hidePrices, valuation.highlights]
+  );
 
   // WhatsApp da loja escolhida pelo cliente (cai no padrão se não houver número)
   const unitWhatsapp =
@@ -250,7 +276,9 @@ export default function TradeIn() {
     const finalValue =
       field === "whatsapp" && typeof value === "string"
         ? (formatPhoneInput(value) as EvaluationData[K])
-        : value;
+        : field === "cpf" && typeof value === "string"
+          ? (formatCpfInput(value) as EvaluationData[K])
+          : value;
     setData(curr => ({ ...curr, [field]: finalValue }));
     setError("");
   }
@@ -408,12 +436,21 @@ export default function TradeIn() {
         setError("Selecione onde comprou o aparelho.");
         return false;
       }
-    } else if (step === 4) {
+      if (declaredLojinhaPurchase(data.purchaseLocation) && data.cpf && !isValidCpf(data.cpf)) {
+        setError("Esse CPF não parece válido. Confira os números ou toque em “Prefiro não informar”.");
+        return false;
+      }
+    } else if (step === 3) {
+      if (data.icloudFree === "Não") {
+        setError("Não conseguimos avaliar aparelhos com bloqueio de iCloud.");
+        return false;
+      }
+    } else if (step === 5) {
       if (!data.targetModel) {
         setError("Selecione o modelo que deseja ou escolha apenas vender.");
         return false;
       }
-    } else if (step === 14) {
+    } else if (step === 15) {
       const frontSlot = photoSlots.find(s => s.key === "front");
       const backSlot = photoSlots.find(s => s.key === "back");
       if (!frontSlot?.file || !backSlot?.file) {
@@ -514,8 +551,9 @@ export default function TradeIn() {
       `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
       `📍 *Loja:* ${unitLabel || "Não informada"}`,
       "",
-      `✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`,
-      ...(hidePrices
+      ...(showPrices ? [`✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`] : []),
+      ...(!valuation.priceable ? ["⚠️ *Modelo não reconhecido na tabela: avaliar manualmente*"] : []),
+      ...(!showPrices
         ? [
             "💬 *Proposta:* Aguardando análise técnica e cotação da equipe Lojinha do Celular",
           ]
@@ -525,9 +563,10 @@ export default function TradeIn() {
               ? `🎯 *Volta Estimada (${valuation.targetModelName}):* ${formatBRL(valuation.minTradeDelta)} a ${formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}`
               : "",
           ]),
-      valuation.loyaltyBonusApplied ? "🎁 *Bônus Fidelidade Lojinha do Celular (+5% na avaliação)*" : "",
+      valuation.loyaltyBonusApplied ? "🎁 *Declarou compra na Lojinha do Celular (conferir cadastro para o bônus de fidelidade)*" : "",
       "",
       "🔍 *Diagnóstico Rápido:*",
+      `• iCloud livre: ${data.icloudFree || "Não informado"}`,
       `• Face ID: ${data.faceId || "Não informado"}`,
       `• Tela original: ${data.screenOriginal || "Não informado"}`,
       `• Bateria original: ${data.batteryOriginal || "Não informado"}`,
@@ -564,6 +603,9 @@ export default function TradeIn() {
         chargingPortOk: data.chargingPortOk,
         openedBefore: data.openedBefore,
         hasBox: data.hasBox,
+        icloudFree: data.icloudFree,
+        cpf:
+          declaredLojinhaPurchase(data.purchaseLocation) && isValidCpf(data.cpf) ? data.cpf : undefined,
         visualCondition: data.visualCondition,
         condition: data.visualCondition || "Em análise",
         battery: batteryText,
@@ -586,8 +628,10 @@ export default function TradeIn() {
     // 2. Histórico local de segurança (preserva fotos para os registros mais recentes)
     try {
       const history = JSON.parse(safeStorage.getItem("lojinha_evaluations_history") || "[]");
+      // O CPF nunca é guardado no navegador.
+      const { cpf: _cpf, ...dataWithoutCpf } = data;
       const newEntry = {
-        ...data,
+        ...dataWithoutCpf,
         battery: batteryText,
         photosCount: photosPayload.length,
         photos: photosPayload,
@@ -653,12 +697,14 @@ export default function TradeIn() {
                   <h3 className="font-display text-base sm:text-lg font-bold text-[#1d1d1f]">
                     {data.model}
                   </h3>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
-                  >
-                    <span>{gradeConfig.iconText}</span>
-                    <span>{gradeConfig.label}</span>
-                  </span>
+                  {showPrices && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
+                    >
+                      <span>{gradeConfig.iconText}</span>
+                      <span>{gradeConfig.label}</span>
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-[#6e6e73]">
                   {data.storage || "Capacidade padrão"} • Cor: {data.color || "Padrão"}
@@ -672,7 +718,7 @@ export default function TradeIn() {
             </div>
 
             {/* FAIXA DE VALOR OU CONFIRMAÇÃO DE ENVIO */}
-            {hidePrices ? (
+            {!showPrices ? (
               <div className="mt-5 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
@@ -730,9 +776,9 @@ export default function TradeIn() {
             )}
 
             {/* PONTOS FORTES E BÔNUS */}
-            {valuation.highlights.length > 0 && (
+            {customerHighlights.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-1.5 border-t border-neutral-100 pt-3 text-[11px]">
-                {valuation.highlights.map((hl, i) => (
+                {customerHighlights.map((hl, i) => (
                   <span
                     key={i}
                     className="inline-flex items-center rounded-lg bg-[#f5f5f7] px-2.5 py-1 font-medium text-[#1d1d1f]"
@@ -782,7 +828,7 @@ export default function TradeIn() {
   }
 
   // Progresso relativo (etapas 0 a 16)
-  const totalSteps = 17;
+  const totalSteps = 18;
   const progressPercent = Math.min(100, Math.round(((step + 1) / totalSteps) * 100));
 
   return (
@@ -914,7 +960,7 @@ export default function TradeIn() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="mt-5 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
+                  className="mt-5 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
                 >
                   Receber minha pré-avaliação <ArrowRight className="h-4 w-4" />
                 </button>
@@ -1121,7 +1167,14 @@ export default function TradeIn() {
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => autoAdvance("purchaseLocation", opt.id)}
+                      onClick={() => {
+                        if (declaredLojinhaPurchase(opt.id)) {
+                          updateField("purchaseLocation", opt.id);
+                        } else {
+                          updateField("cpf", "");
+                          autoAdvance("purchaseLocation", opt.id);
+                        }
+                      }}
                       className={`flex w-full flex-col justify-center rounded-2xl border p-4 text-left transition-all ${
                         isSelected || isAnimating
                           ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-sm"
@@ -1143,6 +1196,50 @@ export default function TradeIn() {
                 })}
               </div>
 
+              {declaredLojinhaPurchase(data.purchaseLocation) && (
+                <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/60 p-4 animate-fadeIn">
+                  <label htmlFor="trocafacil-cpf" className="text-sm font-bold text-purple-950">
+                    🎁 Quer garantir o bônus de fidelidade?
+                  </label>
+                  <p className="mt-1 text-xs leading-relaxed text-purple-900/80">
+                    Informe seu CPF para a gente localizar sua compra. Usamos só para conferir o cadastro: <b>não guardamos</b> o seu CPF.
+                    É opcional.
+                  </p>
+                  <input
+                    id="trocafacil-cpf"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="000.000.000-00"
+                    value={data.cpf}
+                    onChange={e => updateField("cpf", e.target.value)}
+                    className="mt-3 min-h-[52px] w-full rounded-2xl border border-purple-200 bg-white px-4 text-base font-medium text-[#1d1d1f] outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-200/60"
+                  />
+                  {data.cpf && onlyDigits(data.cpf).length === 11 && !isValidCpf(data.cpf) && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-600">CPF inválido. Confira os números.</p>
+                  )}
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-4 text-sm font-semibold text-white transition hover:bg-black"
+                    >
+                      Continuar <ArrowRight className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateField("cpf", "");
+                        setStep(curr => curr + 1);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="flex min-h-[52px] flex-1 items-center justify-center rounded-2xl border border-[#e5e5e7] bg-white px-4 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7]"
+                    >
+                      Prefiro não informar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
                   {error}
@@ -1163,9 +1260,55 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 3: COMO ESTÁ A SAÚDE DA BATERIA? (SLIDER VISUAL)                  */}
+          {/* ETAPA 3: ICLOUD / BUSCAR IPHONE (ELIMINATÓRIA)                            */}
           {/* ========================================================================= */}
           {step === 3 && (
+            data.icloudFree === "Não" ? (
+              <div className="rounded-3xl border border-red-200 bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+                <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
+                  Ainda não conseguimos avaliar esse iPhone
+                </h2>
+                <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">
+                  Não compramos nem recebemos em troca aparelhos com bloqueio de iCloud. Quando você conseguir sair da conta Apple e
+                  desativar o <b>Buscar iPhone</b> (Ajustes &gt; seu nome &gt; Buscar), é só fazer uma nova avaliação.
+                </p>
+                <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => updateField("icloudFree", "")}
+                    className="flex min-h-[52px] flex-1 items-center justify-center gap-1 rounded-2xl border border-[#e5e5e7] px-4 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7]"
+                  >
+                    <ArrowLeft className="h-4 w-4" /> Mudei a resposta
+                  </button>
+                  <a
+                    href={mainStoreUrl}
+                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-4 text-sm font-semibold text-white transition hover:bg-black"
+                  >
+                    Vitrine da Loja <ArrowRight className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <TriChoiceStep
+                title="O iPhone está livre de bloqueio do iCloud?"
+                subtitle="Precisa estar sem a conta Apple de outra pessoa e com o Buscar iPhone desativado (ou que você consiga desativar)."
+                options={[
+                  { value: "Sim", label: "Sim, está livre" },
+                  { value: "Não", label: "Não, está bloqueado ou não tenho a senha" },
+                  { value: "Não sei", label: "Não sei" },
+                ]}
+                value={data.icloudFree}
+                animating={animatingSelection}
+                onSelect={val => (val === "Não" ? updateField("icloudFree", val) : autoAdvance("icloudFree", val))}
+                onBack={goBack}
+              />
+            )
+          )}
+
+          {/* ========================================================================= */}
+          {/* ETAPA 4: COMO ESTÁ A SAÚDE DA BATERIA? (SLIDER VISUAL)                  */}
+          {/* ========================================================================= */}
+          {step === 4 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 Como está a saúde da bateria?
@@ -1256,9 +1399,9 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 4: E PRA QUAL IPHONE VOCÊ QUER TROCAR?                            */}
+          {/* ETAPA 5: E PRA QUAL IPHONE VOCÊ QUER TROCAR?                            */}
           {/* ========================================================================= */}
-          {step === 4 && (
+          {step === 5 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 E pra qual iPhone você quer trocar?
@@ -1324,7 +1467,7 @@ export default function TradeIn() {
           {/* ========================================================================= */}
           {/* ETAPAS 5 A 12: DIAGNÓSTICO SIM / NÃO / NÃO SEI                           */}
           {/* ========================================================================= */}
-          {step === 5 && (
+          {step === 6 && (
             <TriChoiceStep
               title="Face ID funciona?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1335,7 +1478,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 6 && (
+          {step === 7 && (
             <TriChoiceStep
               title="Tela original?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1346,7 +1489,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 7 && (
+          {step === 8 && (
             <TriChoiceStep
               title="Bateria original?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1357,7 +1500,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 8 && (
+          {step === 9 && (
             <TriChoiceStep
               title="Câmeras funcionando?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1368,7 +1511,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 9 && (
+          {step === 10 && (
             <TriChoiceStep
               title="Áudio funcionando?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1379,7 +1522,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 10 && (
+          {step === 11 && (
             <TriChoiceStep
               title="Conector de carga funcionando?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1390,7 +1533,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 11 && (
+          {step === 12 && (
             <TriChoiceStep
               title="Aparelho já foi aberto?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1401,7 +1544,7 @@ export default function TradeIn() {
             />
           )}
 
-          {step === 12 && (
+          {step === 13 && (
             <TriChoiceStep
               title="Tem caixa?"
               subtitle="Só marcar — Sim, Não ou Não sei."
@@ -1413,9 +1556,9 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 13: COMO ESTÁ O VISUAL DELE?                                       */}
+          {/* ETAPA 14: COMO ESTÁ O VISUAL DELE?                                       */}
           {/* ========================================================================= */}
-          {step === 13 && (
+          {step === 14 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 Como está o visual dele?
@@ -1460,9 +1603,9 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 14: AGORA AS FOTOS (5 SLOTS DEDICADOS)                             */}
+          {/* ETAPA 15: AGORA AS FOTOS (5 SLOTS DEDICADOS)                             */}
           {/* ========================================================================= */}
-          {step === 14 && (
+          {step === 15 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 Fotos do seu aparelho
@@ -1541,9 +1684,9 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 15: QUAL LOJA FICA MELHOR?                                          */}
+          {/* ETAPA 16: QUAL LOJA FICA MELHOR?                                          */}
           {/* ========================================================================= */}
-          {step === 15 && (
+          {step === 16 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 Qual loja fica melhor pra você?
@@ -1600,9 +1743,9 @@ export default function TradeIn() {
           )}
 
           {/* ========================================================================= */}
-          {/* ETAPA 16: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO)                  */}
+          {/* ETAPA 17: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO)                  */}
           {/* ========================================================================= */}
-          {step === 16 && (
+          {step === 17 && (
             <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
               <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
                 Última olhada antes de enviar
@@ -1629,6 +1772,7 @@ export default function TradeIn() {
                   value={data.targetModel || "Apenas vender"}
                   highlight
                 />
+                <SummaryRow label="iCloud livre" value={data.icloudFree || "Não informado"} />
                 <SummaryRow label="Estado" value={data.visualCondition || "Em análise"} />
                 <SummaryRow label="Loja" value={unitLabel || "Não informada"} />
                 <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
@@ -1645,7 +1789,7 @@ export default function TradeIn() {
                     <button
                       type="button"
                       onClick={() => {
-                        setStep(14);
+                        setStep(15);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
                       className="text-xs font-semibold text-[#0071e3] hover:underline cursor-pointer"
@@ -1676,25 +1820,17 @@ export default function TradeIn() {
               )}
 
               {/* Destaque da Pré-Avaliação */}
-              {hidePrices ? (
+              {!showPrices ? (
                 <div className="mt-4 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
-                      ✨ Classificação Preliminar
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
-                    >
-                      <span>{gradeConfig.iconText}</span>
-                      <span>{gradeConfig.label} ({valuation.grade})</span>
-                    </span>
-                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
+                    ✨ Quase lá
+                  </span>
                   <div className="mt-2 text-xs sm:text-sm font-medium text-[#1d1d1f] leading-relaxed">
-                    Seu aparelho foi qualificado preliminarmente com base nas condições informadas! Ao enviar, nossa equipe técnica em Jardim/MS analisará suas fotos e diagnóstico para passar a melhor proposta comercial direto no seu WhatsApp.
+                    Ao enviar, nossa equipe técnica{unitLabel ? ` de ${unitLabel}` : ""} analisa suas fotos e o diagnóstico e passa a proposta direto no seu WhatsApp. O valor é confirmado na conferência presencial.
                   </div>
                   {valuation.loyaltyBonusApplied && (
                     <p className="mt-2 text-xs font-semibold text-purple-900 flex items-center gap-1">
-                      🎁 Bônus Fidelidade Lojinha do Celular garantido para sua proposta!
+                      🎁 Você disse que comprou com a gente: vamos conferir seu cadastro para aplicar o bônus de fidelidade.
                     </p>
                   )}
                 </div>
@@ -1728,7 +1864,7 @@ export default function TradeIn() {
               {/* Mini resumo do diagnóstico técnico */}
               <div className="mt-3 rounded-xl bg-[#f5f5f7] p-3 text-[11px] leading-relaxed text-[#6e6e73]">
                 <span className="font-bold text-[#1d1d1f]">Diagnóstico: </span>
-                Face ID ({data.faceId || "–"}), Tela ({data.screenOriginal || "–"}), Bateria (
+                iCloud ({data.icloudFree || "–"}), Face ID ({data.faceId || "–"}), Tela ({data.screenOriginal || "–"}), Bateria (
                 {data.batteryOriginal || "–"}), Câmeras ({data.camerasOk || "–"}), Áudio (
                 {data.audioOk || "–"}), Conector ({data.chargingPortOk || "–"}), Aberto (
                 {data.openedBefore || "–"}), Caixa ({data.hasBox || "–"}).
@@ -1827,6 +1963,7 @@ function TriChoiceStep({
   animating,
   onSelect,
   onBack,
+  options = SIMPLE_TRI_OPTIONS.map(opt => ({ value: opt, label: opt })),
 }: {
   title: string;
   subtitle: string;
@@ -1834,6 +1971,7 @@ function TriChoiceStep({
   animating: string | null;
   onSelect: (val: string) => void;
   onBack: () => void;
+  options?: { value: string; label: string }[];
 }) {
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
@@ -1843,7 +1981,7 @@ function TriChoiceStep({
       <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">{subtitle}</p>
 
       <div className="mt-6 space-y-2.5">
-        {SIMPLE_TRI_OPTIONS.map(opt => {
+        {options.map(({ value: opt, label }) => {
           const isSelected = value === opt;
           const isAnimating = animating === opt;
           return (
@@ -1851,13 +1989,13 @@ function TriChoiceStep({
               key={opt}
               type="button"
               onClick={() => onSelect(opt)}
-              className={`flex h-13 w-full items-center justify-center rounded-2xl border text-sm font-semibold transition-all ${
+              className={`flex min-h-[52px] w-full items-center justify-center rounded-2xl border px-4 text-center text-sm font-semibold transition-all ${
                 isSelected || isAnimating
                   ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
                   : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
               }`}
             >
-              {opt}
+              {label}
             </button>
           );
         })}

@@ -323,6 +323,13 @@ export default function Produto() {
         }
       : undefined;
 
+  const trackInterestMutation = trpc.shop.trackInterest.useMutation();
+  /** Conta o clique de interesse; falhas não atrapalham o cliente. */
+  const trackInterest = () => {
+    if (isDemo || !idStr) return;
+    trackInterestMutation.mutate({ productId: isUuidOrString ? idStr : numericId });
+  };
+
   const handleAddToCart = () => {
     if (!product || price == null) return;
     const cartItemId = `${product.id}-${selectedVariantId || color || "default"}-${storage || "default"}`;
@@ -771,6 +778,7 @@ export default function Produto() {
                   )}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={trackInterest}
                   className="w-full rounded-full bg-neutral-900 hover:bg-black text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98]"
                 >
                   <MessageCircle className="h-4 w-4" />
@@ -791,7 +799,10 @@ export default function Produto() {
                     href={waLink(targetWhatsapp, buyMessage)}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={handleAddToCart}
+                    onClick={() => {
+                      trackInterest();
+                      handleAddToCart();
+                    }}
                     className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer"
                   >
                     <WhatsAppIcon className="h-4 w-4 fill-white" />
