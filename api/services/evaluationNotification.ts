@@ -1,6 +1,10 @@
 import { env } from "../lib/env";
 import { getPool } from "../queries/connection";
 import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
+import { parseAutoMessages, SETTING_KEYS } from "@contracts/types";
+import { getAllSettings } from "./settingsStore";
+import { isEvolutionConfigured, normalizeBrazilNumber, sendEvolutionText } from "./evolution";
+import { recordEvaluationMessage } from "./evaluationMessages";
 
 export type EvaluationNotificationStatus = "not_configured" | "sent" | "failed";
 
@@ -115,6 +119,51 @@ async function sendWhatsAppCloudMessage(input: EvaluationNotificationInput): Pro
   });
 }
 
+/** Aviso à equipe pela Evolution API: WhatsApp da unidade escolhida (ou das duas, sem unidade). */
+async function sendEvolutionTeamMessage(input: EvaluationNotificationInput): Promise<"sent" | "skipped"> {
+  const settings = await getAllSettings();
+  if (!parseAutoMessages(settings[SETTING_KEYS.autoMessages]).teamEnabled) return "skipped";
+
+  const numbers = {
+    jardim: settings[SETTING_KEYS.whatsappJardim],
+    gll: settings[SETTING_KEYS.whatsappGll],
+  };
+  const targets = input.unit === "jardim" || input.unit === "gll" ? [numbers[input.unit]] : [numbers.jardim, numbers.gll];
+  const destinations = [...new Set(targets.map((n) => normalizeBrazilNumber(n)).filter((n): n is string => Boolean(n)))];
+  if (!destinations.length) throw new Error("Nenhum WhatsApp de unidade válido para avisar a equipe.");
+
+  const unitLabel = STORE_UNITS.find((u) => u.value === input.unit)?.label;
+  const lines = [
+    `📱 Nova avaliação #${input.id}`,
+    `${input.name} — ${[input.model, input.storage].filter(Boolean).join(" ")}`,
+    input.targetModel ? `Quer: ${input.targetModel}` : "",
+    unitLabel ? `Loja: ${unitLabel}` : "",
+    `WhatsApp: ${input.whatsapp}`,
+    `Fotos: ${input.photosCount || 0}`,
+  ].filter(Boolean);
+  const text = lines.join("\n");
+
+  const failures: string[] = [];
+  for (const number of destinations) {
+    try {
+      await sendEvolutionText(number, text);
+    } catch (error) {
+      failures.push(shortError(error));
+    }
+  }
+  const status = failures.length === destinations.length ? "failed" : "sent";
+  await recordEvaluationMessage({
+    evaluationId: input.id,
+    event: "created",
+    recipient: "equipe",
+    status,
+    error: failures[0] ?? null,
+    body: text,
+  });
+  if (status === "failed") throw new Error(failures[0]);
+  return "sent";
+}
+
 export function isEvaluationNotificationConfigured(): boolean {
   const webhookConfigured = Boolean(env.evaluationNotificationWebhookUrl);
   const cloudConfigured = Boolean(
@@ -123,7 +172,7 @@ export function isEvaluationNotificationConfigured(): boolean {
       env.whatsappNotificationTo ||
       env.whatsappNotificationTemplate,
   );
-  return webhookConfigured || cloudConfigured;
+  return webhookConfigured || isEvolutionConfigured() || cloudConfigured;
 }
 
 export async function notifyEvaluationCreated(
@@ -137,13 +186,17 @@ export async function notifyEvaluationCreated(
       env.whatsappNotificationTemplate,
   );
 
-  if (!webhookUrl && !hasCloudConfig) {
+  const hasEvolution = isEvolutionConfigured();
+
+  if (!webhookUrl && !hasEvolution && !hasCloudConfig) {
     return { status: "not_configured" };
   }
 
   try {
     if (webhookUrl) {
       await sendWebhook(input);
+    } else if (hasEvolution) {
+      if ((await sendEvolutionTeamMessage(input)) === "skipped") return { status: "not_configured" };
     } else {
       await sendWhatsAppCloudMessage(input);
     }

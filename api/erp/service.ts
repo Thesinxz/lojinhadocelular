@@ -1,6 +1,7 @@
 import { env } from "../lib/env";
 import { adaptErpCatalog } from "./adapter";
 import { getErpOverrides, applyOverridesToProducts } from "./overrides";
+import { recordCatalogSnapshot } from "../services/catalogHistory";
 import type { ErpFetchResult, ShopProduct } from "./types";
 
 const CACHE_TTL_MS = 45_000; // 45 segundos (intervalo exigido: 30–60s)
@@ -130,6 +131,9 @@ async function loadErpCatalog(): Promise<ErpFetchResult> {
       data: products,
       cachedAt: now,
     };
+
+    // Histórico de preço/estoque (não bloqueia nem afeta a sincronização)
+    void recordCatalogSnapshot(products);
 
     return {
       status: products.length > 0 ? "ok" : "empty",

@@ -3,12 +3,13 @@
  * Drizzle com fallback para SQL direto (bancos antigos sem as colunas novas ainda),
  * e armazenamento em memória durante os testes.
  */
-import { and, count, desc, eq, isNull, like, lt, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, like, lt, lte, or, type SQL } from "drizzle-orm";
 import { evaluations } from "@db/schema";
 import type { EvaluationStatus } from "@contracts/types";
 import { ensureTables, getDb, getPool } from "../queries/connection";
 import type { EvaluationUnit, WorkflowState } from "../evaluationWorkflow";
 import type { EvalStatRow } from "../dashboard";
+import type { ReportRow } from "../evaluationReport";
 
 export type EvaluationRecord = typeof evaluations.$inferSelect;
 
@@ -74,6 +75,11 @@ export function seedEvaluationForTesting(patch: Partial<EvaluationRecord> = {}):
     chargingPortOk: "",
     openedBefore: "",
     hasBox: "",
+    icloudFree: "",
+    loyaltyStatus: "",
+    loyaltyNote: "",
+    erpCustomerId: "",
+    loyaltyCheckedAt: null,
     visualCondition: "",
     condition: "Em análise",
     battery: "90%",
@@ -139,6 +145,11 @@ export function mapEvaluationSqlRow(r: Record<string, unknown>): EvaluationRecor
     chargingPortOk: String(r.charging_port_ok || ""),
     openedBefore: String(r.opened_before || ""),
     hasBox: String(r.has_box || ""),
+    icloudFree: String(r.icloud_free || ""),
+    loyaltyStatus: String(r.loyalty_status || ""),
+    loyaltyNote: String(r.loyalty_note || ""),
+    erpCustomerId: String(r.erp_customer_id || ""),
+    loyaltyCheckedAt: r.loyalty_checked_at ? new Date(r.loyalty_checked_at as string) : null,
     visualCondition: String(r.visual_condition || ""),
     condition: String(r.condition || "Em análise"),
     battery: String(r.battery || ""),
@@ -333,6 +344,141 @@ export async function findEvaluationStatRows(unit?: "jardim" | "gll"): Promise<E
   }
 }
 
+/** Avaliações recebidas no período (sem fotos), para relatórios e exportação. */
+export async function findEvaluationReportRows(opts: {
+  from: Date;
+  to: Date;
+  unit?: "jardim" | "gll";
+}): Promise<ReportRow[]> {
+  const pick = (r: EvaluationRecord): ReportRow => ({
+    id: Number(r.id),
+    name: r.name,
+    whatsapp: r.whatsapp,
+    model: r.model,
+    storage: r.storage,
+    unit: r.unit,
+    status: r.status,
+    refusalReason: r.refusalReason,
+    offeredValue: r.offeredValue,
+    closedValue: r.closedValue,
+    createdAt: r.createdAt,
+    firstResponseAt: r.firstResponseAt,
+    statusChangedAt: r.statusChangedAt,
+    assignedUserId: r.assignedUserId,
+    assignedUserName: r.assignedUserName,
+  });
+  const inRange = (r: EvaluationRecord) => r.createdAt >= opts.from && r.createdAt <= opts.to;
+  if (isMemoryMode()) {
+    return memoryRows.filter((r) => inRange(r) && (!opts.unit || r.unit === opts.unit)).map(pick);
+  }
+  try {
+    const db = getDb();
+    await ensureTables();
+    const filters: SQL[] = [gte(evaluations.createdAt, opts.from), lte(evaluations.createdAt, opts.to)];
+    if (opts.unit) filters.push(eq(evaluations.unit, opts.unit));
+    return await db
+      .select({
+        id: evaluations.id,
+        name: evaluations.name,
+        whatsapp: evaluations.whatsapp,
+        model: evaluations.model,
+        storage: evaluations.storage,
+        unit: evaluations.unit,
+        status: evaluations.status,
+        refusalReason: evaluations.refusalReason,
+        offeredValue: evaluations.offeredValue,
+        closedValue: evaluations.closedValue,
+        createdAt: evaluations.createdAt,
+        firstResponseAt: evaluations.firstResponseAt,
+        statusChangedAt: evaluations.statusChangedAt,
+        assignedUserId: evaluations.assignedUserId,
+        assignedUserName: evaluations.assignedUserName,
+      })
+      .from(evaluations)
+      .where(and(...filters))
+      .orderBy(desc(evaluations.createdAt))
+      .then((rows) => rows.map((r) => ({ ...r, id: Number(r.id) })));
+  } catch (err) {
+    const pool = getPool();
+    if (!pool) throw err;
+    const [rows] = await pool.query(
+      `SELECT * FROM evaluations WHERE created_at >= ? AND created_at <= ?${opts.unit ? " AND unit = ?" : ""} ORDER BY created_at DESC`,
+      opts.unit ? [opts.from, opts.to, opts.unit] : [opts.from, opts.to],
+    );
+    return (Array.isArray(rows) ? (rows as Record<string, unknown>[]) : []).map((r) =>
+      pick(mapEvaluationSqlRow(r)),
+    );
+  }
+}
+
+export interface RelatedEvaluation {
+  id: number;
+  model: string;
+  storage: string | null;
+  status: EvaluationStatus;
+  closedValue: number | null;
+  createdAt: Date;
+}
+
+/** Outras avaliações do mesmo WhatsApp (compara os 8 últimos dígitos), da mais recente para a mais antiga. */
+export async function findRelatedEvaluations(whatsapp: string, excludeId: number, limit = 10): Promise<RelatedEvaluation[]> {
+  const digits = String(whatsapp ?? "").replace(/\D/g, "");
+  if (digits.length < 8) return [];
+  const key = digits.slice(-8);
+  const sameKey = (value: string) => String(value ?? "").replace(/\D/g, "").slice(-8) === key;
+  const pick = (r: EvaluationRecord): RelatedEvaluation => ({
+    id: Number(r.id),
+    model: r.model,
+    storage: r.storage,
+    status: r.status,
+    closedValue: r.closedValue,
+    createdAt: r.createdAt,
+  });
+  const byRecent = (a: RelatedEvaluation, b: RelatedEvaluation) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id;
+
+  if (isMemoryMode()) {
+    return memoryRows
+      .filter((r) => r.id !== excludeId && sameKey(r.whatsapp))
+      .map(pick)
+      .sort(byRecent)
+      .slice(0, limit);
+  }
+  try {
+    const db = getDb();
+    await ensureTables();
+    // O número é guardado com máscara; o final (últimos 4 dígitos) continua contíguo.
+    const rows = await db
+      .select({
+        id: evaluations.id,
+        whatsapp: evaluations.whatsapp,
+        model: evaluations.model,
+        storage: evaluations.storage,
+        status: evaluations.status,
+        closedValue: evaluations.closedValue,
+        createdAt: evaluations.createdAt,
+      })
+      .from(evaluations)
+      .where(like(evaluations.whatsapp, `%${digits.slice(-4)}`))
+      .orderBy(desc(evaluations.createdAt))
+      .limit(200);
+    return rows
+      .filter((r) => Number(r.id) !== excludeId && sameKey(r.whatsapp))
+      .map((r) => ({
+        id: Number(r.id),
+        model: r.model,
+        storage: r.storage,
+        status: r.status,
+        closedValue: r.closedValue,
+        createdAt: r.createdAt,
+      }))
+      .sort(byRecent)
+      .slice(0, limit);
+  } catch (err) {
+    console.error("Falha ao buscar avaliações do mesmo cliente:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 export async function findEvaluationById(id: number): Promise<EvaluationRecord | null> {
   if (isMemoryMode()) {
     const row = memoryRows.find((r) => r.id === id);
@@ -387,6 +533,25 @@ export async function updateEvaluationWorkflow(
     const sets = keys.map((k) => `\`${WORKFLOW_COLUMNS[k]}\` = ?`).join(", ");
     await pool.query(`UPDATE evaluations SET ${sets} WHERE id = ?`, [...keys.map((k) => patch[k]), id]);
   }
+}
+
+export interface LoyaltyPatch {
+  loyaltyStatus: string;
+  loyaltyNote: string;
+  erpCustomerId: string;
+}
+
+/** Grava o resultado da conferência do bônus de fidelidade (nunca o CPF). */
+export async function updateEvaluationLoyalty(id: number, patch: LoyaltyPatch): Promise<void> {
+  const values = { ...patch, loyaltyCheckedAt: new Date() };
+  if (isMemoryMode()) {
+    const row = memoryRows.find((r) => r.id === id);
+    if (row) Object.assign(row, values);
+    return;
+  }
+  const db = getDb();
+  await ensureTables();
+  await db.update(evaluations).set(values).where(eq(evaluations.id, id));
 }
 
 // ===== Conversões com as regras puras =====

@@ -48,7 +48,8 @@ export function createToken(userId: number, ttlMs: number = TOKEN_TTL_MS): strin
   return Buffer.from(`${payload}.${sign(payload)}`).toString("base64url");
 }
 
-export function verifyToken(token: string): { userId: number } | null {
+/** Valida o token e devolve também o instante de emissão (vencimento menos o prazo padrão). */
+export function parseToken(token: string): { userId: number; issuedAt: number } | null {
   if (!token || typeof token !== "string") return null;
   try {
     const decoded = Buffer.from(token, "base64url").toString("utf8");
@@ -62,10 +63,16 @@ export function verifyToken(token: string): { userId: number } | null {
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
     if (Number(expStr) < Date.now()) return null;
     const userId = Number(idStr);
-    return Number.isSafeInteger(userId) && userId > 0 ? { userId } : null;
+    // O token não guarda a emissão: ela é o vencimento menos o prazo padrão.
+    return Number.isSafeInteger(userId) && userId > 0 ? { userId, issuedAt: Number(expStr) - TOKEN_TTL_MS } : null;
   } catch {
     return null;
   }
+}
+
+export function verifyToken(token: string): { userId: number } | null {
+  const parsed = parseToken(token);
+  return parsed ? { userId: parsed.userId } : null;
 }
 
 export function tokenFromRequest(req: Request): string | null {
@@ -94,10 +101,12 @@ export async function authenticate(username: string, password: string): Promise<
 export async function getSessionUser(req: Request): Promise<SessionUser | null> {
   const token = tokenFromRequest(req);
   if (!token) return null;
-  const parsed = verifyToken(token);
+  const parsed = parseToken(token);
   if (!parsed) return null;
   const user = await getUserById(parsed.userId);
   if (!user || !user.active) return null;
+  // Sessões encerradas pelo dono (ou por troca de senha) não valem mais.
+  if (user.sessionsValidAfter && parsed.issuedAt <= user.sessionsValidAfter.getTime()) return null;
   return toSessionUser(user);
 }
 

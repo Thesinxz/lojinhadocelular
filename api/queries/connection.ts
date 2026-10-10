@@ -107,12 +107,17 @@ export async function ensureTables() {
         role ENUM('dono', 'vendedor') NOT NULL DEFAULT 'vendedor',
         unit VARCHAR(10) NULL,
         can_edit_prices BOOLEAN NOT NULL DEFAULT FALSE,
+        extra_caps TEXT NULL,
+        sessions_valid_after TIMESTAMP NULL,
         active BOOLEAN NOT NULL DEFAULT TRUE,
         last_login_at TIMESTAMP NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uq_admin_users_username (username)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    await ensureColumnExists(pool, "admin_users", "extra_caps", "TEXT NULL");
+    await ensureColumnExists(pool, "admin_users", "sessions_valid_after", "TIMESTAMP NULL");
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
@@ -147,6 +152,11 @@ export async function ensureTables() {
         charging_port_ok VARCHAR(30) DEFAULT '',
         opened_before VARCHAR(30) DEFAULT '',
         has_box VARCHAR(30) DEFAULT '',
+        icloud_free VARCHAR(30) DEFAULT '',
+        loyalty_status VARCHAR(20) DEFAULT '',
+        loyalty_note VARCHAR(200) DEFAULT '',
+        erp_customer_id VARCHAR(80) DEFAULT '',
+        loyalty_checked_at TIMESTAMP NULL,
         visual_condition VARCHAR(100) DEFAULT '',
         \`condition\` VARCHAR(60) NOT NULL,
         battery VARCHAR(60) NOT NULL,
@@ -181,6 +191,11 @@ export async function ensureTables() {
     await ensureColumnExists(pool, "evaluations", "charging_port_ok", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "opened_before", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "has_box", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "icloud_free", "VARCHAR(30) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "loyalty_status", "VARCHAR(20) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "loyalty_note", "VARCHAR(200) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "erp_customer_id", "VARCHAR(80) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "loyalty_checked_at", "TIMESTAMP NULL");
     await ensureColumnExists(pool, "evaluations", "visual_condition", "VARCHAR(100) DEFAULT ''");
     // Fluxo de atendimento (Etapa 3)
     await ensureColumnExists(pool, "evaluations", "unit", "VARCHAR(10) DEFAULT ''");
@@ -202,6 +217,67 @@ export async function ensureTables() {
         body TEXT NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_evaluation_notes_evaluation (evaluation_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS evaluation_messages (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        evaluation_id INT UNSIGNED NOT NULL,
+        event VARCHAR(30) NOT NULL,
+        recipient VARCHAR(10) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        error TEXT,
+        body TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_evaluation_messages_evaluation (evaluation_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS catalog_state (
+        product_id VARCHAR(80) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        price INT NULL,
+        stock_jardim INT NOT NULL DEFAULT 0,
+        stock_gll INT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS catalog_changes (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        product_id VARCHAR(80) NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        kind VARCHAR(20) NOT NULL,
+        old_value INT NULL,
+        new_value INT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_catalog_changes_created_at (created_at),
+        INDEX idx_catalog_changes_product (product_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS product_interest (
+        day VARCHAR(10) NOT NULL,
+        product_id VARCHAR(80) NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        clicks INT NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, product_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS evaluation_erp_entries (
+        evaluation_id INT UNSIGNED PRIMARY KEY,
+        status VARCHAR(10) NOT NULL,
+        erp_product_id VARCHAR(80) NULL,
+        imei_last4 VARCHAR(4) NULL,
+        user_id INT UNSIGNED NULL,
+        user_name VARCHAR(80) NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 

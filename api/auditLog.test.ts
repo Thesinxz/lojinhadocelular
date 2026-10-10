@@ -69,6 +69,24 @@ describe("logAction / listAudit", () => {
     expect((await listAudit({ limit: 2 })).map((e) => e.summary)).toEqual(["d", "c"]);
   });
 
+  it("filtra por usuário, ação, texto e pagina por beforeId", async () => {
+    const ana = { id: 2, name: "Ana" };
+    const bia = { id: 3, name: "Bia" };
+    await logAction(ana, { action: "evaluation.claim", entityType: "evaluation", entityId: 1, summary: "Ana assumiu iPhone" });
+    await logAction(bia, { action: "product.update", entityType: "product", entityId: 9, summary: "Preço do Galaxy" });
+    await logAction(bia, { action: "evaluation.status", entityType: "evaluation", entityId: 1, summary: "Concluída" });
+
+    expect((await listAudit({ userId: 3 })).map((e) => e.summary)).toEqual(["Concluída", "Preço do Galaxy"]);
+    expect((await listAudit({ action: "evaluation." })).map((e) => e.summary)).toEqual(["Concluída", "Ana assumiu iPhone"]);
+    expect((await listAudit({ search: "galaxy" })).map((e) => e.summary)).toEqual(["Preço do Galaxy"]);
+
+    const firstPage = await listAudit({ limit: 2 });
+    const rest = await listAudit({ beforeId: firstPage[firstPage.length - 1].id });
+    expect(rest.map((e) => e.summary)).toEqual(["Ana assumiu iPhone"]);
+
+    expect(await listAudit({ from: new Date(Date.now() + 60_000) })).toEqual([]);
+  });
+
   it("nunca lança erro, mesmo com dados ruins", async () => {
     await expect(
       logAction({ id: 1, name: "Dono" }, {

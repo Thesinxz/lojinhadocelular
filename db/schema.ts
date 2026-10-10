@@ -10,6 +10,7 @@ import {
   timestamp,
   bigint,
   index,
+  primaryKey,
 } from "drizzle-orm/mysql-core";
 
 export const products = mysqlTable(
@@ -78,6 +79,8 @@ export const adminUsers = mysqlTable("admin_users", {
   role: mysqlEnum("role", ["dono", "vendedor"]).notNull().default("vendedor"),
   unit: varchar("unit", { length: 10 }), // jardim | gll | NULL (= todas)
   canEditPrices: boolean("can_edit_prices").notNull().default(false),
+  extraCaps: text("extra_caps"), // JSON: permissões extras delegadas ao vendedor
+  sessionsValidAfter: timestamp("sessions_valid_after"), // tokens emitidos antes disso são recusados
   active: boolean("active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -120,6 +123,12 @@ export const evaluations = mysqlTable(
     chargingPortOk: varchar("charging_port_ok", { length: 30 }).default(""),
     openedBefore: varchar("opened_before", { length: 30 }).default(""),
     hasBox: varchar("has_box", { length: 30 }).default(""),
+    icloudFree: varchar("icloud_free", { length: 30 }).default(""),
+    // Bônus de fidelidade (resultado da conferência no ERP; o CPF nunca é gravado)
+    loyaltyStatus: varchar("loyalty_status", { length: 20 }).default(""),
+    loyaltyNote: varchar("loyalty_note", { length: 200 }).default(""),
+    erpCustomerId: varchar("erp_customer_id", { length: 80 }).default(""),
+    loyaltyCheckedAt: timestamp("loyalty_checked_at"),
     visualCondition: varchar("visual_condition", { length: 100 }).default(""),
     condition: varchar("condition", { length: 60 }).notNull(),
     battery: varchar("battery", { length: 60 }).notNull(),
@@ -162,3 +171,73 @@ export const evaluationNotes = mysqlTable(
     evaluationIdx: index("idx_evaluation_notes_evaluation").on(table.evaluationId),
   }),
 );
+
+export const evaluationMessages = mysqlTable(
+  "evaluation_messages",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    evaluationId: int("evaluation_id", { unsigned: true }).notNull(),
+    event: varchar("event", { length: 30 }).notNull(), // created | assigned | offered | concluded | refused
+    recipient: varchar("recipient", { length: 10 }).notNull(), // cliente | equipe
+    status: varchar("status", { length: 20 }).notNull(), // sent | failed
+    error: text("error"),
+    body: text("body"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    evaluationIdx: index("idx_evaluation_messages_evaluation").on(table.evaluationId),
+  }),
+);
+
+/** Último estado conhecido de cada produto do ERP (base para detectar mudanças). */
+export const catalogState = mysqlTable("catalog_state", {
+  productId: varchar("product_id", { length: 80 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  price: int("price"), // centavos (menor preço entre as variantes)
+  stockJardim: int("stock_jardim").notNull().default(0),
+  stockGll: int("stock_gll").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/** Mudanças de preço/estoque detectadas a cada sincronização (retenção de 90 dias). */
+export const catalogChanges = mysqlTable(
+  "catalog_changes",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    productId: varchar("product_id", { length: 80 }).notNull(),
+    productName: varchar("product_name", { length: 255 }).notNull(),
+    kind: varchar("kind", { length: 20 }).notNull(), // price | stock_jardim | stock_gll | new | removed
+    oldValue: int("old_value"),
+    newValue: int("new_value"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index("idx_catalog_changes_created_at").on(table.createdAt),
+    productIdx: index("idx_catalog_changes_product").on(table.productId),
+  }),
+);
+
+/** Cliques no WhatsApp por produto (interesse), um registro por dia e produto. */
+export const productInterest = mysqlTable(
+  "product_interest",
+  {
+    day: varchar("day", { length: 10 }).notNull(), // AAAA-MM-DD (Campo Grande)
+    productId: varchar("product_id", { length: 80 }).notNull(),
+    productName: varchar("product_name", { length: 255 }).notNull(),
+    clicks: int("clicks").notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.day, table.productId] }),
+  }),
+);
+
+/** Entrada no estoque do ERP gerada a partir de uma troca concluída (um registro por avaliação). */
+export const evaluationErpEntries = mysqlTable("evaluation_erp_entries", {
+  evaluationId: int("evaluation_id", { unsigned: true }).primaryKey(),
+  status: varchar("status", { length: 10 }).notNull(), // sending | sent
+  erpProductId: varchar("erp_product_id", { length: 80 }),
+  imeiLast4: varchar("imei_last4", { length: 4 }),
+  userId: int("user_id", { unsigned: true }),
+  userName: varchar("user_name", { length: 80 }).notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

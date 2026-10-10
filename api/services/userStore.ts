@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { asc, eq } from "drizzle-orm";
-import type { AdminRole, SessionUser, StoreUnit } from "@contracts/permissions";
+import { sanitizeExtraCaps, type AdminRole, type Capability, type SessionUser, type StoreUnit } from "@contracts/permissions";
 import { DEFAULT_SETTINGS, SETTING_KEYS } from "@contracts/types";
 import { adminUsers } from "@db/schema";
 import { ensureTables, getDb } from "../queries/connection";
@@ -12,6 +12,8 @@ export interface AdminUserRecord extends SessionUser {
   active: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
+  /** Tokens emitidos antes deste instante deixam de valer (encerrar sessões). */
+  sessionsValidAfter: Date | null;
 }
 
 export interface CreateUserInput {
@@ -21,6 +23,7 @@ export interface CreateUserInput {
   role: AdminRole;
   unit: StoreUnit | null;
   canEditPrices: boolean;
+  extraCaps?: Capability[];
 }
 
 export interface UpdateUserPatch {
@@ -28,6 +31,7 @@ export interface UpdateUserPatch {
   role?: AdminRole;
   unit?: StoreUnit | null;
   canEditPrices?: boolean;
+  extraCaps?: Capability[];
   active?: boolean;
 }
 
@@ -90,6 +94,15 @@ function validateUnit(unit: unknown): StoreUnit | null {
 
 type AdminUserRow = typeof adminUsers.$inferSelect;
 
+function parseExtraCaps(raw: string | null | undefined): Capability[] {
+  if (!raw) return [];
+  try {
+    return sanitizeExtraCaps(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
 function fromRow(row: AdminUserRow): AdminUserRecord {
   return {
     id: Number(row.id),
@@ -98,6 +111,8 @@ function fromRow(row: AdminUserRow): AdminUserRecord {
     role: row.role === "dono" ? "dono" : "vendedor",
     unit: normalizeUnit(row.unit),
     canEditPrices: Boolean(row.canEditPrices),
+    extraCaps: parseExtraCaps(row.extraCaps),
+    sessionsValidAfter: row.sessionsValidAfter ? new Date(row.sessionsValidAfter) : null,
     passwordHash: String(row.passwordHash),
     active: Boolean(row.active),
     lastLoginAt: row.lastLoginAt ? new Date(row.lastLoginAt) : null,
@@ -116,10 +131,13 @@ function clone(record: AdminUserRecord): AdminUserRecord {
     ...record,
     lastLoginAt: record.lastLoginAt ? new Date(record.lastLoginAt) : null,
     createdAt: new Date(record.createdAt),
+    sessionsValidAfter: record.sessionsValidAfter ? new Date(record.sessionsValidAfter) : null,
+    extraCaps: [...(record.extraCaps ?? [])],
   };
 }
 
 export function toSessionUser(r: AdminUserRecord): SessionUser {
+  const extraCaps = r.role === "vendedor" ? sanitizeExtraCaps(r.extraCaps) : [];
   return {
     id: r.id,
     username: r.username,
@@ -127,6 +145,8 @@ export function toSessionUser(r: AdminUserRecord): SessionUser {
     role: r.role,
     unit: r.unit,
     canEditPrices: r.canEditPrices,
+    // Só aparece quando há permissões extras (o formato antigo não muda para quem não tem).
+    ...(extraCaps.length ? { extraCaps } : {}),
   };
 }
 
@@ -165,13 +185,14 @@ export async function getUserByUsername(username: string): Promise<AdminUserReco
 }
 
 // ===== Escrita =====
-async function insertUser(data: Omit<AdminUserRecord, "id" | "createdAt" | "lastLoginAt">): Promise<AdminUserRecord> {
+async function insertUser(data: Omit<AdminUserRecord, "id" | "createdAt" | "lastLoginAt" | "sessionsValidAfter">): Promise<AdminUserRecord> {
   if (isMemoryMode()) {
     const record: AdminUserRecord = {
       ...data,
       id: memoryNextId++,
       lastLoginAt: null,
       createdAt: new Date(),
+      sessionsValidAfter: null,
     };
     memoryUsers.push(record);
     return clone(record);
@@ -185,6 +206,7 @@ async function insertUser(data: Omit<AdminUserRecord, "id" | "createdAt" | "last
       role: data.role,
       unit: data.unit,
       canEditPrices: data.canEditPrices,
+      extraCaps: data.extraCaps?.length ? JSON.stringify(data.extraCaps) : null,
       active: data.active,
     });
     const id = Number(result[0].insertId);
@@ -230,6 +252,7 @@ export async function createUser(input: CreateUserInput): Promise<AdminUserRecor
     role,
     unit,
     canEditPrices: role === "vendedor" ? Boolean(input.canEditPrices) : false,
+    extraCaps: role === "vendedor" ? sanitizeExtraCaps(input.extraCaps) : [],
     active: true,
   });
 }
@@ -252,8 +275,12 @@ export async function updateUser(
   if (patch.role !== undefined) next.role = validateRole(patch.role);
   if (patch.unit !== undefined) next.unit = validateUnit(patch.unit);
   if (patch.canEditPrices !== undefined) next.canEditPrices = Boolean(patch.canEditPrices);
+  if (patch.extraCaps !== undefined) next.extraCaps = sanitizeExtraCaps(patch.extraCaps);
   if (patch.active !== undefined) next.active = Boolean(patch.active);
-  if (next.role === "dono") next.canEditPrices = false;
+  if (next.role === "dono") {
+    next.canEditPrices = false;
+    next.extraCaps = [];
+  }
 
   const isSelf = actor.id === current.id;
   if (isSelf && current.active && !next.active) {
@@ -281,23 +308,48 @@ export async function updateUser(
       role: next.role,
       unit: next.unit,
       canEditPrices: next.canEditPrices,
+      extraCaps: next.extraCaps?.length ? JSON.stringify(next.extraCaps) : null,
       active: next.active,
     })
     .where(eq(adminUsers.id, id));
   return (await getUserById(id)) ?? next;
 }
 
-export async function setUserPassword(id: number, password: string): Promise<void> {
+export async function setUserPassword(
+  id: number,
+  password: string,
+  options: { revokeSessions?: boolean } = {},
+): Promise<void> {
   validatePassword(password);
   const current = await getUserById(id);
   if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
   const passwordHash = hashPassword(password);
+  const sessionsValidAfter = options.revokeSessions ? new Date() : undefined;
   if (isMemoryMode()) {
     const record = memoryUsers.find((u) => u.id === id);
-    if (record) record.passwordHash = passwordHash;
+    if (record) {
+      record.passwordHash = passwordHash;
+      if (sessionsValidAfter) record.sessionsValidAfter = sessionsValidAfter;
+    }
     return;
   }
-  await (await db()).update(adminUsers).set({ passwordHash }).where(eq(adminUsers.id, id));
+  await (await db())
+    .update(adminUsers)
+    .set(sessionsValidAfter ? { passwordHash, sessionsValidAfter } : { passwordHash })
+    .where(eq(adminUsers.id, id));
+}
+
+/** Encerra as sessões abertas do usuário: tokens emitidos até agora deixam de valer. */
+export async function revokeUserSessions(id: number): Promise<void> {
+  const current = await getUserById(id);
+  if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+  const now = new Date();
+  if (isMemoryMode()) {
+    const record = memoryUsers.find((u) => u.id === id);
+    if (record) record.sessionsValidAfter = now;
+    return;
+  }
+  await (await db()).update(adminUsers).set({ sessionsValidAfter: now }).where(eq(adminUsers.id, id));
 }
 
 export async function touchLastLogin(id: number): Promise<void> {

@@ -104,6 +104,29 @@ export const env = {
   get whatsappCloudApiVersion(): string {
     return optional("WHATSAPP_CLOUD_API_VERSION", "v22.0");
   },
+  // Usuário de serviço do ERP (entrada de seminovos). Dê a ele só as permissões necessárias.
+  get erpServiceEmail(): string {
+    return optional("ERP_SERVICE_EMAIL", "");
+  },
+  get erpServicePassword(): string {
+    return optional("ERP_SERVICE_PASSWORD", "");
+  },
+  /** IDs das unidades no ERP; vazios = descobre pelo nome da cidade na configuração pública. */
+  get erpUnitIdJardim(): string {
+    return optional("ERP_UNIT_ID_JARDIM", "");
+  },
+  get erpUnitIdGll(): string {
+    return optional("ERP_UNIT_ID_GLL", "");
+  },
+  get evolutionApiUrl(): string {
+    return optional("EVOLUTION_API_URL", "").replace(/\/+$/, "");
+  },
+  get evolutionApiKey(): string {
+    return optional("EVOLUTION_API_KEY", "");
+  },
+  get evolutionInstance(): string {
+    return optional("EVOLUTION_INSTANCE", "");
+  },
   get s3Endpoint(): string {
     return optional("S3_ENDPOINT", "");
   },

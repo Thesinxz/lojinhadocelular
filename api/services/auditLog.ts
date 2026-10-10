@@ -1,4 +1,4 @@
-import { and, desc, eq, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, like, lt, lte, type SQL } from "drizzle-orm";
 import type { SessionUser } from "@contracts/permissions";
 import { auditLogs } from "@db/schema";
 import { ensureTables, getDb } from "../queries/connection";
@@ -26,6 +26,15 @@ export interface ListAuditOptions {
   limit?: number;
   entityType?: string;
   entityId?: string;
+  userId?: number;
+  /** Prefixo da ação (ex.: "evaluation." ou "product.update"). */
+  action?: string;
+  /** Trecho do resumo (sem diferenciar maiúsculas). */
+  search?: string;
+  from?: Date;
+  to?: Date;
+  /** Paginação: devolve só registros com id menor que este. */
+  beforeId?: number;
 }
 
 const DEFAULT_LIMIT = 50;
@@ -90,9 +99,16 @@ export async function listAudit(opts: ListAuditOptions = {}): Promise<AuditEntry
   const limit = Math.min(Math.max(Math.trunc(opts.limit ?? DEFAULT_LIMIT) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
   if (isMemoryMode()) {
+    const search = opts.search?.trim().toLowerCase();
     return memoryEntries
       .filter((entry) => !opts.entityType || entry.entityType === opts.entityType)
       .filter((entry) => !opts.entityId || entry.entityId === String(opts.entityId))
+      .filter((entry) => !opts.userId || entry.userId === opts.userId)
+      .filter((entry) => !opts.action || entry.action.startsWith(opts.action))
+      .filter((entry) => !search || entry.summary.toLowerCase().includes(search))
+      .filter((entry) => !opts.from || entry.createdAt >= opts.from)
+      .filter((entry) => !opts.to || entry.createdAt <= opts.to)
+      .filter((entry) => !opts.beforeId || entry.id < opts.beforeId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id)
       .slice(0, limit)
       .map((entry) => ({ ...entry, createdAt: new Date(entry.createdAt) }));
@@ -103,6 +119,12 @@ export async function listAudit(opts: ListAuditOptions = {}): Promise<AuditEntry
   const filters: SQL[] = [];
   if (opts.entityType) filters.push(eq(auditLogs.entityType, opts.entityType));
   if (opts.entityId) filters.push(eq(auditLogs.entityId, String(opts.entityId)));
+  if (opts.userId) filters.push(eq(auditLogs.userId, opts.userId));
+  if (opts.action) filters.push(like(auditLogs.action, `${opts.action.replace(/[%_\\]/g, "\\$&")}%`));
+  if (opts.search?.trim()) filters.push(like(auditLogs.summary, `%${opts.search.trim().replace(/[%_\\]/g, "\\$&")}%`));
+  if (opts.from) filters.push(gte(auditLogs.createdAt, opts.from));
+  if (opts.to) filters.push(lte(auditLogs.createdAt, opts.to));
+  if (opts.beforeId) filters.push(lt(auditLogs.id, opts.beforeId));
   const rows = await db
     .select()
     .from(auditLogs)

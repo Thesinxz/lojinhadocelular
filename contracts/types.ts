@@ -36,6 +36,7 @@ export const SETTING_KEYS = {
   valuationConfig: "valuation_config", // JSON: Configuração do motor de avaliação inteligente
   evaluationSlaHours: "evaluation_sla_hours", // horas até uma avaliação pendente ficar "Atrasada"
   whatsappTemplates: "whatsapp_templates", // JSON: [{ id, label, body }] mensagens prontas do atendimento
+  autoMessages: "auto_messages", // JSON: AutoMessagesConfig (mensagens automáticas via Evolution API)
   adminPassword: "admin_password", // nunca exposta publicamente
 } as const;
 
@@ -139,6 +140,89 @@ export const DEFAULT_WHATSAPP_TEMPLATES: WhatsappTemplate[] = [
   },
 ];
 
+// ===== Mensagens automáticas (Evolution API) =====
+export const AUTO_MESSAGE_EVENTS = ["created", "assigned", "offered", "concluded", "refused"] as const;
+export type AutoMessageEvent = (typeof AUTO_MESSAGE_EVENTS)[number];
+
+export const AUTO_MESSAGE_EVENT_LABELS: Record<AutoMessageEvent, string> = {
+  created: "Avaliação recebida",
+  assigned: "Atendente definido",
+  offered: "Proposta enviada",
+  concluded: "Troca concluída",
+  refused: "Avaliação encerrada",
+};
+
+export interface AutoMessageRule {
+  enabled: boolean;
+  body: string;
+}
+
+export interface AutoMessagesConfig {
+  /** Liga/desliga todas as mensagens para o cliente. */
+  customerEnabled: boolean;
+  /** Avisa a equipe (WhatsApp da unidade) quando chega uma avaliação. */
+  teamEnabled: boolean;
+  events: Record<AutoMessageEvent, AutoMessageRule>;
+}
+
+export const DEFAULT_AUTO_MESSAGES: AutoMessagesConfig = {
+  customerEnabled: true,
+  teamEnabled: true,
+  events: {
+    created: {
+      enabled: true,
+      body: "Olá {nome}! Recebemos a avaliação do seu {modelo} na Lojinha do Celular 😊 Nossa equipe vai analisar e te responde em breve por aqui.",
+    },
+    assigned: {
+      enabled: false,
+      body: "Olá {nome}! {vendedor} vai cuidar da avaliação do seu {modelo}. Qualquer dúvida é só chamar por aqui.",
+    },
+    offered: {
+      enabled: false,
+      body: "Olá {nome}! Analisamos seu {modelo} e conseguimos oferecer {valor_oferecido} na troca, sujeito à conferência presencial. Podemos agendar sua visita?",
+    },
+    concluded: {
+      enabled: false,
+      body: "Obrigado pela confiança, {nome}! Sua troca foi concluída. Qualquer coisa, estamos à disposição na Lojinha do Celular 💙",
+    },
+    refused: {
+      enabled: false,
+      body: "Olá {nome}! Encerramos por aqui a avaliação do seu {modelo}. Se mudar de ideia ou quiser reavaliar, é só nos chamar.",
+    },
+  },
+};
+
+/** Lê o JSON salvo; qualquer campo ausente/inválido cai no padrão. */
+export function parseAutoMessages(raw: string | undefined | null): AutoMessagesConfig {
+  const base: AutoMessagesConfig = {
+    customerEnabled: DEFAULT_AUTO_MESSAGES.customerEnabled,
+    teamEnabled: DEFAULT_AUTO_MESSAGES.teamEnabled,
+    events: { ...DEFAULT_AUTO_MESSAGES.events },
+  };
+  if (!raw) return base;
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return base;
+  }
+  if (!data || typeof data !== "object") return base;
+  const input = data as Record<string, unknown>;
+  if (typeof input.customerEnabled === "boolean") base.customerEnabled = input.customerEnabled;
+  if (typeof input.teamEnabled === "boolean") base.teamEnabled = input.teamEnabled;
+  const events = input.events && typeof input.events === "object" ? (input.events as Record<string, unknown>) : {};
+  for (const event of AUTO_MESSAGE_EVENTS) {
+    const rule = events[event];
+    if (!rule || typeof rule !== "object") continue;
+    const { enabled, body } = rule as Record<string, unknown>;
+    base.events[event] = {
+      enabled: typeof enabled === "boolean" ? enabled : DEFAULT_AUTO_MESSAGES.events[event].enabled,
+      body: typeof body === "string" && body.trim() ? body : DEFAULT_AUTO_MESSAGES.events[event].body,
+    };
+  }
+  return base;
+}
+
 export const DEFAULT_SETTINGS: Record<string, string> = {
   whatsapp_jardim: "5567992086012",
   whatsapp_gll: "5567998206533",
@@ -160,6 +244,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   valuation_config: JSON.stringify(DEFAULT_VALUATION_CONFIG),
   evaluation_sla_hours: String(DEFAULT_EVALUATION_SLA_HOURS),
   whatsapp_templates: JSON.stringify(DEFAULT_WHATSAPP_TEMPLATES),
+  auto_messages: JSON.stringify(DEFAULT_AUTO_MESSAGES),
   admin_password: "lojinha123",
 };
 
