@@ -104,7 +104,11 @@ export const env = {
   get whatsappCloudApiVersion(): string {
     return optional("WHATSAPP_CLOUD_API_VERSION", "v22.0");
   },
-  // Usuário de serviço do ERP (entrada de seminovos). Dê a ele só as permissões necessárias.
+  /** Token de API do ERP (`gcl_...`). Tem prioridade sobre e-mail/senha. */
+  get erpApiToken(): string {
+    return optional("ERP_API_TOKEN", "");
+  },
+  // Usuário de serviço do ERP (alternativa ao token). Dê a ele só as permissões necessárias.
   get erpServiceEmail(): string {
     return optional("ERP_SERVICE_EMAIL", "");
   },

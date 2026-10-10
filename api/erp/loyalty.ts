@@ -80,6 +80,40 @@ function documentOf(client: Json): string | null {
   return typeof raw === "string" ? onlyDigits(raw) : null;
 }
 
+/**
+ * Endpoint mínimo do ERP: GET /api/clientes/fidelidade → { found, customer_id?, completed_sales_count, last_sale_at? }.
+ * Devolve `null` quando o ERP ainda não tem o endpoint (404) ou responde num formato desconhecido,
+ * para o chamador usar a leitura antiga (lista de clientes + histórico).
+ */
+async function viaFidelityEndpoint(digits: string): Promise<LoyaltyResult | null> {
+  let body: unknown;
+  try {
+    body = await erpRequest(`/api/clientes/fidelidade?cpf_cnpj=${encodeURIComponent(formatCpf(digits))}`);
+  } catch (err) {
+    if (err instanceof ErpApiError && err.status === 404) return null;
+    throw err;
+  }
+  const root = isObject(body) && isObject(body.data) ? body.data : body;
+  if (!isObject(root) || typeof root.found !== "boolean") return null;
+
+  if (!root.found) return { status: "not_found", note: "Nenhum cadastro com esse CPF no ERP", erpCustomerId: "" };
+
+  const sales = Number(root.completed_sales_count);
+  const count = Number.isFinite(sales) && sales > 0 ? Math.trunc(sales) : 0;
+  const parts = ["Cadastro encontrado", `${count} compra(s)`];
+  if (typeof root.last_sale_at === "string") {
+    const last = new Date(root.last_sale_at);
+    if (!Number.isNaN(last.getTime())) {
+      parts.push(`última em ${last.toLocaleDateString("pt-BR", { timeZone: "America/Campo_Grande" })}`);
+    }
+  }
+  return {
+    status: count > 0 ? "verified" : "found",
+    note: parts.join(" · ").slice(0, 200),
+    erpCustomerId: String(root.customer_id ?? "").slice(0, 80),
+  };
+}
+
 export async function lookupLoyaltyByCpf(cpfRaw: string): Promise<LoyaltyResult> {
   const unavailable = (note: string): LoyaltyResult => ({ status: "unavailable", note: note.slice(0, 200), erpCustomerId: "" });
   const digits = onlyDigits(cpfRaw);
@@ -87,6 +121,9 @@ export async function lookupLoyaltyByCpf(cpfRaw: string): Promise<LoyaltyResult>
   if (!isErpServiceConfigured()) return unavailable("Usuário de serviço do ERP não configurado");
 
   try {
+    const fast = await viaFidelityEndpoint(digits);
+    if (fast) return fast;
+
     let clients: Json[] = [];
     // O ERP pode guardar o CPF com ou sem máscara: tenta os dois formatos.
     for (const term of [formatCpf(digits), digits]) {

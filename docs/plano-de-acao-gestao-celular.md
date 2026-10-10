@@ -100,7 +100,7 @@ Legenda de esforço: **P** ≈ 1–2 dias · **M** ≈ 3–5 dias · **G** ≈ 1
 ### Fase 1 — ERP profissional (Codex na pasta `old_gestao`)
 | # | Entrega | Quem | Esf. | Aceite |
 |---|---|---|---|---|
-| 1.1 | **Tokens de API reais** (hash, escopos permitidos, validade, revogação, tela na aba existente, modelo "Integração do site") | Codex-ERP | G | Token criado na tela autentica `GET /api/clientes`; escopo proibido é recusado; revogado deixa de valer |
+| 1.1 | ✅ **Implementado na branch `feat/api-tokens` do ERP (revisado, falta aplicar a migration e publicar)** — Tokens de API reais (hash, escopos permitidos, validade, revogação, tela na aba existente, modelo "Integração do site") | Codex-ERP | G | Token criado na tela autentica `GET /api/clientes`; escopo proibido é recusado; revogado deixa de valer |
 | 1.2 | **`GET /api/clientes/fidelidade?cpf_cnpj=`** com resposta mínima (achou? nº de compras não canceladas, última compra) | Codex-ERP | P | Sem nome/telefone/endereço na resposta |
 | 1.3 | `@Permissions('aquisicoes:criar')` em `tools/imei/consultar` | Codex-ERP | P | ADMIN, GERENTE e VENDEDOR continuam com acesso |
 | 1.4 | **Investigar e corrigir o 500** de `GET /api/storefront/{slug}` | Codex-ERP (com logs) | P–M | Endpoint responde 200 para o slug da Lojinha |
@@ -110,7 +110,7 @@ Legenda de esforço: **P** ≈ 1–2 dias · **M** ≈ 3–5 dias · **G** ≈ 1
 ### Fase 2 — Site pronto para token e seguro
 | # | Entrega | Quem | Esf. | Aceite |
 |---|---|---|---|---|
-| 2.1 | Suporte a **`ERP_API_TOKEN`** (mantendo e-mail/senha como alternativa) e uso do endpoint de fidelidade | Claude-site | P | Fluxo completo com token; testes com ERP simulado |
+| 2.1 | ✅ **Feito:** suporte a **`ERP_API_TOKEN`** (e-mail/senha como alternativa) e uso do endpoint `GET /api/clientes/fidelidade` (com reserva para ERP sem o endpoint) | Claude-site | P | Fluxo completo com token; testes com ERP simulado. **Falta o teste real** depois que o ERP publicar os tokens |
 | 2.2 | **Assistente de primeiro acesso**: acaba a senha de admin padrão; dono cria senha forte | Claude-site | M | Instalação nova não aceita login padrão |
 | 2.3 | **Segredos de integração criptografados no banco** (token do ERP, chave da Evolution), mascarados e só-escrita no painel | Claude-site | M | Valor nunca volta para a tela; teste de criptografia |
 | 2.4 | **Migrações versionadas** (substituir criação/alteração automática no start) | Claude-site | M | Subir versão nova aplica migrações em ordem; rollback documentado |

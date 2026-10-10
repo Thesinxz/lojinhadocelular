@@ -104,6 +104,7 @@ beforeEach(async () => {
   resetEvaluationNotesForTesting();
   resetErpEntriesForTesting();
   resetErpClientForTesting();
+  vi.stubEnv("ERP_API_TOKEN", "");
   vi.stubEnv("ERP_SERVICE_EMAIL", "servico@loja.test");
   vi.stubEnv("ERP_SERVICE_PASSWORD", "segredo-de-teste");
   owner = await createUser({ username: "chefe", name: "Chefe", password: "senha-do-chefe", role: "dono", unit: null, canEditPrices: false });

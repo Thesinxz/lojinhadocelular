@@ -147,22 +147,32 @@ function ServiceUserCard() {
   const data = query.data;
   return (
     <Card
-      title="Entrada de seminovos no ERP"
-      description="Usuário de serviço usado pelo botão “Dar entrada no ERP” nas trocas concluídas."
+      title="Conexão com o ERP (seminovos e fidelidade)"
+      description="Credencial usada pelo botão “Dar entrada no ERP” e pela conferência do bônus de fidelidade."
       action={
         <button type="button" onClick={() => query.refetch()} disabled={query.isFetching} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[#e5e5e7] bg-white px-3 text-xs font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] disabled:opacity-50">
-          <RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} /> Testar login
+          <RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} /> Testar conexão
         </button>
       }
     >
       {query.isLoading ? (
         <div className="h-10 animate-pulse rounded-xl bg-[#f5f5f7]" />
       ) : !data?.configured ? (
-        <p className="text-sm text-amber-800">Não configurado. Defina ERP_SERVICE_EMAIL e ERP_SERVICE_PASSWORD no servidor (usuário criado no ERP só para isso).</p>
+        <p className="text-sm text-amber-800">
+          Não configurado. Defina <code>ERP_API_TOKEN</code> no servidor (token criado no ERP, com os escopos “clientes:fidelidade” e “aquisicoes:criar”).
+          Alternativa: <code>ERP_SERVICE_EMAIL</code> e <code>ERP_SERVICE_PASSWORD</code> de um usuário de serviço.
+        </p>
       ) : (
         <ul className="space-y-1 text-sm">
+          <li className="text-[#6e6e73]">
+            Autenticação: {data.mode === "token" ? "token de API (recomendado)" : "usuário e senha (considere migrar para token de API)"}.
+          </li>
           <li className={data.connected ? "text-emerald-700" : "text-red-700"}>
-            {data.connected ? "Login no ERP funcionando." : `Login falhou: ${data.error ?? "erro desconhecido"}`}
+            {data.connected
+              ? data.mode === "token"
+                ? "Token aceito pelo ERP."
+                : "Login no ERP funcionando."
+              : `Falha na conexão: ${data.error ?? "erro desconhecido"}`}
           </li>
           <li className={data.units.jardim ? "text-emerald-700" : "text-red-700"}>Unidade de Jardim {data.units.jardim ? "encontrada" : "não encontrada (defina ERP_UNIT_ID_JARDIM)"}.</li>
           <li className={data.units.gll ? "text-emerald-700" : "text-red-700"}>Unidade de Guia Lopes {data.units.gll ? "encontrada" : "não encontrada (defina ERP_UNIT_ID_GLL)"}.</li>

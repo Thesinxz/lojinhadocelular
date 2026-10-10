@@ -9,8 +9,17 @@ const TIMEOUT_MS = 20_000;
 const FALLBACK_TOKEN_TTL_MS = 10 * 60 * 1000;
 const EXPIRY_MARGIN_MS = 30_000;
 
+export type ErpAuthMode = "token" | "password" | "none";
+
+/** Token de API tem prioridade; e-mail/senha são a alternativa. */
+export function erpAuthMode(): ErpAuthMode {
+  if (env.erpApiToken) return "token";
+  if (env.erpServiceEmail && env.erpServicePassword) return "password";
+  return "none";
+}
+
 export function isErpServiceConfigured(): boolean {
-  return Boolean(env.erpServiceEmail && env.erpServicePassword);
+  return erpAuthMode() !== "none";
 }
 
 export class ErpApiError extends Error {
@@ -113,6 +122,7 @@ async function login(): Promise<string> {
 }
 
 async function getToken(forceRefresh = false): Promise<string> {
+  if (env.erpApiToken) return env.erpApiToken;
   if (!forceRefresh && cached && cached.expiresAt - EXPIRY_MARGIN_MS > Date.now()) return cached.token;
   loginInFlight ??= login().finally(() => {
     loginInFlight = null;
@@ -129,8 +139,16 @@ export async function erpRequest(path: string, init: { method?: string; body?: u
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
 
+  const tokenMode = erpAuthMode() === "token";
   let res = await call(await getToken());
-  if (res.status === 401) res = await call(await getToken(true));
+  // Com token de API não há login para refazer: 401/403 significam token inválido ou sem escopo.
+  if (res.status === 401 && !tokenMode) res = await call(await getToken(true));
+  if (tokenMode && res.status === 401) {
+    throw new ErpApiError("O ERP recusou o token de API (revogado, expirado ou inválido). Crie um novo token no ERP.", 401);
+  }
+  if (tokenMode && res.status === 403) {
+    throw new ErpApiError("O token de API não tem permissão para esta ação. Confira os escopos do token no ERP.", 403);
+  }
   if (!res.ok) {
     const message = pickString(res.body, ["message", "error"]) ?? (Array.isArray((res.body as { message?: unknown })?.message) ? String((res.body as { message: unknown[] }).message[0]) : null);
     throw new ErpApiError(message ? `ERP: ${shortMessage(message)}` : `ERP respondeu HTTP ${res.status}`, res.status);
@@ -141,17 +159,27 @@ export async function erpRequest(path: string, init: { method?: string; body?: u
 export interface ErpServiceStatus {
   configured: boolean;
   connected: boolean;
+  /** Como o site se autentica no ERP. */
+  mode: ErpAuthMode;
   error?: string;
 }
 
-/** Testa o login do usuário de serviço (não cria nada). */
+/** CPF válido qualquer, só para provar que o token chega ao endpoint (a consulta é de leitura). */
+const PROBE_CPF = "11144477735";
+
+/** Testa a credencial do ERP sem criar nada: login (senha) ou uma consulta de fidelidade (token). */
 export async function getErpServiceStatus(): Promise<ErpServiceStatus> {
-  if (!isErpServiceConfigured()) return { configured: false, connected: false };
+  const mode = erpAuthMode();
+  if (mode === "none") return { configured: false, connected: false, mode };
   try {
-    await getToken(true);
-    return { configured: true, connected: true };
+    if (mode === "token") {
+      await erpRequest(`/api/clientes/fidelidade?cpf_cnpj=${PROBE_CPF}`);
+    } else {
+      await getToken(true);
+    }
+    return { configured: true, connected: true, mode };
   } catch (err) {
-    return { configured: true, connected: false, error: shortMessage(err) };
+    return { configured: true, connected: false, mode, error: shortMessage(err) };
   }
 }
 
