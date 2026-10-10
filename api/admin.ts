@@ -16,6 +16,7 @@ import {
   getUserById,
   normalizeUsername,
   setUserPassword,
+  revokeUserSessions,
   toSessionUser,
   touchLastLogin,
 } from "./services/userStore";
@@ -35,6 +36,7 @@ import type { ShopProduct } from "./erp/types";
 import { getAdminSettings, saveSettings } from "./services/settingsStore";
 import { evaluationProcedures } from "./adminEvaluations";
 import { dashboardProcedures } from "./adminDashboard";
+import { erpOverviewProcedures } from "./erpOverview";
 import { getErpStatus, loadAdminProducts } from "./services/adminCatalog";
 
 function forbidden(message: string): TRPCError {
@@ -305,6 +307,18 @@ export const adminRouter = createRouter({
       return { ok: true };
     }),
 
+  /** "Sair de todos os dispositivos": invalida todos os tokens da própria conta (inclusive este). */
+  endMySessions: adminProcedure.mutation(async ({ ctx }) => {
+    await revokeUserSessions(ctx.user.id);
+    await logAction(ctx.user, {
+      action: "user.revokeSessions",
+      entityType: "user",
+      entityId: ctx.user.id,
+      summary: `${ctx.user.name} saiu de todos os dispositivos`,
+    });
+    return { ok: true };
+  }),
+
   users: adminUsersRouter,
 
   auditLog: adminProcedure
@@ -314,6 +328,12 @@ export const adminRouter = createRouter({
           limit: z.number().int().min(1).max(200).optional(),
           entityType: z.string().max(30).optional(),
           entityId: z.string().max(60).optional(),
+          userId: z.number().int().positive().optional(),
+          action: z.string().max(60).optional(),
+          search: z.string().max(100).optional(),
+          from: z.coerce.date().optional(),
+          to: z.coerce.date().optional(),
+          beforeId: z.number().int().positive().optional(),
         })
         .optional(),
     )
@@ -321,7 +341,7 @@ export const adminRouter = createRouter({
       const opts = input ?? {};
       // Vendedor vê apenas o histórico das avaliações
       const entityType = can(ctx.user, "users.manage") ? opts.entityType : "evaluation";
-      return await listAudit({ limit: opts.limit ?? 50, entityType, entityId: opts.entityId });
+      return await listAudit({ ...opts, limit: opts.limit ?? 50, entityType });
     }),
 
   products: adminProcedure.query(async ({ ctx }) => {
@@ -572,6 +592,54 @@ export const adminRouter = createRouter({
       return { ok: true };
     }),
 
+  /** Mostrar/ocultar e destacar vários produtos de uma vez (máx. 100). */
+  bulkSetProducts: adminProcedure
+    .input(
+      z
+        .object({
+          ids: z.array(z.union([z.number(), z.string()])).min(1).max(100),
+          active: z.boolean().optional(),
+          featured: z.boolean().optional(),
+        })
+        .refine((v) => v.active !== undefined || v.featured !== undefined, "Nada para alterar"),
+    )
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "products.editMedia");
+      if (input.featured !== undefined) assertCan(ctx.user, "products.manage");
+
+      const patch: { active?: boolean; featured?: boolean } = {};
+      if (input.active !== undefined) patch.active = input.active;
+      if (input.featured !== undefined) patch.featured = input.featured;
+
+      const failed: { id: string; message: string }[] = [];
+      let done = 0;
+      for (const id of [...new Set(input.ids.map(String))]) {
+        try {
+          const raw = /^\d+$/.test(id) ? Number(id) : id;
+          if (isErpProductId(raw)) {
+            await saveErpOverride(id, patch);
+          } else {
+            const db = getDb();
+            await ensureTables();
+            await db.update(products).set(patch).where(eq(products.id, Number(id)));
+          }
+          done++;
+        } catch (err) {
+          failed.push({ id, message: err instanceof Error ? err.message : "Erro inesperado" });
+        }
+      }
+      clearErpCache();
+      const parts: string[] = [];
+      if (patch.active !== undefined) parts.push(patch.active ? "visíveis" : "ocultos");
+      if (patch.featured !== undefined) parts.push(patch.featured ? "destacados" : "sem destaque");
+      await logAction(ctx.user, {
+        action: "product.bulk",
+        entityType: "product",
+        summary: `${done} produto(s) marcados como ${parts.join(" e ")} (em lote)`,
+      });
+      return { ok: failed.length === 0, done, failed };
+    }),
+
   refreshErpCatalog: adminProcedure.mutation(async ({ ctx }) => {
     assertCan(ctx.user, "products.editMedia");
     clearErpCache();
@@ -587,4 +655,5 @@ export const adminRouter = createRouter({
   erpStatus: adminProcedure.query(async () => getErpStatus()),
 
   ...dashboardProcedures,
+  ...erpOverviewProcedures,
 });

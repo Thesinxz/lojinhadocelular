@@ -265,6 +265,59 @@ describe("permissões do vendedor", () => {
   });
 });
 
+describe("produtos em lote", () => {
+  it("vendedor mostra/oculta vários produtos do ERP, mas não destaca", async () => {
+    const caller = callerFor(sellerToken);
+    const res = await caller.admin.bulkSetProducts({ ids: ["erp-1", "erp-2"], active: false });
+    expect(res).toMatchObject({ ok: true, done: 2 });
+    expect(saveErpOverrideMock).toHaveBeenCalledWith("erp-1", { active: false });
+    expect(saveErpOverrideMock).toHaveBeenCalledWith("erp-2", { active: false });
+    expect((await listAudit({ entityType: "product" }))[0]).toMatchObject({ action: "product.bulk" });
+
+    await expectTrpcError(caller.admin.bulkSetProducts({ ids: ["erp-1"], featured: true }), "FORBIDDEN");
+  });
+
+  it("dono destaca em lote e exige ao menos uma alteração", async () => {
+    const caller = callerFor(ownerToken);
+    await caller.admin.bulkSetProducts({ ids: ["erp-9"], featured: true });
+    expect(saveErpOverrideMock).toHaveBeenCalledWith("erp-9", { featured: true });
+    await expectTrpcError(caller.admin.bulkSetProducts({ ids: ["erp-9"] }), "BAD_REQUEST");
+  });
+});
+
+describe("visão do ERP", () => {
+  it("calcula divergências e estoque a partir do catálogo", async () => {
+    env.erpCatalogEnabled = true;
+    env.erpStoreSlug = "loja-teste";
+    const product = {
+      id: "erp-1",
+      source: "erp",
+      externalId: "erp-1",
+      name: "iPhone 13",
+      brand: "Apple",
+      category: "iphone_seminovo",
+      condition: "seminovo",
+      description: null,
+      imageUrl: null,
+      warranty: null,
+      featured: false,
+      active: true,
+      createdAt: new Date(),
+      stockJardim: 0,
+      stockGuiaLopes: 1,
+      variants: [],
+    } as unknown as ShopProduct;
+    setErpCacheForTesting([product]);
+
+    const overview = await callerFor(sellerToken).admin.erpOverview();
+    expect(overview.issues.noPhoto.map((i) => i.id)).toEqual(["erp-1"]);
+    expect(overview.stock.soldOutJardim.map((r) => r.id)).toEqual(["erp-1"]);
+    expect(overview.stock.lowGll.map((r) => r.id)).toEqual(["erp-1"]);
+    expect(overview.status.status).toBe("ok");
+    await expectTrpcError(callerFor(null).admin.erpOverview(), "UNAUTHORIZED");
+  });
+});
+
 describe("histórico", () => {
   beforeEach(async () => {
     await logAction(owner, { action: "product.update", entityType: "product", entityId: 1, summary: "preço" });
@@ -336,5 +389,53 @@ describe("gestão de usuários (dono)", () => {
       }),
       "CONFLICT",
     );
+  });
+});
+
+describe("permissões extras e sessões", () => {
+  it("dono concede permissão extra ao vendedor e ela passa a valer", async () => {
+    const asOwner = callerFor(ownerToken);
+    const asSeller = callerFor(sellerToken);
+    await expectTrpcError(asSeller.admin.toggleFeatured({ id: "erp-1", featured: true }), "FORBIDDEN");
+
+    const updated = await asOwner.admin.users.update({ id: seller.id, extraCaps: ["products.manage"] });
+    expect(updated.extraCaps).toEqual(["products.manage"]);
+
+    await expect(asSeller.admin.toggleFeatured({ id: "erp-1", featured: true })).resolves.toEqual({ ok: true });
+    expect((await listAudit({ entityType: "user" }))[0].summary).toContain("Gerenciar produtos");
+  });
+
+  it("não deixa delegar gestão de usuários nem dar extras ao dono", async () => {
+    const asOwner = callerFor(ownerToken);
+    await expectTrpcError(
+      asOwner.admin.users.update({ id: seller.id, extraCaps: ["users.manage" as never] }),
+      "BAD_REQUEST",
+    );
+    const owner2 = await asOwner.admin.users.update({ id: owner.id, extraCaps: ["reports.team"] });
+    expect(owner2.extraCaps ?? []).toEqual([]);
+    await expectTrpcError(callerFor(sellerToken).admin.users.list(), "FORBIDDEN");
+  });
+
+  it("encerrar sessões invalida o token anterior; redefinir a senha também", async () => {
+    const asOwner = callerFor(ownerToken);
+    await expect(callerFor(sellerToken).admin.me()).resolves.toMatchObject({ id: seller.id });
+
+    await asOwner.admin.users.revokeSessions({ id: seller.id });
+    await expectTrpcError(callerFor(sellerToken).admin.me(), "UNAUTHORIZED");
+
+    // Um novo login (token emitido depois) volta a funcionar? Token novo tem mesma emissão em ms: espera 2ms.
+    await new Promise((r) => setTimeout(r, 5));
+    await expect(callerFor(createToken(seller.id)).admin.me()).resolves.toMatchObject({ id: seller.id });
+
+    await asOwner.admin.users.resetPassword({ id: seller.id, password: "outra-senha-123" });
+    await expectTrpcError(callerFor(sellerToken).admin.me(), "UNAUTHORIZED");
+  });
+
+  it("trocar a própria senha mantém a sessão; 'sair de todos' derruba", async () => {
+    const caller = callerFor(ownerToken);
+    await caller.admin.changeOwnPassword({ currentPassword: "senha-do-chefe", newPassword: "nova-senha-1" });
+    await expect(caller.admin.me()).resolves.toMatchObject({ id: owner.id });
+    await caller.admin.endMySessions();
+    await expectTrpcError(callerFor(ownerToken).admin.me(), "UNAUTHORIZED");
   });
 });

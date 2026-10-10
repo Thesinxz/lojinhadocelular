@@ -9,6 +9,12 @@ import { env } from "./lib/env";
 import { getErpCatalog } from "./erp/service";
 import type { StoreUnitAvailability } from "./erp/types";
 import { getShopPublicSettings } from "./services/settingsStore";
+import { dispatchCustomerEventInBackground } from "./services/autoMessages";
+import { runLoyaltyCheckInBackground } from "./services/loyaltyCheck";
+import { declaredLojinhaPurchase } from "@contracts/loyalty";
+import { isValidCpf } from "@contracts/brDocs";
+import { allowInterestClick, recordProductInterest } from "./services/productInterest";
+import { clientIpFromRequest } from "./auth";
 import {
   notifyEvaluationCreated,
   persistEvaluationNotificationStatus,
@@ -200,6 +206,9 @@ export const submitEvaluationInput = z.object({
   chargingPortOk: z.string().max(30).optional().default(""),
   openedBefore: z.string().max(30).optional().default(""),
   hasBox: z.string().max(30).optional().default(""),
+  icloudFree: z.string().max(30).optional().default(""),
+  /** CPF só para conferir o bônus de fidelidade no ERP: nunca é gravado. */
+  cpf: z.string().max(20).optional(),
   visualCondition: z.string().max(100).optional().default(""),
   condition: z.string().min(1).max(60),
   battery: z.string().min(1).max(60),
@@ -414,6 +423,38 @@ export const shopRouter = createRouter({
   }),
 
   // Gera uma URL temporária para o navegador enviar a foto diretamente ao R2/S3.
+  /** Conta um clique de interesse (pedir no WhatsApp) em um produto existente da vitrine. */
+  trackInterest: publicQuery
+    .input(z.object({ productId: z.union([z.string(), z.number()]) }))
+    .mutation(async ({ input, ctx }) => {
+      if (!allowInterestClick(clientIpFromRequest(ctx.req))) return { ok: false };
+      const idStr = String(input.productId).trim().slice(0, 80);
+      if (!idStr) return { ok: false };
+      try {
+        let found: { id: string; name: string } | null = null;
+        if (env.erpCatalogEnabled) {
+          const erp = await getErpCatalog();
+          const p = erp.status === "ok"
+            ? erp.products.find(
+                (x) => String(x.id) === idStr || x.externalId === idStr || x.alternateIds?.includes(idStr),
+              )
+            : undefined;
+          if (p && p.active !== false) found = { id: p.externalId || String(p.id), name: p.name };
+        } else {
+          const db = getDb();
+          await ensureTables();
+          const rows = await db.select().from(products).where(eq(products.id, Number(idStr))).limit(1);
+          if (rows[0] && rows[0].active) found = { id: String(rows[0].id), name: rows[0].name };
+        }
+        if (!found) return { ok: false };
+        await recordProductInterest(found.id, found.name);
+        return { ok: true };
+      } catch (err) {
+        console.error("[Interest] Falha ao registrar interesse:", err instanceof Error ? err.message : err);
+        return { ok: false };
+      }
+    }),
+
   prepareEvaluationPhotoUpload: publicQuery
     .input(
       z.object({
@@ -441,6 +482,14 @@ export const shopRouter = createRouter({
           code: "TOO_MANY_REQUESTS",
           message:
             "Muitas propostas enviadas em um curto período. Por favor, aguarde alguns minutos antes de tentar novamente.",
+        });
+      }
+
+      // Não compramos aparelho com bloqueio de iCloud (o formulário já barra; aqui é a garantia).
+      if (input.icloudFree.trim() === "Não") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Não avaliamos aparelhos com bloqueio de iCloud. Remova o bloqueio e envie novamente.",
         });
       }
 
@@ -483,6 +532,7 @@ export const shopRouter = createRouter({
           chargingPortOk: (input.chargingPortOk || "").trim(),
           openedBefore: (input.openedBefore || "").trim(),
           hasBox: (input.hasBox || "").trim(),
+          icloudFree: (input.icloudFree || "").trim(),
           visualCondition: (input.visualCondition || "").trim(),
           condition: input.condition.trim(),
           battery: input.battery.trim(),
@@ -571,6 +621,13 @@ export const shopRouter = createRouter({
           errno: notificationStorageError?.errno,
           sqlState: notificationStorageError?.sqlState,
         });
+      }
+
+      dispatchCustomerEventInBackground("created", evaluationId);
+
+      // Bônus de fidelidade: só confere quando a pessoa disse que comprou aqui e informou um CPF válido.
+      if (input.cpf && isValidCpf(input.cpf) && declaredLojinhaPurchase(input.purchaseLocation)) {
+        runLoyaltyCheckInBackground(evaluationId, input.cpf);
       }
 
       return {

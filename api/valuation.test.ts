@@ -366,3 +366,31 @@ describe("valuationEngine", () => {
     expect(evalIphone14.maxEstimatedValue).toBeLessThanOrEqual(1800);
   });
 });
+
+describe("submitEvaluation: iCloud", () => {
+  it("recusa aparelho com bloqueio de iCloud e aceita livre ou 'Não sei'", async () => {
+    const { appRouter } = await import("./router");
+    const caller = appRouter.createCaller({
+      req: new Request("http://localhost/api/trpc", { headers: { "x-forwarded-for": "198.51.100.77" } }),
+      resHeaders: new Headers(),
+    });
+    const base = {
+      name: "Cliente",
+      whatsapp: "(67) 99999-0000",
+      model: "iPhone 13",
+      condition: "Parece novo",
+      battery: "90%",
+    };
+    await expect(caller.shop.submitEvaluation({ ...base, icloudFree: "Não" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    // "Sim" e "Não sei" passam da validação; sem banco o salvamento falha, com banco responde ok.
+    for (const icloudFree of ["Sim", "Não sei"]) {
+      const submission = caller.shop.submitEvaluation({ ...base, icloudFree });
+      if (!process.env.DATABASE_URL) {
+        await expect(submission).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+      } else {
+        await expect(submission).resolves.toMatchObject({ ok: true });
+      }
+    }
+  });
+});

@@ -6,11 +6,12 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
 import { evaluations } from "@db/schema";
-import { STORE_UNITS, type SessionUser } from "@contracts/permissions";
+import { can, STORE_UNITS, type SessionUser } from "@contracts/permissions";
 import {
   DEFAULT_EVALUATION_SLA_HOURS,
   EVALUATION_STATUSES,
   EVALUATION_STATUS_LABELS,
+  AUTO_MESSAGE_EVENTS,
   REFUSAL_REASONS,
   SETTING_KEYS,
   type EvaluationPhotoItem,
@@ -27,6 +28,9 @@ import {
   diffWorkflow,
   findEvaluationById,
   findEvaluationPage,
+  findEvaluationReportRows,
+  findRelatedEvaluations,
+  updateEvaluationLoyalty,
   findEvaluationStatusRows,
   mapEvaluationSqlRow,
   toWorkflowState,
@@ -50,6 +54,16 @@ import {
   notifyEvaluationCreated,
   persistEvaluationNotificationStatus,
 } from "./services/evaluationNotification";
+import { computeEvaluationReport } from "./evaluationReport";
+import { acquisitionInputSchema, createSeminovoEntry } from "./erp/acquisition";
+import { ErpApiError, isErpServiceConfigured } from "./erp/client";
+import { claimErpEntry, completeErpEntry, getErpEntry, releaseErpEntry } from "./services/evaluationErpEntries";
+import { isValidCpf, onlyDigits } from "@contracts/brDocs";
+import { runLoyaltyCheck } from "./services/loyaltyCheck";
+import { LOYALTY_STATUS_LABELS } from "@contracts/loyalty";
+import { dispatchCustomerEvent, dispatchCustomerEventInBackground } from "./services/autoMessages";
+import { listEvaluationMessages } from "./services/evaluationMessages";
+import { getEvolutionStatus } from "./services/evolution";
 import {
   deleteEvaluationPhotoObjects,
   getPhotoObjectKey,
@@ -137,8 +151,20 @@ async function changeStatus(
       summary += ` (valor fechado: ${centsLabel(after.closedValue)})`;
     }
     await logAction(user, { action: "evaluation.status", entityType: "evaluation", entityId: id, summary });
+    if (status === "concluido") dispatchCustomerEventInBackground("concluded", id);
+    if (status === "recusado") dispatchCustomerEventInBackground("refused", id);
   }
   return { ok: true, changed };
+}
+
+const MAX_REPORT_DAYS = 366;
+
+async function loadReportRows(from: Date, to: Date, unit?: "jardim" | "gll") {
+  if (to < from) throw new TRPCError({ code: "BAD_REQUEST", message: "A data final é anterior à inicial" });
+  if ((to.getTime() - from.getTime()) / 86_400_000 > MAX_REPORT_DAYS) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Período máximo de 366 dias" });
+  }
+  return findEvaluationReportRows({ from, to, unit });
 }
 
 export const evaluationProcedures = {
@@ -232,13 +258,14 @@ export const evaluationProcedures = {
   evaluationDetail: adminProcedure.input(idInput).query(async ({ ctx, input }) => {
     assertCan(ctx.user, "evaluations.manage");
     const record = await loadOr404(input.id);
-    const [slaHours, notes, audit] = await Promise.all([
+    const [slaHours, notes, audit, related] = await Promise.all([
       getSlaHours(),
       listEvaluationNotes(input.id),
       listAudit({ entityType: "evaluation", entityId: String(input.id), limit: 100 }),
+      findRelatedEvaluations(record.whatsapp, input.id),
     ]);
     const evaluation = await toRow(record, slaHours, new Date());
-    return { evaluation, notes: notes as EvaluationNote[], audit: audit as AuditEntry[] };
+    return { evaluation, notes: notes as EvaluationNote[], audit: audit as AuditEntry[], related };
   }),
 
   /** SLA, mensagens prontas e dados das lojas (o vendedor não acessa getSettings). */
@@ -275,6 +302,7 @@ export const evaluationProcedures = {
         entityId: input.id,
         summary: `${ctx.user.name} assumiu a avaliação #${input.id} (${record.name} — ${record.model})`,
       });
+      dispatchCustomerEventInBackground("assigned", input.id);
     }
     return { ok: true, changed };
   }),
@@ -301,6 +329,7 @@ export const evaluationProcedures = {
       const changed = await persist(input.id, before, after);
       if (changed) {
         await logAction(ctx.user, { action: "evaluation.assign", entityType: "evaluation", entityId: input.id, summary });
+        if (input.userId !== null) dispatchCustomerEventInBackground("assigned", input.id);
       }
       return { ok: true, changed };
     }),
@@ -364,6 +393,9 @@ export const evaluationProcedures = {
           entityId: input.id,
           summary: `Valores da avaliação #${input.id}: ${parts.join(", ")}`,
         });
+        if (after.offeredValue !== before.offeredValue && after.offeredValue !== null) {
+          dispatchCustomerEventInBackground("offered", input.id);
+        }
       }
       return { ok: true, changed };
     }),
@@ -539,5 +571,249 @@ export const evaluationProcedures = {
       });
     }
     return { ok: result.status === "sent", status: result.status, error: result.error || null };
+  }),
+
+  /** Relatório do período (máx. 366 dias). O ranking por vendedor é só do dono. */
+  evaluationReport: adminProcedure
+    .input(
+      z.object({
+        from: z.coerce.date(),
+        to: z.coerce.date(),
+        unit: unitSchema.optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const rows = await loadReportRows(input.from, input.to, input.unit);
+      const report = computeEvaluationReport(rows);
+      return { ...report, ranking: can(ctx.user, "reports.team") ? report.ranking : null };
+    }),
+
+  /** Linhas do período para exportação em CSV. */
+  evaluationExport: adminProcedure
+    .input(z.object({ from: z.coerce.date(), to: z.coerce.date(), unit: unitSchema.optional() }))
+    .query(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const rows = await loadReportRows(input.from, input.to, input.unit);
+      await logAction(ctx.user, {
+        action: "evaluation.export",
+        entityType: "evaluation",
+        summary: `Exportou ${rows.length} avaliações (${input.from.toISOString().slice(0, 10)} a ${input.to.toISOString().slice(0, 10)})`,
+      });
+      return rows;
+    }),
+
+  /** Ações em lote (máx. 50): pegar para mim, atribuir a alguém (dono) ou recusar. */
+  evaluationBatch: adminProcedure
+    .input(
+      z.discriminatedUnion("action", [
+        z.object({ action: z.literal("claim"), ids: z.array(z.number().int().positive()).min(1).max(50) }),
+        z.object({
+          action: z.literal("assign"),
+          ids: z.array(z.number().int().positive()).min(1).max(50),
+          userId: z.number().int().positive(),
+        }),
+        z.object({
+          action: z.literal("refuse"),
+          ids: z.array(z.number().int().positive()).min(1).max(50),
+          refusalReason: z.string().max(40),
+        }),
+      ]),
+    )
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      let target: Awaited<ReturnType<typeof getUserById>> = null;
+      if (input.action === "assign") {
+        assertCan(ctx.user, "evaluations.assign");
+        target = await getUserById(input.userId);
+        if (!target || !target.active) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Usuário não encontrado ou inativo" });
+        }
+      }
+
+      const ids = [...new Set(input.ids)];
+      const failed: { id: number; message: string }[] = [];
+      let done = 0;
+      for (const id of ids) {
+        try {
+          if (input.action === "refuse") {
+            const result = await changeStatus(ctx.user, id, "recusado", { refusalReason: input.refusalReason });
+            if (result.changed) done++;
+            continue;
+          }
+          const record = await loadOr404(id);
+          const before = toWorkflowState(record);
+          const assignee = input.action === "assign" ? target! : ctx.user;
+          const after = runWorkflow(() =>
+            applyClaim(before, assignee, new Date(), input.action === "assign" ? { force: true } : undefined),
+          );
+          if (await persist(id, before, after)) {
+            done++;
+            await logAction(ctx.user, {
+              action: input.action === "assign" ? "evaluation.assign" : "evaluation.claim",
+              entityType: "evaluation",
+              entityId: id,
+              summary:
+                input.action === "assign"
+                  ? `Atribuiu a avaliação #${id} para ${assignee.name} (em lote)`
+                  : `${ctx.user.name} assumiu a avaliação #${id} (${record.name} — ${record.model}) (em lote)`,
+            });
+            dispatchCustomerEventInBackground("assigned", id);
+          }
+        } catch (err) {
+          failed.push({ id, message: err instanceof Error ? err.message : "Erro inesperado" });
+        }
+      }
+      return { ok: failed.length === 0, done, failed };
+    }),
+
+  /** Confere o bônus de fidelidade pelo CPF no ERP (o CPF não é gravado, só o resultado). */
+  evaluationLoyaltyVerify: adminProcedure
+    .input(z.object({ id: z.number().int().positive(), cpf: z.string().max(20) }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      await loadOr404(input.id);
+      if (!isValidCpf(input.cpf)) throw new TRPCError({ code: "BAD_REQUEST", message: "CPF inválido" });
+      const result = await runLoyaltyCheck(input.id, input.cpf);
+      await logAction(ctx.user, {
+        action: "evaluation.loyaltyCheck",
+        entityType: "evaluation",
+        entityId: input.id,
+        summary: `Conferiu a fidelidade da avaliação #${input.id}: ${LOYALTY_STATUS_LABELS[result.status]}`,
+      });
+      return result;
+    }),
+
+  /** A equipe confirma (ou nega) o bônus de fidelidade por conta própria. */
+  evaluationLoyaltyConfirm: adminProcedure
+    .input(z.object({ id: z.number().int().positive(), confirmed: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const record = await loadOr404(input.id);
+      const status = input.confirmed ? "manual" : "denied";
+      await updateEvaluationLoyalty(input.id, {
+        loyaltyStatus: status,
+        loyaltyNote: `${input.confirmed ? "Confirmado" : "Negado"} por ${ctx.user.name}`,
+        erpCustomerId: record.erpCustomerId ?? "",
+      });
+      await logAction(ctx.user, {
+        action: "evaluation.loyaltyConfirm",
+        entityType: "evaluation",
+        entityId: input.id,
+        summary: `${input.confirmed ? "Confirmou" : "Negou"} o bônus de fidelidade da avaliação #${input.id}`,
+      });
+      return { ok: true, status };
+    }),
+
+  /** Estado da entrada no estoque do ERP para uma troca concluída. */
+  erpEntryState: adminProcedure.input(idInput).query(async ({ ctx, input }) => {
+    assertCan(ctx.user, "evaluations.manage");
+    await loadOr404(input.id);
+    return {
+      configured: isErpServiceConfigured(),
+      entry: await getErpEntry(input.id),
+      canEmitNfe: can(ctx.user, "products.manage"),
+    };
+  }),
+
+  /** Dá entrada do aparelho comprado no estoque do ERP (ação manual, uma vez por avaliação). */
+  erpEntryCreate: adminProcedure
+    .input(z.object({ id: z.number().int().positive(), data: acquisitionInputSchema }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      if (input.data.emitirNfe) assertCan(ctx.user, "products.manage");
+      if (!isErpServiceConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "O usuário de serviço do ERP não está configurado." });
+      }
+      const record = await loadOr404(input.id);
+      if (record.status !== "concluido") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Só é possível dar entrada de uma troca concluída." });
+      }
+      if (record.unit !== "jardim" && record.unit !== "gll") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Defina a unidade da avaliação antes de dar entrada no ERP." });
+      }
+
+      const imeiLast4 = onlyDigits(input.data.imei1).slice(-4);
+      if (!(await claimErpEntry(input.id, ctx.user, imeiLast4))) {
+        throw new TRPCError({ code: "CONFLICT", message: "Esta avaliação já tem entrada no ERP (ou uma está em andamento)." });
+      }
+
+      try {
+        const result = await createSeminovoEntry(input.data, record.unit);
+        await completeErpEntry(input.id, result.erpProductId);
+        await logAction(ctx.user, {
+          action: "evaluation.erpEntry",
+          entityType: "evaluation",
+          entityId: input.id,
+          summary: `Deu entrada no ERP do ${input.data.brandName} ${input.data.modelName} (IMEI final ${imeiLast4}) da avaliação #${input.id}${input.data.emitirNfe ? " com NF-e" : ""}`,
+        });
+        return { ok: true, erpProductId: result.erpProductId };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erro inesperado";
+        if (err instanceof ErpApiError && err.status !== undefined) {
+          // O ERP respondeu e recusou: nada foi criado, pode corrigir e tentar de novo.
+          await releaseErpEntry(input.id);
+          throw new TRPCError({ code: "BAD_REQUEST", message });
+        }
+        // Sem resposta (queda/tempo esgotado): o ERP pode ter criado mesmo assim. Mantém a reserva por 2 min.
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `${message}. Confira no ERP se o aparelho entrou antes de tentar de novo (nova tentativa liberada em 2 minutos).`,
+        });
+      }
+    }),
+
+  /** Endereço pelo CEP (inclui o código IBGE do município exigido pelo ERP). */
+  lookupCep: adminProcedure
+    .input(z.object({ cep: z.string().max(12) }))
+    .query(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const cep = onlyDigits(input.cep);
+      if (cep.length !== 8) throw new TRPCError({ code: "BAD_REQUEST", message: "CEP inválido" });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal: controller.signal });
+        const data = (await res.json()) as Record<string, string | boolean | undefined>;
+        if (!res.ok || data.erro) return null;
+        return {
+          logradouro: String(data.logradouro ?? ""),
+          bairro: String(data.bairro ?? ""),
+          cidade: String(data.localidade ?? ""),
+          uf: String(data.uf ?? ""),
+          ibge: String(data.ibge ?? ""),
+        };
+      } catch {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível consultar o CEP agora. Preencha manualmente." });
+      } finally {
+        clearTimeout(timer);
+      }
+    }),
+
+  evaluationMessages: adminProcedure.input(idInput).query(async ({ ctx, input }) => {
+    assertCan(ctx.user, "evaluations.manage");
+    await loadOr404(input.id);
+    return listEvaluationMessages(input.id);
+  }),
+
+  /** Reenvio manual de uma mensagem automática ao cliente (ignora liga/desliga e "já enviado"). */
+  resendEvaluationMessage: adminProcedure
+    .input(z.object({ id: z.number().int().positive(), event: z.enum(AUTO_MESSAGE_EVENTS) }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      await loadOr404(input.id);
+      const result = await dispatchCustomerEvent(input.event, input.id, { force: true });
+      await logAction(ctx.user, {
+        action: "evaluation.message",
+        entityType: "evaluation",
+        entityId: input.id,
+        summary: `Reenviou mensagem "${input.event}" ao cliente da avaliação #${input.id}: ${result}`,
+      });
+      return { ok: result === "sent", result };
+    }),
+
+  evolutionStatus: adminProcedure.query(async ({ ctx }) => {
+    assertCan(ctx.user, "settings.manage");
+    return getEvolutionStatus();
   }),
 };

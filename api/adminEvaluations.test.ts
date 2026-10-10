@@ -267,3 +267,56 @@ describe("evaluationConfig", () => {
     await expectTrpcError(asSeller.admin.getSettings(), "FORBIDDEN");
   });
 });
+
+describe("evaluationBatch", () => {
+  it("vendedor pega várias avaliações para si e informa as que falharam", async () => {
+    const a = seedEvaluationForTesting();
+    const b = seedEvaluationForTesting();
+    await asSeller2.admin.evaluationClaim({ id: b.id });
+
+    const result = await asSeller.admin.evaluationBatch({ action: "claim", ids: [a.id, b.id, 9999] });
+
+    expect(result.done).toBe(1);
+    expect(result.ok).toBe(false);
+    expect(result.failed.map((f) => f.id).sort()).toEqual([b.id, 9999].sort());
+    expect((await findEvaluationById(a.id))?.assignedUserId).toBe(seller.id);
+    expect((await findEvaluationById(b.id))?.assignedUserId).toBe(seller2.id);
+  });
+
+  it("dono atribui em lote; vendedor não pode atribuir", async () => {
+    const a = seedEvaluationForTesting();
+    const b = seedEvaluationForTesting();
+
+    await expectTrpcError(
+      asSeller.admin.evaluationBatch({ action: "assign", ids: [a.id], userId: seller2.id }),
+      "FORBIDDEN",
+    );
+    const result = await asOwner.admin.evaluationBatch({ action: "assign", ids: [a.id, b.id], userId: seller2.id });
+    expect(result).toMatchObject({ ok: true, done: 2 });
+    expect((await findEvaluationById(b.id))?.assignedUserName).toBe("Bruno");
+  });
+
+  it("recusa em lote com motivo e rejeita motivo inválido por avaliação", async () => {
+    const a = seedEvaluationForTesting();
+    const ok = await asSeller.admin.evaluationBatch({ action: "refuse", ids: [a.id], refusalReason: "preco" });
+    expect(ok).toMatchObject({ ok: true, done: 1 });
+    expect((await findEvaluationById(a.id))?.status).toBe("recusado");
+
+    const c = seedEvaluationForTesting();
+    const bad = await asSeller.admin.evaluationBatch({ action: "refuse", ids: [c.id], refusalReason: "xyz" });
+    expect(bad.ok).toBe(false);
+    expect(bad.failed[0].id).toBe(c.id);
+  });
+});
+
+describe("cliente recorrente", () => {
+  it("o detalhe lista outras avaliações do mesmo WhatsApp, ignorando a máscara", async () => {
+    const a = seedEvaluationForTesting({ whatsapp: "(67) 99208-6012" });
+    const b = seedEvaluationForTesting({ whatsapp: "67992086012", model: "iPhone 12" });
+    seedEvaluationForTesting({ whatsapp: "67911112222" });
+
+    const detail = await asOwner.admin.evaluationDetail({ id: a.id });
+    expect(detail.related.map((r) => r.id)).toEqual([b.id]);
+    expect(detail.related[0]).toMatchObject({ model: "iPhone 12" });
+  });
+});
