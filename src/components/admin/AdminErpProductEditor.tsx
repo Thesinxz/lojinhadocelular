@@ -1,3 +1,4 @@
+import { erpProductUrl } from "@/lib/erpLinks";
 import { useState } from "react";
 import {
   X,
@@ -180,7 +181,7 @@ export function AdminErpProductEditor({
               </span>
               <span className="text-xs text-neutral-500">ID: {externalId}</span>
               <a
-                href="https://gestaocelular.com.br"
+                href={erpProductUrl(externalId)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline ml-1"
