@@ -3,6 +3,7 @@
  * Envio de texto e verificação do estado da instância.
  */
 import { env } from "../lib/env";
+import { normalizeBrazilPhone } from "../../contracts/brDocs";
 
 export function isEvolutionConfigured(): boolean {
   return Boolean(env.evolutionApiUrl && env.evolutionApiKey && env.evolutionInstance);
@@ -22,16 +23,31 @@ export function parseDestinations(raw: string | null | undefined): string[] {
 export function normalizeBrazilNumber(raw: string | null | undefined): string | null {
   const trimmed = String(raw ?? "").trim();
   if (/^[\d-]{10,}@g\.us$/.test(trimmed)) return trimmed; // grupo do WhatsApp
-  let digits = trimmed.replace(/\D/g, "");
-  if (digits.startsWith("0")) digits = digits.replace(/^0+/, "");
-  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
-  if (!/^55\d{10,11}$/.test(digits)) return null;
-  return digits;
+  return normalizeBrazilPhone(trimmed);
 }
 
 function shortError(value: unknown): string {
   const text = value instanceof Error ? value.message : String(value ?? "Erro desconhecido");
   return text.replace(/[\r\n]+/g, " ").slice(0, 500);
+}
+
+/** Traduz a resposta de número inexistente da Evolution, inclusive em registros antigos. */
+export function friendlyEvolutionError(value: unknown): string {
+  const text = value instanceof Error ? value.message : String(value ?? "");
+  const body = text.match(/^HTTP \d+\s*:\s*(\{.*\})$/)?.[1];
+  if (body) {
+    try {
+      const parsed = JSON.parse(body) as {
+        response?: { message?: { exists?: boolean }[] };
+      };
+      if (parsed.response?.message?.some((item) => item.exists === false)) {
+        return "O WhatsApp não reconhece este número. Confira o DDD e o número cadastrado e tente enviar novamente.";
+      }
+    } catch {
+      // Mantém a mensagem original quando a resposta não for JSON válido.
+    }
+  }
+  return text;
 }
 
 async function evolutionFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -48,7 +64,8 @@ async function evolutionFetch(path: string, init: RequestInit = {}): Promise<Res
     try {
       detail = await response.text();
     } catch {}
-    throw new Error(`HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""}`);
+    const error = `HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""}`;
+    throw new Error(friendlyEvolutionError(error));
   } finally {
     clearTimeout(timeout);
   }

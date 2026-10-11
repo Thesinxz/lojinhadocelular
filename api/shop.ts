@@ -14,7 +14,7 @@ import { getShopPublicSettings } from "./services/settingsStore";
 import { dispatchCustomerEventInBackground } from "./services/autoMessages";
 import { runLoyaltyCheckInBackground } from "./services/loyaltyCheck";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
-import { isValidCpf } from "@contracts/brDocs";
+import { isValidCpf, normalizeBrazilPhone } from "@contracts/brDocs";
 import { allowInterestClick, recordProductInterest } from "./services/productInterest";
 import { getRecentBuyers } from "./services/socialProof";
 import { getSingleSetting } from "./services/settingsStore";
@@ -200,7 +200,12 @@ export function resetEvaluationRateLimitForTesting() {
 /** Entrada do formulário do Troca Fácil (exportada para testes). */
 export const submitEvaluationInput = z.object({
   name: z.string().min(1).max(120),
-  whatsapp: z.string().min(1).max(30),
+  whatsapp: z
+    .string()
+    .min(1)
+    .max(30)
+    .refine((value) => normalizeBrazilPhone(value) !== null, "Informe um WhatsApp válido com DDD e número completo.")
+    .transform((value) => normalizeBrazilPhone(value)!),
   model: z.string().min(1).max(120),
   storage: z.string().max(30).optional().default(""),
   color: z.string().max(60).optional().default(""),

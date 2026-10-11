@@ -9,6 +9,21 @@ function eventLabel(event: string): string {
   return AUTO_MESSAGE_EVENT_LABELS[event as AutoMessageEvent] ?? event;
 }
 
+function displayMessageError(error: string): string {
+  const body = error.match(/^HTTP \d+\s*:\s*(\{.*\})$/)?.[1];
+  if (body) {
+    try {
+      const parsed = JSON.parse(body) as { response?: { message?: { exists?: boolean }[] } };
+      if (parsed.response?.message?.some((item) => item.exists === false)) {
+        return "O WhatsApp não reconhece este número. Confira o DDD e o número cadastrado e tente enviar novamente.";
+      }
+    } catch {
+      // Mantém o erro original quando não for JSON válido.
+    }
+  }
+  return error;
+}
+
 /** Histórico de mensagens automáticas (Evolution API) da avaliação, com reenvio manual ao cliente. */
 export default function SentMessagesCard({ evaluationId }: { evaluationId: number }) {
   const utils = trpc.useUtils();
@@ -47,7 +62,7 @@ export default function SentMessagesCard({ evaluationId }: { evaluationId: numbe
                   {m.status === "sent" ? "enviada" : "falhou"} · {formatDateTime(m.createdAt)}
                 </span>
               </div>
-              {m.error && <p className="mt-1 text-red-600">{m.error}</p>}
+              {m.error && <p className="mt-1 text-red-600">{displayMessageError(m.error)}</p>}
               {m.body && <p className="mt-1 whitespace-pre-wrap text-[#6e6e73]">{m.body}</p>}
             </li>
           ))}

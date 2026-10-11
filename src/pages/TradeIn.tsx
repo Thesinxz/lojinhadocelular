@@ -30,7 +30,7 @@ import type { ValuationResult } from "@contracts/valuation";
 import { compressImage, formatFileSize } from "@/lib/imageCompressor";
 import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
-import { isValidCpf, onlyDigits } from "@contracts/brDocs";
+import { brazilPhoneInputDigits, isValidCpf, normalizeBrazilPhone, onlyDigits } from "@contracts/brDocs";
 
 /** Cotação vazia: usada enquanto o valor não vem do servidor (ou quando a loja oculta valores). */
 const EMPTY_VALUATION: ValuationResult = {
@@ -201,7 +201,7 @@ function formatCpfInput(value: string): string {
 }
 
 function formatPhoneInput(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
+  const digits = brazilPhoneInputDigits(value);
   if (!digits) return "";
   if (digits.length <= 2) return `(${digits}`;
   if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
@@ -454,8 +454,8 @@ export default function TradeIn() {
         setError("Digite seu primeiro nome para continuar.");
         return false;
       }
-      if (data.whatsapp.replace(/\D/g, "").length < 10) {
-        setError("Digite um WhatsApp válido com DDD.");
+      if (!normalizeBrazilPhone(data.whatsapp)) {
+        setError("Digite um WhatsApp válido com DDD e número completo. Se colar com +55, inclua o telefone inteiro.");
         return false;
       }
       if (!lgpdConsent) {
@@ -624,7 +624,7 @@ export default function TradeIn() {
     try {
       const result = await submitMutation.mutateAsync({
         name: data.name.trim(),
-        whatsapp: data.whatsapp.trim(),
+        whatsapp: normalizeBrazilPhone(data.whatsapp)!,
         model: data.model.trim(),
         storage: data.storage.trim(),
         color: data.color.trim(),
@@ -955,6 +955,9 @@ export default function TradeIn() {
                       autoComplete="tel"
                       className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
                     />
+                    <p className="mt-1 text-[11px] leading-4 text-[#86868b]">
+                      Se colar com +55, o código do país é removido automaticamente. Celulares no formato antigo recebem o 9º dígito.
+                    </p>
                   </Field>
                 </div>
 

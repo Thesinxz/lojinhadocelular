@@ -127,6 +127,12 @@ export default function Home() {
       return dbList;
     }
 
+    // The status query starts as `undefined`; do not mistake that for ERP disabled
+    // and briefly show demo products while the real catalog is loading.
+    if (!catalogStatusQuery.isSuccess || catalogStatusQuery.data?.erpEnabled) {
+      return dbList;
+    }
+
     const dbIds = new Set(dbList.map((p) => p.id));
     const dbNames = new Set(dbList.map((p) => p.name.trim().toLowerCase()));
 
@@ -135,7 +141,7 @@ export default function Home() {
     );
 
     return [...dbList, ...demoList];
-  }, [productsQuery.data, isErpEnabled]);
+  }, [productsQuery.data, isErpEnabled, catalogStatusQuery.isSuccess, catalogStatusQuery.data]);
 
   // Filtra por categoria e termo de busca, e ordena
   const filteredProducts = useMemo(() => {
@@ -191,7 +197,9 @@ export default function Home() {
               </p>
             </div>
             <span className="text-xs text-neutral-400 font-medium">
-              {filteredProducts.length} {filteredProducts.length === 1 ? "produto disponível" : "produtos disponíveis"}
+              {catalogStatusQuery.isLoading || productsQuery.isLoading
+                ? "Carregando catálogo…"
+                : `${filteredProducts.length} ${filteredProducts.length === 1 ? "produto disponível" : "produtos disponíveis"}`}
             </span>
           </div>
 
@@ -247,7 +255,11 @@ export default function Home() {
           </div>
 
           {/* Grid de Produtos ou Estado Vazio */}
-          {filteredProducts.length === 0 ? (
+          {catalogStatusQuery.isLoading || productsQuery.isLoading ? (
+            <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center text-sm text-neutral-500 shadow-sm">
+              Carregando produtos disponíveis…
+            </div>
+          ) : filteredProducts.length === 0 ? (
             isErpEnabled && catalogStatus === "offline" ? (
               <div className="mt-8 rounded-3xl border border-amber-200/80 bg-amber-50/70 p-8 text-center sm:p-12 shadow-sm">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
