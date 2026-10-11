@@ -63,6 +63,7 @@ import { runLoyaltyCheck } from "./services/loyaltyCheck";
 import { LOYALTY_STATUS_LABELS } from "@contracts/loyalty";
 import { dispatchCustomerEvent, dispatchCustomerEventInBackground } from "./services/autoMessages";
 import { listEvaluationMessages, recordEvaluationMessage } from "./services/evaluationMessages";
+import { BATCH_MAX, enqueueBatchMessages, pendingBatchMessages, planBatchMessage } from "./services/batchMessages";
 import { evolutionShortError, getEvolutionStatus, isEvolutionConfigured, normalizeBrazilNumber, sendEvolutionText } from "./services/evolution";
 import {
   deleteEvaluationPhotoObjects,
@@ -665,6 +666,39 @@ export const evaluationProcedures = {
         }
       }
       return { ok: failed.length === 0, done, failed };
+    }),
+
+  /** Pré-visualização do envio em lote de "avaliação recebida": quem receberia, quem será pulado e um exemplo do texto. */
+  evaluationBatchMessagePreview: adminProcedure
+    .input(z.object({ ids: z.array(z.number().int().positive()).min(1).max(BATCH_MAX) }))
+    .query(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const plan = await planBatchMessage("created", input.ids);
+      return { ...plan, queued: pendingBatchMessages() };
+    }),
+
+  /** Envia "avaliação recebida" aos selecionados, um a um e com intervalo, em segundo plano. */
+  evaluationBatchMessage: adminProcedure
+    .input(z.object({ ids: z.array(z.number().int().positive()).min(1).max(BATCH_MAX) }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const plan = await planBatchMessage("created", input.ids);
+      if (!plan.evolutionConfigured) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A Evolution API não está configurada no servidor." });
+      }
+      const queued = enqueueBatchMessages("created", plan.eligible);
+      await logAction(ctx.user, {
+        action: "evaluation.messageBatch",
+        entityType: "evaluation",
+        summary: `${ctx.user.name} enviou "avaliação recebida" em lote: ${queued} na fila, ${plan.alreadySent.length} já tinham recebido`,
+      });
+      return {
+        queued,
+        alreadySent: plan.alreadySent.length,
+        invalidNumber: plan.invalidNumber.length,
+        closed: plan.closed.length,
+        estimatedSeconds: plan.estimatedSeconds,
+      };
     }),
 
   /** Confere o bônus de fidelidade pelo CPF no ERP (o CPF não é gravado, só o resultado). */

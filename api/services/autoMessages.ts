@@ -19,6 +19,8 @@ export type DispatchResult = "sent" | "failed" | "skipped" | "not_configured";
 export interface DispatchOptions {
   /** Reenvio manual: ignora o "já enviado" e o liga/desliga do evento. */
   force?: boolean;
+  /** Envio pedido por uma pessoa (ex.: em lote): ignora o liga/desliga, mas continua sem repetir o que já foi enviado. */
+  manual?: boolean;
 }
 
 function hidePricesToClient(raw: string | undefined): boolean {
@@ -77,7 +79,7 @@ export async function dispatchCustomerEvent(
 
     const settings = await getAllSettings();
     const config = parseAutoMessages(settings[SETTING_KEYS.autoMessages]);
-    if (!options.force && (!config.customerEnabled || !config.events[event].enabled)) return "skipped";
+    if (!options.force && !options.manual && (!config.customerEnabled || !config.events[event].enabled)) return "skipped";
 
     // Com preços ocultos ao cliente, nunca enviamos valores automaticamente.
     if (

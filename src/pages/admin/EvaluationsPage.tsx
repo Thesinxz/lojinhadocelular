@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Settings2, Smartphone } from "lucide-react";
+import { MessageCircle, Settings2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { EVALUATION_STATUSES, REFUSAL_REASONS, type EvaluationStatus } from "@contracts/types";
 import { trpc } from "@/providers/trpc";
 import { useAdminSession, useAdminUnit } from "@/lib/adminSession";
 import EvaluationFilters from "@/components/admin/evaluations/EvaluationFilters";
+import BatchReceiptDialog from "@/components/admin/evaluations/BatchReceiptDialog";
 import EvaluationListItem from "@/components/admin/evaluations/EvaluationListItem";
 import type { AssignedFilter, StatusFilter } from "@/components/admin/evaluations/evaluationUi";
 
@@ -89,6 +90,7 @@ export default function EvaluationsPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [refuseReason, setRefuseReason] = useState("");
   const [assignTo, setAssignTo] = useState("");
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const batch = trpc.admin.evaluationBatch.useMutation({
     onSuccess: (res) => {
       if (res.failed.length) toast.error(`${res.done} atualizadas, ${res.failed.length} com erro: ${res.failed[0].message}`);
@@ -128,6 +130,15 @@ export default function EvaluationsPage() {
             "Carregando..."
           )}
         </p>
+        {items.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelected(items.slice(0, 50).map((i) => i.id))}
+            className="inline-flex min-h-11 items-center rounded-xl border border-[#e5e5e7] bg-white px-3 text-xs font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7]"
+          >
+            Selecionar todas desta página
+          </button>
+        )}
         {can("settings.manage") && (
           <Link
             to="/admin/configuracoes"
@@ -202,6 +213,14 @@ export default function EvaluationsPage() {
           <strong className="mr-1 text-sm text-[#1d1d1f]">{selected.length} selecionada(s)</strong>
           <button
             type="button"
+            onClick={() => setReceiptOpen(true)}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Enviar “avaliação recebida”
+          </button>
+          <button
+            type="button"
             disabled={batch.isPending}
             onClick={() => batch.mutate({ action: "claim", ids: selected })}
             className="min-h-11 rounded-xl bg-[#0071e3] px-3 text-xs font-semibold text-white disabled:opacity-50"
@@ -269,6 +288,8 @@ export default function EvaluationsPage() {
           </button>
         </div>
       )}
+
+      <BatchReceiptDialog open={receiptOpen} onClose={() => setReceiptOpen(false)} ids={selected} onDone={() => setSelected([])} />
 
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between rounded-xl border border-[#e5e5e7] bg-white px-3 py-2 text-xs text-[#6e6e73]">
