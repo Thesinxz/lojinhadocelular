@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { ValuationConfig } from "@contracts/types";
 import { formatBRL } from "@/lib/valuationEngine";
-import { buildPriceList, type PriceListRow } from "@/lib/priceList";
+import { buildPriceList, previousGenerationName, type PriceListModel, type PriceListRow } from "@/lib/priceList";
 
 const SOURCE_LABEL: Record<PriceListRow["suggestedSource"], string> = {
   personalizado: "personalizado",
@@ -43,6 +43,18 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
     onChange({ ...config, customBasePrices: next });
   };
 
+  // Para modelos sem preço: copia o valor da mesma capacidade na geração anterior (ponto de partida para ajustar).
+  const copyFromPrevious = (model: PriceListModel, previous: PriceListModel) => {
+    const next = { ...custom };
+    for (const row of model.rows) {
+      if (next[row.key] > 0 || row.suggested > 0) continue;
+      const source = previous.rows.find((r) => r.capacity === row.capacity);
+      const value = source ? (custom[source.key] > 0 ? custom[source.key] : source.suggested) : 0;
+      if (value > 0) next[row.key] = value;
+    }
+    onChange({ ...config, customBasePrices: next });
+  };
+
   const q = search.toLowerCase().trim();
   const visible = list
     .filter((m) => !q || m.name.toLowerCase().includes(q))
@@ -66,6 +78,8 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
         const defined = m.rows.filter((r) => custom[r.key] > 0).length;
         const colorPrices = m.rows.reduce((n, r) => n + r.colors.filter((c) => custom[c.key] > 0).length, 0);
         const missing = m.rows.filter((r) => !(custom[r.key] > 0) && r.suggested <= 0).length;
+        const previousName = previousGenerationName(m.name);
+        const previous = previousName ? list.find((x) => x.name === previousName) : undefined;
         return (
           <section key={m.key} className="px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -86,6 +100,16 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
                   </span>
                 )}
               </div>
+              {missing > 0 && previous && (
+                <button
+                  type="button"
+                  onClick={() => copyFromPrevious(m, previous)}
+                  className="text-[11px] font-semibold text-amber-700 hover:underline cursor-pointer"
+                  title="Copia o preço de cada capacidade do modelo anterior para as linhas sem preço; depois você ajusta"
+                >
+                  Copiar valores do {previous.name}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => fillModel(m.rows)}

@@ -82,3 +82,11 @@ export function buildPriceList(customBasePrices: Record<string, number> = {}): P
   }
   return list;
 }
+
+/** "iPhone 18 Pro Max" → "iPhone 17 Pro Max"; `null` quando o nome não tem geração numérica. */
+export function previousGenerationName(name: string): string | null {
+  const match = /^iPhone (\d+)(.*)$/.exec(name);
+  if (!match) return null;
+  const generation = Number(match[1]) - 1;
+  return generation >= 6 ? `iPhone ${generation}${match[2]}` : null;
+}

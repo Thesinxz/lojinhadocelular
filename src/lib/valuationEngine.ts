@@ -599,6 +599,9 @@ export type PriceSource = "personalizado" | "tabela" | "calculado" | "sem-preco"
 function storageAdjustment(base: number, storage?: string): { bonus: number; highlight?: string } {
   const norm = (storage || "").toLowerCase();
   if (base <= 0) return { bonus: 0 };
+  if (norm.includes("2tb") || norm.includes("2 tb")) {
+    return { bonus: Math.max(900, Math.round(base * 0.28)), highlight: "Capacidade máxima de 2TB (+ valor)" };
+  }
   if (norm.includes("1tb") || norm.includes("1 tb")) {
     return { bonus: Math.max(500, Math.round(base * 0.18)), highlight: "Capacidade alta de 1TB (+ valor)" };
   }
