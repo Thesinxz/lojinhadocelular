@@ -1039,6 +1039,35 @@ export default function AdminSettings() {
       </div>
 
       <div className={tab === "loja" ? "space-y-6" : "hidden"}>
+      {/* Quem já comprou */}
+      <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
+        <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Faixa “Quem já comprou com a gente”</h3>
+        <p className="mt-1 text-xs text-[#86868b]">
+          Mostra na página inicial o primeiro nome, a inicial do sobrenome e o celular que clientes reais compraram, vindos do ERP.
+          Só aparece com 3 ou mais nomes. Quem pedir para sair é marcado como “não divulgar” no cadastro do cliente no ERP.
+        </p>
+        <label className="mt-3 flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={(values[SETTING_KEYS.socialProofEnabled] ?? "0") === "1"}
+            onChange={(e) =>
+              setValues((v) => ({ ...v, [SETTING_KEYS.socialProofEnabled]: e.target.checked ? "1" : "0" }))
+            }
+            className="h-5 w-5 accent-[#0071e3] rounded"
+          />
+          <span className="text-sm font-medium text-[#1d1d1f]">Mostrar a faixa na página inicial</span>
+        </label>
+        <Field label="Título da faixa">
+          <input
+            value={values[SETTING_KEYS.socialProofTitle] ?? ""}
+            onChange={set(SETTING_KEYS.socialProofTitle)}
+            maxLength={80}
+            className={inputCls}
+            placeholder="Quem confia e já faz parte da família Lojinha ❤️"
+          />
+        </Field>
+      </section>
+
       {/* Popup */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">
         <h3 className="font-display text-lg font-bold text-[#1d1d1f]">Popup de boas-vindas</h3>

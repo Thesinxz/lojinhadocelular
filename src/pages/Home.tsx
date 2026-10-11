@@ -22,6 +22,7 @@ import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
 import SEO from "@/components/SEO";
 import { trpc, type ProductWithVariants } from "@/providers/trpc";
+import SocialProofStrip from "@/components/SocialProofStrip";
 import { useShopSettings, sortProducts, type SortOption, waLink } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import type { CategoryValue } from "@contracts/types";
@@ -172,6 +173,9 @@ export default function Home() {
 
       {/* 1. HERO COM VÍDEO E PROVA SOCIAL */}
       <HeroBlk />
+
+      {/* 1.1 QUEM JÁ COMPROU (some sozinha quando desligada ou sem dados) */}
+      <SocialProofStrip />
 
       {/* 2. SEÇÃO VITRINE INTEGRADA (CLEAN / LIGHT) */}
       <section id="vitrine" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-10">

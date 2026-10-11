@@ -112,3 +112,13 @@
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+/* Quem reduz movimento vê a faixa parada, com rolagem horizontal manual. */
+@media (prefers-reduced-motion: reduce) {
+  .social-proof-viewport {
+    overflow-x: auto;
+  }
+  .social-proof-viewport .animate-marquee {
+    animation: none;
+  }
+}

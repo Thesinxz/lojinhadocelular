@@ -259,6 +259,15 @@ export default function Privacidade() {
                     armazenamos dados de cartão de crédito no site.
                   </p>
                 </div>
+                <div className="rounded-xl border border-neutral-200/80 bg-white shadow-2xs p-4">
+                  <b className="text-neutral-900 text-sm block">C. Faixa “Quem já comprou com a gente”:</b>
+                  <p className="mt-1 text-neutral-600">
+                    Na página inicial podemos exibir, para quem comprou um celular conosco, apenas o{" "}
+                    <b>primeiro nome, a inicial do sobrenome e o modelo do aparelho</b>. Não mostramos CPF,
+                    telefone, valores nem datas. Se você preferir não aparecer, é só pedir pelo nosso WhatsApp:
+                    removemos o seu nome da faixa imediatamente.
+                  </p>
+                </div>
               </div>
             </section>
 

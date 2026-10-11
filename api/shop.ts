@@ -14,6 +14,8 @@ import { runLoyaltyCheckInBackground } from "./services/loyaltyCheck";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
 import { isValidCpf } from "@contracts/brDocs";
 import { allowInterestClick, recordProductInterest } from "./services/productInterest";
+import { getRecentBuyers } from "./services/socialProof";
+import { getSingleSetting } from "./services/settingsStore";
 import { clientIpFromRequest } from "./auth";
 import {
   notifyEvaluationCreated,
@@ -423,6 +425,17 @@ export const shopRouter = createRouter({
   }),
 
   // Gera uma URL temporária para o navegador enviar a foto diretamente ao R2/S3.
+  /** Faixa "quem já comprou": vazia quando desligada, sem dados ou se o ERP falhar. */
+  socialProof: publicQuery.query(async ({ ctx }) => {
+    ctx.resHeaders.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    const [enabled, title] = await Promise.all([
+      getSingleSetting(SETTING_KEYS.socialProofEnabled),
+      getSingleSetting(SETTING_KEYS.socialProofTitle),
+    ]);
+    if (enabled !== "1") return { title, items: [] as Awaited<ReturnType<typeof getRecentBuyers>> };
+    return { title, items: await getRecentBuyers() };
+  }),
+
   /** Conta um clique de interesse (pedir no WhatsApp) em um produto existente da vitrine. */
   trackInterest: publicQuery
     .input(z.object({ productId: z.union([z.string(), z.number()]) }))
