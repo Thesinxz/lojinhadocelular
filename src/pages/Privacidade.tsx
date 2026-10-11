@@ -364,9 +364,9 @@ export default function Privacidade() {
                       <td className="p-3 font-mono text-emerald-700">cookie_consent</td>
                       <td className="p-3">Essencial</td>
                       <td className="p-3">
-                        Armazena sua confirmação de ciência da política de cookies e privacidade.
+                        Registra a sua escolha no aviso de cookies (aceitar ou só essenciais), com data. Você pode rever a escolha em “Preferências de cookies”, no rodapé.
                       </td>
-                      <td className="p-3 text-neutral-600">1 ano</td>
+                      <td className="p-3 text-neutral-600">Até você limpar os dados do navegador</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-mono text-emerald-700">lojinha_cart</td>
@@ -403,6 +403,11 @@ export default function Privacidade() {
                   redes de publicidade invasiva, nem executamos rastreamento cross-site desproporcional.
                 </span>
               </div>
+              <p className="text-xs text-neutral-600">
+                As fontes de texto do site são servidas pelo nosso próprio endereço, sem carregar arquivos dos
+                servidores do Google. Imagens de produtos e mapas podem vir de serviços de terceiros ao serem
+                abertos (por exemplo, ao clicar em um link do Google Maps), e esses serviços seguem as próprias políticas.
+              </p>
             </section>
 
             {/* 6. NÃO COMPARTILHAMENTO */}

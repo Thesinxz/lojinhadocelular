@@ -1,3 +1,4 @@
+import { OPEN_COOKIE_PREFERENCES_EVENT } from "@/components/CookieBanner";
 import { useState } from "react";
 import { Link } from "react-router";
 import {
@@ -310,6 +311,13 @@ export default function Footer() {
               >
                 Política de Cookies
               </Link>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event(OPEN_COOKIE_PREFERENCES_EVENT))}
+                className="text-left text-neutral-500 hover:text-neutral-950 transition cursor-pointer"
+              >
+                Preferências de cookies
+              </button>
             </div>
           </div>
         </div>
@@ -412,6 +420,14 @@ export default function Footer() {
             >
               Política de Cookies
             </Link>
+            <span>•</span>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event(OPEN_COOKIE_PREFERENCES_EVENT))}
+              className="hover:text-neutral-950 transition underline-offset-4 hover:underline cursor-pointer"
+            >
+              Preferências de cookies
+            </button>
             <span>•</span>
             <a
               href="https://trocafacil.lojinhadocelular.com"

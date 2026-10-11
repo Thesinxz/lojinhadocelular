@@ -4,6 +4,9 @@ import { Cookie, ShieldCheck, X } from "lucide-react";
 import { safeStorage } from "@/lib/storage";
 
 const COOKIE_CONSENT_KEY = "cookie_consent";
+const COOKIE_CONSENT_AT_KEY = "cookie_consent_at";
+/** Evento para reabrir o aviso (link "Preferências de cookies" do rodapé). */
+export const OPEN_COOKIE_PREFERENCES_EVENT = "open-cookie-preferences";
 
 export default function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
@@ -11,29 +14,32 @@ export default function CookieBanner() {
   useEffect(() => {
     // Verifica se o consentimento já foi registrado anteriormente
     const consent = safeStorage.getItem(COOKIE_CONSENT_KEY);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (!consent) {
-      // Pequeno delay suave para não saltar na tela logo no primeiro frame
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 1200);
-      return () => clearTimeout(timer);
+      // Aparece já no primeiro acesso, com um respiro curto para não saltar no primeiro frame.
+      timer = setTimeout(() => setIsVisible(true), 500);
     }
+    const reopen = () => setIsVisible(true);
+    window.addEventListener(OPEN_COOKIE_PREFERENCES_EVENT, reopen);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener(OPEN_COOKIE_PREFERENCES_EVENT, reopen);
+    };
   }, []);
 
-  const handleAcceptAll = () => {
-    safeStorage.setItem(COOKIE_CONSENT_KEY, "all");
+  const save = (choice: "all" | "essential") => {
+    safeStorage.setItem(COOKIE_CONSENT_KEY, choice);
+    safeStorage.setItem(COOKIE_CONSENT_AT_KEY, new Date().toISOString());
     setIsVisible(false);
   };
-
-  const handleEssentialOnly = () => {
-    safeStorage.setItem(COOKIE_CONSENT_KEY, "essential");
-    setIsVisible(false);
-  };
+  const handleAcceptAll = () => save("all");
+  const handleEssentialOnly = () => save("essential");
 
   if (!isVisible) return null;
 
   return (
     <aside
+      role="dialog"
       aria-label="Consentimento de Cookies e Privacidade"
       className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 rounded-2xl border border-neutral-200/90 bg-white/95 p-4 sm:p-5 shadow-2xl backdrop-blur-xl text-neutral-900 animate-fadeIn"
     >
@@ -57,8 +63,9 @@ export default function CookieBanner() {
       </div>
 
       <p className="mt-3 text-xs leading-relaxed text-neutral-600">
-        Utilizamos cookies essenciais para manter sua sacola de compras ativa, lembrar sua loja
-        preferida e proteger sua navegação, em estrita conformidade com a <b className="text-neutral-900 font-semibold">LGPD (Lei 13.709/2018)</b>.
+        Usamos apenas armazenamento essencial: manter sua sacola, lembrar sua loja preferida e proteger sua
+        navegação. Não usamos rastreadores de publicidade nem vendemos seus dados, em conformidade com a{" "}
+        <b className="text-neutral-900 font-semibold">LGPD (Lei 13.709/2018)</b>.
       </p>
 
       <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -67,14 +74,14 @@ export default function CookieBanner() {
           onClick={handleAcceptAll}
           className="flex-1 rounded-full bg-neutral-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-neutral-800 transition active:scale-95 shadow-xs text-center cursor-pointer"
         >
-          Aceitar todos
+          Aceitar e continuar
         </button>
         <button
           type="button"
           onClick={handleEssentialOnly}
           className="rounded-full border border-neutral-200/80 bg-neutral-50 px-4 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition active:scale-95 text-center cursor-pointer"
         >
-          Apenas essenciais
+          Só essenciais
         </button>
       </div>
 
