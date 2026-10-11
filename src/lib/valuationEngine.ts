@@ -594,74 +594,63 @@ const PENDING_CHECK_LABELS: Array<[keyof ValuationInput, string]> = [
   ["openedBefore", "Se já foi aberto/reparado"],
 ];
 
+export type PriceSource = "personalizado" | "tabela" | "calculado" | "sem-preco";
+
+function storageAdjustment(base: number, storage?: string): { bonus: number; highlight?: string } {
+  const norm = (storage || "").toLowerCase();
+  if (base <= 0) return { bonus: 0 };
+  if (norm.includes("1tb") || norm.includes("1 tb")) {
+    return { bonus: Math.max(500, Math.round(base * 0.18)), highlight: "Capacidade alta de 1TB (+ valor)" };
+  }
+  if (norm.includes("512")) return { bonus: Math.max(300, Math.round(base * 0.12)), highlight: "Capacidade 512GB (+ valor)" };
+  if (norm.includes("256")) return { bonus: Math.max(100, Math.round(base * 0.06)), highlight: "Capacidade 256GB" };
+  if (norm.includes("64")) return { bonus: -Math.max(80, Math.round(base * 0.06)) };
+  return { bonus: 0 };
+}
+
+/**
+ * Preço de referência de um aparelho (modelo + capacidade [+ cor]) antes de bateria, estado e defeitos.
+ * `base + storageBonus` é o valor que o motor usa; `source` diz de onde ele veio.
+ */
+export function resolveDevicePrice(
+  model: string,
+  storage?: string,
+  color?: string,
+  customPrices?: Record<string, number>,
+): { base: number; storageBonus: number; source: PriceSource; highlights: string[] } {
+  const highlights: string[] = [];
+  const customMatch = getCustomBasePriceMatch(model, customPrices, storage, color);
+  if (customMatch) {
+    if (customMatch.isSpecificCapacity) {
+      if (storage) highlights.push(`Capacidade ${storage} (personalizada)`);
+      return { base: customMatch.price, storageBonus: 0, source: "personalizado", highlights };
+    }
+    const adj = storageAdjustment(customMatch.price, storage);
+    if (adj.highlight) highlights.push(adj.highlight);
+    return { base: customMatch.price, storageBonus: adj.bonus, source: "personalizado", highlights };
+  }
+  const ref = findReferenceDevicePrice(model, storage, color);
+  if (ref) {
+    if (ref.capacity) highlights.push(`Capacidade ${ref.capacity} (tabela oficial)`);
+    return { base: ref.priceBrl, storageBonus: 0, source: "tabela", highlights };
+  }
+  const base = findBasePrice(model);
+  const adj = storageAdjustment(base, storage);
+  if (adj.highlight) highlights.push(adj.highlight);
+  return { base, storageBonus: adj.bonus, source: base > 0 ? "calculado" : "sem-preco", highlights };
+}
+
 export function evaluateDevice(input: ValuationInput, config?: ValuationConfig): ValuationResult {
   const cfg = config || DEFAULT_VALUATION_CONFIG;
   let multiplier = cfg.globalMultiplier ?? 1.0;
   let score = 95;
   const highlights: string[] = [];
 
-  // Determinação do valor base e capacidade:
-  // Se o lojista configurou preço customizado no Admin (seja por modelo, capacidade ou cor), ele tem prioridade máxima.
-  const customMatch = getCustomBasePriceMatch(
-    input.model,
-    cfg.customBasePrices,
-    input.storage,
-    input.color
-  );
-  const refDevice = !customMatch
-    ? findReferenceDevicePrice(input.model, input.storage, input.color)
-    : null;
-
-  let base: number;
-  let storageBonus = 0;
-
-  if (customMatch) {
-    base = customMatch.price;
-    if (customMatch.isSpecificCapacity) {
-      // Preço customizado especificamente para este GB/cor: não soma bônus genérico
-      storageBonus = 0;
-      if (input.storage) {
-        highlights.push(`Capacidade ${input.storage} (personalizada)`);
-      }
-    } else {
-      // Preço customizado no modelo base (128GB Grau A): calcula bônus de armazenamento proporcional
-      const storageNorm = (input.storage || "").toLowerCase();
-      if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
-        storageBonus = Math.max(500, Math.round(base * 0.18));
-        highlights.push("Capacidade alta de 1TB (+ valor)");
-      } else if (storageNorm.includes("512")) {
-        storageBonus = Math.max(300, Math.round(base * 0.12));
-        highlights.push("Capacidade 512GB (+ valor)");
-      } else if (storageNorm.includes("256")) {
-        storageBonus = Math.max(100, Math.round(base * 0.06));
-        highlights.push("Capacidade 256GB");
-      } else if (storageNorm.includes("64")) {
-        storageBonus = -Math.max(80, Math.round(base * 0.06));
-      }
-    }
-  } else if (refDevice) {
-    // Aparelho bate diretamente com a tabela oficial de compra da loja!
-    base = refDevice.priceBrl;
-    storageBonus = 0;
-    if (refDevice.capacity) {
-      highlights.push(`Capacidade ${refDevice.capacity} (tabela oficial)`);
-    }
-  } else {
-    base = findBasePrice(input.model);
-    const storageNorm = base > 0 ? (input.storage || "").toLowerCase() : "";
-    if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
-      storageBonus = Math.max(500, Math.round(base * 0.18));
-      highlights.push("Capacidade alta de 1TB (+ valor)");
-    } else if (storageNorm.includes("512")) {
-      storageBonus = Math.max(300, Math.round(base * 0.12));
-      highlights.push("Capacidade 512GB (+ valor)");
-    } else if (storageNorm.includes("256")) {
-      storageBonus = Math.max(100, Math.round(base * 0.06));
-      highlights.push("Capacidade 256GB");
-    } else if (storageNorm.includes("64")) {
-      storageBonus = -Math.max(80, Math.round(base * 0.06));
-    }
-  }
+  // Valor base e capacidade: preço personalizado no painel > tabela oficial da loja > preço do modelo + ajuste de GB.
+  const resolved = resolveDevicePrice(input.model, input.storage, input.color, cfg.customBasePrices);
+  const base = resolved.base;
+  let storageBonus = resolved.storageBonus;
+  highlights.push(...resolved.highlights);
 
   // 2. Condição visual (ajustes configuráveis em %)
   const adj = resolveAdjustments(cfg.adjustments);

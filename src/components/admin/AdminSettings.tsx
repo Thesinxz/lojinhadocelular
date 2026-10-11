@@ -39,6 +39,8 @@ import {
 } from "@/lib/valuationEngine";
 import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
 import ValuationAdjustmentsEditor from "@/components/admin/ValuationAdjustmentsEditor";
+import { buildPriceList } from "@/lib/priceList";
+import FixedPriceList from "@/components/admin/FixedPriceList";
 import ValuationSimulator from "@/components/admin/ValuationSimulator";
 import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
 import AutoMessagesSection from "@/components/admin/evaluations/AutoMessagesSection";
@@ -71,7 +73,7 @@ export default function AdminSettings() {
   );
   const [modelFilter, setModelFilter] = useState("");
   const [selectedCapacity, setSelectedCapacity] = useState<string>("all");
-  const [pricingViewMode, setPricingViewMode] = useState<"models" | "all">("models");
+  const [pricingViewMode, setPricingViewMode] = useState<"list" | "models" | "all">("list");
   const [onlyCustomFilter, setOnlyCustomFilter] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
   const [templates, setTemplates] = useState<WhatsappTemplate[]>([]);
@@ -157,14 +159,11 @@ export default function AdminSettings() {
     [query.data],
   );
 
-  // Modelos sem preço base: ficam "sob consulta" para o cliente até serem definidos.
-  const pendingPriceModels = useMemo(
-    () =>
-      POPULAR_CONFIG_IPHONES.filter(
-        (m) => m.defaultBasePrice <= 0 && !((valuationConfig.customBasePrices?.[m.id] ?? 0) > 0),
-      ),
-    [valuationConfig.customBasePrices],
-  );
+  // Modelos com algum armazenamento sem preço: ficam "sob consulta" para o cliente até serem definidos.
+  const pendingPriceModels = useMemo(() => {
+    const custom = valuationConfig.customBasePrices ?? {};
+    return buildPriceList(custom).filter((m) => m.rows.some((r) => !(custom[r.key] > 0) && r.suggested <= 0));
+  }, [valuationConfig.customBasePrices]);
 
   const discardChanges = () => {
     if (baseline === null) return;
@@ -373,7 +372,7 @@ export default function AdminSettings() {
           <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
             <span>
               <strong>
-                {pendingPriceModels.length} modelo{pendingPriceModels.length > 1 ? "s" : ""} sem preço definido
+                {pendingPriceModels.length} modelo{pendingPriceModels.length > 1 ? "s" : ""} com armazenamento sem preço
               </strong>
               : {pendingPriceModels.map((m) => m.name).join(", ")}. O cliente que escolher
               {pendingPriceModels.length > 1 ? " esses modelos fica" : " esse modelo fica"} sem cotação (“sob consulta”).
@@ -651,6 +650,19 @@ export default function AdminSettings() {
                 <div className="inline-flex rounded-lg border border-[#e5e5e7] bg-white p-0.5">
                   <button
                     type="button"
+                    onClick={() => setPricingViewMode("list")}
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
+                      pricingViewMode === "list"
+                        ? "bg-[#1d1d1f] text-white"
+                        : "text-[#6e6e73] hover:text-[#1d1d1f]"
+                    }`}
+                    title="Lista fixa: um preço por modelo e armazenamento"
+                  >
+                    <ListFilter className="h-3 w-3" />
+                    Lista fixa
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPricingViewMode("models")}
                     className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
                       pricingViewMode === "models"
@@ -682,7 +694,9 @@ export default function AdminSettings() {
             {/* Sub-barra com ações e contagem */}
             <div className="flex items-center justify-between text-xs text-[#86868b] px-1">
               <span>
-                {pricingViewMode === "models"
+                {pricingViewMode === "list"
+                  ? "Um preço por modelo e armazenamento. Deixe vazio para o motor calcular."
+                  : pricingViewMode === "models"
                   ? `Exibindo ${filteredModels.length} modelos`
                   : `Exibindo ${filteredVariations.length} de ${IPHONE_REFERENCE_PRICES.length} variações`}
               </span>
@@ -700,7 +714,15 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          {pricingViewMode === "models" ? (
+          {pricingViewMode === "list" ? (
+            <FixedPriceList
+              config={valuationConfig}
+              onChange={setValuationConfig}
+              search={modelFilter}
+              capacity={selectedCapacity}
+              onlyEdited={onlyCustomFilter}
+            />
+          ) : pricingViewMode === "models" ? (
             <div className="max-h-[500px] overflow-y-auto rounded-xl border border-[#e5e5e7] bg-white divide-y divide-[#f0f0f2]">
               {filteredModels.length === 0 ? (
                 <div className="p-8 text-center text-xs text-[#86868b]">
