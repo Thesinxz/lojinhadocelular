@@ -62,7 +62,7 @@ import { isValidCpf, onlyDigits } from "@contracts/brDocs";
 import { runLoyaltyCheck } from "./services/loyaltyCheck";
 import { LOYALTY_STATUS_LABELS } from "@contracts/loyalty";
 import { dispatchCustomerEvent, dispatchCustomerEventInBackground } from "./services/autoMessages";
-import { listEvaluationMessages } from "./services/evaluationMessages";
+import { listEvaluationMessages, recordEvaluationMessage } from "./services/evaluationMessages";
 import { evolutionShortError, getEvolutionStatus, isEvolutionConfigured, normalizeBrazilNumber, sendEvolutionText } from "./services/evolution";
 import {
   deleteEvaluationPhotoObjects,
@@ -810,6 +810,46 @@ export const evaluationProcedures = {
         summary: `Reenviou mensagem "${input.event}" ao cliente da avaliação #${input.id}: ${result}`,
       });
       return { ok: result === "sent", result };
+    }),
+
+  /** Envio manual de uma mensagem (pronta ou editada) ao cliente pela Evolution; fica no histórico da avaliação. */
+  sendEvaluationMessage: adminProcedure
+    .input(z.object({ id: z.number().int().positive(), text: z.string().trim().min(1).max(2000) }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "evaluations.manage");
+      const evaluation = await loadOr404(input.id);
+      if (!isEvolutionConfigured()) {
+        return { ok: false as const, error: "A Evolution API não está configurada no servidor." };
+      }
+      try {
+        await sendEvolutionText(evaluation.whatsapp, input.text);
+        await recordEvaluationMessage({
+          evaluationId: input.id,
+          event: "manual",
+          recipient: "cliente",
+          status: "sent",
+          error: null,
+          body: `${input.text}\n\n— enviada por ${ctx.user.name}`,
+        });
+        await logAction(ctx.user, {
+          action: "evaluation.message",
+          entityType: "evaluation",
+          entityId: input.id,
+          summary: `${ctx.user.name} enviou uma mensagem pelo WhatsApp ao cliente da avaliação #${input.id}`,
+        });
+        return { ok: true as const };
+      } catch (error) {
+        const message = evolutionShortError(error);
+        await recordEvaluationMessage({
+          evaluationId: input.id,
+          event: "manual",
+          recipient: "cliente",
+          status: "failed",
+          error: message,
+          body: input.text,
+        });
+        return { ok: false as const, error: message };
+      }
     }),
 
   /** Envia uma mensagem de teste pela Evolution para conferir a configuração de ponta a ponta. */

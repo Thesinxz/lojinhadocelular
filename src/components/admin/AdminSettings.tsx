@@ -38,6 +38,7 @@ import {
   normalizeKey,
 } from "@/lib/valuationEngine";
 import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
+import ValuationSimulator from "@/components/admin/ValuationSimulator";
 import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
 import AutoMessagesSection from "@/components/admin/evaluations/AutoMessagesSection";
 
@@ -149,6 +150,40 @@ export default function AdminSettings() {
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [key]: e.target.value }));
+
+  const savedValuationConfig = useMemo(
+    () => parseValuationConfig(query.data?.[SETTING_KEYS.valuationConfig]),
+    [query.data],
+  );
+
+  // Modelos sem preço base: ficam "sob consulta" para o cliente até serem definidos.
+  const pendingPriceModels = useMemo(
+    () =>
+      POPULAR_CONFIG_IPHONES.filter(
+        (m) => m.defaultBasePrice <= 0 && !((valuationConfig.customBasePrices?.[m.id] ?? 0) > 0),
+      ),
+    [valuationConfig.customBasePrices],
+  );
+
+  const discardChanges = () => {
+    if (baseline === null) return;
+    try {
+      const saved = JSON.parse(baseline) as {
+        values: Record<string, string>;
+        fees: Record<string, string>;
+        heroText: string;
+        valuationConfig: ValuationConfig;
+        templates: WhatsappTemplate[];
+        autoMessages: AutoMessagesConfig;
+      };
+      setValues(saved.values);
+      setFees(saved.fees);
+      setHeroText(saved.heroText);
+      setValuationConfig(saved.valuationConfig);
+      setTemplates(saved.templates);
+      setAutoMessages(saved.autoMessages);
+    } catch {}
+  };
 
   const customPricesCount = useMemo(() => {
     return Object.keys(valuationConfig.customBasePrices || {}).filter(
@@ -333,6 +368,25 @@ export default function AdminSettings() {
           </span>
         </div>
 
+        {pendingPriceModels.length > 0 && (
+          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <span>
+              <strong>
+                {pendingPriceModels.length} modelo{pendingPriceModels.length > 1 ? "s" : ""} sem preço definido
+              </strong>
+              : {pendingPriceModels.map((m) => m.name).join(", ")}. O cliente que escolher
+              {pendingPriceModels.length > 1 ? " esses modelos fica" : " esse modelo fica"} sem cotação (“sob consulta”).
+            </span>
+            <button
+              type="button"
+              onClick={() => document.getElementById("tabela-precos")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white hover:bg-amber-700 cursor-pointer"
+            >
+              Definir agora
+            </button>
+          </div>
+        )}
+
         {/* Parâmetros Globais */}
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Multiplicador Global */}
@@ -502,7 +556,9 @@ export default function AdminSettings() {
         </div>
 
         {/* Preços Base dos Modelos Mais Populares & Matriz Completa (GB e Cores) */}
-        <div className="mt-6 border-t border-[#e5e5e7] pt-5">
+        <ValuationSimulator config={valuationConfig} savedConfig={savedValuationConfig} />
+
+        <div id="tabela-precos" className="mt-6 scroll-mt-24 border-t border-[#e5e5e7] pt-5">
           <div className="flex flex-col gap-3 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div>
@@ -1127,60 +1183,70 @@ export default function AdminSettings() {
 
       </div>
 
-      <button
-        onClick={() => {
-          const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
-          if (!Number.isFinite(slaHours) || slaHours <= 0 || slaHours > 720) {
-            toast.error("Prazo de resposta inválido: informe um número de horas entre 0 e 720.");
-            return;
-          }
-          const cleanTemplates = templates
-            .map((t) => ({ ...t, label: t.label.trim(), body: t.body.trim() }))
-            .filter((t) => t.label && t.body);
-          if (cleanTemplates.length !== templates.length) {
-            toast.error("Preencha o título e o texto de todas as mensagens prontas (ou remova as vazias).");
-            return;
-          }
-          const feesJson = JSON.stringify(
-            Object.fromEntries(
-              Object.entries(fees).map(([k, v]) => [
-                k,
-                Number(v.replace(",", ".")) || 0,
-              ]),
-            ),
-          );
-          update.mutate({
-            values: {
-              ...values,
-              [SETTING_KEYS.installmentFees]: feesJson,
-              [SETTING_KEYS.heroImages]: JSON.stringify(
-                heroText.split("\n").map((u) => u.trim()).filter(Boolean),
+      <div className="sticky bottom-0 z-20 -mx-2 flex flex-wrap items-center gap-3 rounded-2xl border border-[#e5e5e7] bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+        <button
+          onClick={() => {
+            const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
+            if (!Number.isFinite(slaHours) || slaHours <= 0 || slaHours > 720) {
+              toast.error("Prazo de resposta inválido: informe um número de horas entre 0 e 720.");
+              return;
+            }
+            const cleanTemplates = templates
+              .map((t) => ({ ...t, label: t.label.trim(), body: t.body.trim() }))
+              .filter((t) => t.label && t.body);
+            if (cleanTemplates.length !== templates.length) {
+              toast.error("Preencha o título e o texto de todas as mensagens prontas (ou remova as vazias).");
+              return;
+            }
+            const feesJson = JSON.stringify(
+              Object.fromEntries(
+                Object.entries(fees).map(([k, v]) => [
+                  k,
+                  Number(v.replace(",", ".")) || 0,
+                ]),
               ),
-              [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
-              [SETTING_KEYS.evaluationSlaHours]: String(slaHours),
-              [SETTING_KEYS.whatsappTemplates]: JSON.stringify(cleanTemplates),
-              [SETTING_KEYS.autoMessages]: JSON.stringify(autoMessages),
-            },
-          });
-        }}
-        disabled={update.isPending}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-      >
-        {update.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : saved ? (
-          <Check className="h-4 w-4 text-emerald-400" />
-        ) : (
-          <Save className="h-4 w-4" />
+            );
+            update.mutate({
+              values: {
+                ...values,
+                [SETTING_KEYS.installmentFees]: feesJson,
+                [SETTING_KEYS.heroImages]: JSON.stringify(
+                  heroText.split("\n").map((u) => u.trim()).filter(Boolean),
+                ),
+                [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
+                [SETTING_KEYS.evaluationSlaHours]: String(slaHours),
+                [SETTING_KEYS.whatsappTemplates]: JSON.stringify(cleanTemplates),
+                [SETTING_KEYS.autoMessages]: JSON.stringify(autoMessages),
+              },
+            });
+          }}
+          disabled={update.isPending}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+        >
+          {update.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : saved ? (
+            <Check className="h-4 w-4 text-emerald-400" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {update.isPending ? "Salvando configurações..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
+        </button>
+        {dirty && !update.isPending && (
+          <>
+            <span className="text-xs font-semibold text-amber-700" role="status">
+              Alterações não salvas (valem para todas as abas).
+            </span>
+            <button
+              type="button"
+              onClick={discardChanges}
+              className="rounded-xl border border-[#d2d2d7] px-4 py-2.5 text-sm font-semibold text-[#424245] hover:bg-[#f5f5f7] cursor-pointer"
+            >
+              Descartar
+            </button>
+          </>
         )}
-        {update.isPending ? "Salvando configurações..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
-      </button>
-      {dirty && !update.isPending && (
-        <p className="text-xs font-semibold text-amber-700" role="status">
-          Você tem alterações não salvas (vale para todas as abas).
-        </p>
-      )}
-
+      </div>
       {saveError && (
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />

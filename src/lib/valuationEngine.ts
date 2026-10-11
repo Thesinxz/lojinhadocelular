@@ -885,9 +885,8 @@ export function getGradeBadgeConfig(grade: ValuationGrade): {
 /**
  * Gera a mensagem personalizada pronta para o atendente enviar ao cliente pelo WhatsApp
  */
-export function generateAdminWhatsAppResponse(
+export function buildAdminWhatsAppMessage(
   clientName: string,
-  whatsapp: string,
   valuation: ValuationResult,
   itemData: {
     model: string;
@@ -896,9 +895,6 @@ export function generateAdminWhatsAppResponse(
   },
   loyaltyBonusPercent: number = 5
 ): string {
-  const digits = whatsapp.replace(/\D/g, "");
-  const fullNumber = digits.length <= 11 ? `55${digits}` : digits;
-
   const tradeText =
     valuation.targetModelName && valuation.minTradeDelta !== undefined
       ? `\n🎯 *Troca pelo ${valuation.targetModelName}:* Volta estimada de *${formatBRL(
@@ -921,5 +917,19 @@ export function generateAdminWhatsAppResponse(
     loyaltyText +
     `\n\nPodemos dar continuidade para fechar o negócio? Se quiser, você pode trazer hoje mesmo na nossa loja para conferência rápida em 10 minutos!`;
 
+  return message;
+}
+
+/** Mesma mensagem, como link wa.me (reserva quando a Evolution não está disponível). */
+export function generateAdminWhatsAppResponse(
+  clientName: string,
+  whatsapp: string,
+  valuation: ValuationResult,
+  itemData: { model: string; storage?: string; color?: string },
+  loyaltyBonusPercent: number = 5
+): string {
+  const digits = whatsapp.replace(/\D/g, "");
+  const fullNumber = digits.length <= 11 ? `55${digits}` : digits;
+  const message = buildAdminWhatsAppMessage(clientName, valuation, itemData, loyaltyBonusPercent);
   return `https://wa.me/${fullNumber}?text=${encodeURIComponent(message)}`;
 }
