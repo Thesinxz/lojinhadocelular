@@ -75,3 +75,23 @@ describe("preço por cor na lista fixa", () => {
     expect(withGb.colors[0].suggested).toBe(3000);
   });
 });
+
+describe("ajuste por capacidade", () => {
+  it("o preço cresce a cada capacidade, inclusive 2TB", () => {
+    const rows = buildPriceList({}).find((m) => m.name === "iPhone 17 Pro Max")!.rows;
+    const byCap = Object.fromEntries(rows.map((r) => [r.capacity, r.suggested]));
+    expect(byCap["512GB"]).toBeGreaterThan(byCap["256GB"]);
+    expect(byCap["1TB"]).toBeGreaterThan(byCap["512GB"]);
+    expect(byCap["2TB"]).toBeGreaterThan(byCap["1TB"]);
+  });
+});
+
+describe("geração anterior", () => {
+  it("encontra o modelo equivalente da geração anterior", async () => {
+    const { previousGenerationName } = await import("../src/lib/priceList");
+    expect(previousGenerationName("iPhone 18 Pro Max")).toBe("iPhone 17 Pro Max");
+    expect(previousGenerationName("iPhone 18 Pro")).toBe("iPhone 17 Pro");
+    expect(previousGenerationName("iPhone Air")).toBeNull();
+    expect(previousGenerationName("iPhone 6")).toBeNull();
+  });
+});
