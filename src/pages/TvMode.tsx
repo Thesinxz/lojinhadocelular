@@ -4,9 +4,8 @@ import { ShieldCheck, Play, Pause, ChevronLeft, ChevronRight, Expand, Smartphone
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
-import { useShopSettings, optimizeImageUrl } from "@/lib/shop";
+import { useShopSettings, optimizeImageUrl, waLink } from "@/lib/shop";
 import { IPHONE_CATALOG } from "@/lib/iphoneCatalog";
-import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 
 const SLIDE_SECONDS = 7;
 
@@ -18,11 +17,23 @@ export default function TvMode() {
     staleTime: 30_000,
   });
 
+  // TV de uma loja só: /tv?unidade=jardim ou /tv?unidade=gll. Sem parâmetro, mostra tudo.
+  const unit = useMemo(() => {
+    const raw = new URLSearchParams(window.location.search).get("unidade")?.toLowerCase();
+    return raw === "jardim" ? "jardim" : raw === "gll" || raw === "guia_lopes" ? "gll" : null;
+  }, []);
+  const unitName = unit === "jardim" ? "Jardim" : unit === "gll" ? "Guia Lopes" : null;
+  const storeWhatsapp = unit === "gll" && s.whatsappGll ? s.whatsappGll : s.whatsappJardim;
+
+  // Só estoque real: nunca produtos de demonstração. Em falha de rede o react-query mantém o último catálogo carregado.
   const products = useMemo(() => {
-    const fromDb = (query.data ?? []).filter((p) => p.variants.some((v) => v.available));
-    if (fromDb.length > 0) return fromDb;
-    return DEMO_PRODUCTS as unknown as ProductWithVariants[];
-  }, [query.data]);
+    return (query.data ?? []).filter((p) => {
+      if (!p.variants.some((v) => v.available)) return false;
+      if (!unit) return true;
+      const where = p.unitAvailability ?? "jardim";
+      return where === "ambas" || where === (unit === "gll" ? "guia_lopes" : "jardim");
+    });
+  }, [query.data, unit]);
 
   const [index, setIndex] = useState(0);
   const [colorIndexes, setColorIndexes] = useState<Record<string | number, number>>({});
@@ -167,7 +178,7 @@ export default function TvMode() {
               <ShieldCheck className="h-4 w-4 text-emerald-400" /> Aparelhos com até 1 ano de garantia
             </div>
             <div className="hidden items-center gap-1.5 text-xs text-neutral-400 lg:flex">
-              <Smartphone className="h-3.5 w-3.5 text-neutral-400" /> Pronta-entrega em Jardim e Guia Lopes
+              <Smartphone className="h-3.5 w-3.5 text-neutral-400" /> {unitName ? `Pronta-entrega em ${unitName}` : "Pronta-entrega em Jardim e Guia Lopes"}
             </div>
           </div>
         </header>
@@ -180,8 +191,12 @@ export default function TvMode() {
             Carregando vitrine showroom...
           </div>
         ) : !current ? (
-          <div className="flex h-full items-center justify-center font-display text-2xl font-bold text-white">
-            Nenhum produto disponível no momento
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
+            <p className="font-display text-4xl font-bold text-white">Novidades chegando</p>
+            <p className="text-xl text-neutral-300">
+              {query.isError ? "Estamos atualizando a vitrine." : "Nossa vitrine está sendo atualizada."} Fale com a equipe no WhatsApp
+              {storeWhatsapp ? ` (${storeWhatsapp.slice(2, 4)}) ${storeWhatsapp.slice(4, 9)}-${storeWhatsapp.slice(9)}` : ""}.
+            </p>
           </div>
         ) : (
           <Slide
@@ -190,7 +205,7 @@ export default function TvMode() {
             colorIndex={colorIndexes[current.id] ?? 0}
             installmentsMax={s.installmentsMax}
             fees={s.fees}
-            whatsapp={s.whatsappJardim}
+            whatsapp={storeWhatsapp}
           />
         )}
       </main>
@@ -281,17 +296,7 @@ function Slide({
     [product.variants],
   );
 
-  const priceCents = useMemo(() => {
-    const list = available.length > 0 ? available : product.variants;
-    return list.length > 0 ? Math.min(...list.map((v) => v.priceCash)) : 0;
-  }, [available, product.variants]);
-
   const fee12 = fees["12"] ?? fees[String(installmentsMax)] ?? 0;
-  const installment12 = installmentFromFees(priceCents, 12, fee12);
-  const storages = useMemo(
-    () => [...new Set((available.length > 0 ? available : product.variants).map((v) => v.storage))],
-    [available, product.variants],
-  );
 
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
@@ -301,8 +306,10 @@ function Slide({
     const map = new Map<string, { color: string; hex: string; imageUrl?: string }>();
     const vars = product.variants;
 
+    const hasAvailable = vars.some((v) => v.available);
     for (const v of vars) {
       if (!v.color) continue;
+      if (hasAvailable && !v.available) continue; // cor esgotada não aparece na TV
       if (!map.has(v.color)) {
         map.set(v.color, {
           color: v.color,
@@ -324,13 +331,29 @@ function Slide({
   // Foto e cor exibidas nesta passada do aparelho na TV
   const activeItem = colorItems[colorIndex % Math.max(colorItems.length, 1)];
 
+  // Preço e armazenamentos da cor que está na foto (não de qualquer variante do aparelho).
+  const shownVariants = useMemo(() => {
+    const pool = available.length > 0 ? available : product.variants;
+    const activeColor = activeItem?.color;
+    const byColor = activeColor ? pool.filter((v) => v.color === activeColor) : pool;
+    return byColor.length > 0 ? byColor : pool;
+  }, [available, product.variants, activeItem]);
+  const prices = shownVariants.map((v) => v.priceCash);
+  const priceCents = prices.length > 0 ? Math.min(...prices) : 0;
+  const priceIsFrom = new Set(prices).size > 1;
+  const installment12 = installmentFromFees(priceCents, 12, fee12);
+  const storages = useMemo(() => [...new Set(shownVariants.map((v) => v.storage))], [shownVariants]);
+
   const [qr, setQr] = useState("");
   useEffect(() => {
-    const url = `${window.location.origin}/produto/${product.id}`;
+    const detail = [storages.length === 1 ? storages[0] : "", activeItem?.color].filter(Boolean).join(" ");
+    const url = whatsapp
+      ? waLink(`55${whatsapp.replace(/\D/g, "").replace(/^55/, "")}`, `Olá! Vi na TV da loja e tenho interesse no ${product.name}${detail ? ` ${detail}` : ""}.`)
+      : `${window.location.origin}/produto/${product.id}`;
     QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: "#141414", light: "#ffffff" } })
       .then(setQr)
       .catch(() => {});
-  }, [product.id]);
+  }, [product.id, product.name, storages, activeItem?.color, whatsapp]);
 
   const catalogFallbackImg = useMemo(() => {
     return IPHONE_CATALOG.find((m) => product.name.toLowerCase().includes(m.name.toLowerCase()))?.colors[0]?.imageUrl;
@@ -338,7 +361,8 @@ function Slide({
 
   const rawImg = activeItem?.imageUrl || product.imageUrl || catalogFallbackImg || "";
   const optimizedImg = rawImg ? optimizeImageUrl(rawImg, 700) : "";
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadedSrc, setLoadedSrc] = useState("");
+  const isLoaded = loadedSrc === rawImg;
 
   return (
     <div className="tv-slide-in grid h-full grid-cols-1 md:grid-cols-2 overflow-hidden">
@@ -355,7 +379,7 @@ function Slide({
               alt={product.name}
               loading="eager"
               decoding="async"
-              onLoad={() => setIsLoaded(true)}
+              onLoad={() => setLoadedSrc(rawImg)}
               onError={(e) => {
                 if (rawImg && e.currentTarget.src !== rawImg) {
                   e.currentTarget.src = rawImg;
@@ -370,7 +394,7 @@ function Slide({
           )}
 
           {/* Badge de Condição no Topo */}
-          <span className="absolute left-5 top-5 z-10 rounded-full border border-white/20 bg-white/15 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-md shadow-sm">
+          <span className="absolute left-5 top-5 z-10 rounded-full border border-white/25 bg-black/75 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-md shadow-md">
             {product.condition === "seminovo" ? "🔄 Seminovo Revisado" : product.condition === "lacrado" ? "✨ 100% Lacrado" : "✨ Original"}
           </span>
 
@@ -445,7 +469,7 @@ function Slide({
         {/* Card de Preço Imponente para TV */}
         <div className="rounded-3xl border border-white/15 bg-gradient-to-br from-white/[0.09] to-white/[0.03] backdrop-blur-2xl p-6 md:p-7 shadow-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-400">
-            Condição especial no cartão
+            Condição especial no cartão{priceIsFrom ? " · a partir de" : ""}
           </p>
           <p className="mt-1 font-display text-5xl font-extrabold leading-none text-white md:text-6xl lg:text-7xl tracking-tight">
             12x de <span className="text-white">{formatBRL(installment12)}</span>
@@ -455,7 +479,7 @@ function Slide({
               PIX OU DINHEIRO
             </span>
             <p className="text-base font-medium text-neutral-300">
-              ou <span className="font-display text-2xl sm:text-3xl font-bold text-white">{formatBRL(priceCents)}</span> à vista
+              {priceIsFrom ? "ou a partir de" : "ou"} <span className="font-display text-2xl sm:text-3xl font-bold text-white">{formatBRL(priceCents)}</span> à vista
             </p>
           </div>
 
@@ -495,7 +519,7 @@ function Slide({
               <p className="text-xs font-bold uppercase tracking-wider text-neutral-300">Compre pelo celular</p>
             </div>
             <p className="font-display text-base sm:text-lg font-bold text-white mt-0.5 leading-snug">
-              Aponte a câmera e fale com nossa equipe no WhatsApp
+              Aponte a câmera e chame nossa equipe no WhatsApp
             </p>
             <p className="mt-1 text-xs font-medium text-neutral-400">
               WhatsApp Loja: {whatsapp ? `(${whatsapp.slice(2, 4)}) ${whatsapp.slice(4, 9)}-${whatsapp.slice(9)}` : "(67) 99208-6012"}
