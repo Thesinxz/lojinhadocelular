@@ -40,6 +40,11 @@ const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.heroImages,
   SETTING_KEYS.warrantyBadgeText,
   SETTING_KEYS.valuationConfig,
+  SETTING_KEYS.retentionAuto,
+  SETTING_KEYS.retentionOpenMonths,
+  SETTING_KEYS.retentionClosedMonths,
+  SETTING_KEYS.privacyOfficerName,
+  SETTING_KEYS.privacyEmail,
 ] as const;
 
 function getProductModelRank(name: string): number {

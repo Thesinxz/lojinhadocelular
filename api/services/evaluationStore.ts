@@ -3,7 +3,7 @@
  * Drizzle com fallback para SQL direto (bancos antigos sem as colunas novas ainda),
  * e armazenamento em memória durante os testes.
  */
-import { and, count, desc, eq, gte, isNull, like, lt, lte, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, like, lt, lte, or, type SQL } from "drizzle-orm";
 import { evaluations } from "@db/schema";
 import type { EvaluationStatus } from "@contracts/types";
 import { ensureTables, getDb, getPool } from "../queries/connection";
@@ -584,4 +584,75 @@ export function diffWorkflow(before: WorkflowState, after: WorkflowState): Parti
     if (!same) (patch as Record<string, unknown>)[key] = b;
   }
   return patch;
+}
+
+// ===== Guarda e exclusão de dados pessoais (LGPD) =====
+
+export interface ErasableEvaluation {
+  id: number;
+  status: EvaluationStatus;
+  createdAt: Date;
+  statusChangedAt: Date | null;
+  photos: string | null;
+}
+
+/** Avaliações criadas antes de `before` (candidatas à guarda máxima). */
+export async function listEvaluationsCreatedBefore(before: Date): Promise<ErasableEvaluation[]> {
+  if (isMemoryMode()) {
+    return memoryRows
+      .filter((r) => r.createdAt < before)
+      .map((r) => ({ id: r.id, status: r.status, createdAt: r.createdAt, statusChangedAt: r.statusChangedAt, photos: r.photos }));
+  }
+  const db = getDb();
+  await ensureTables();
+  const rows = await db
+    .select({
+      id: evaluations.id,
+      status: evaluations.status,
+      createdAt: evaluations.createdAt,
+      statusChangedAt: evaluations.statusChangedAt,
+      photos: evaluations.photos,
+    })
+    .from(evaluations)
+    .where(lt(evaluations.createdAt, before));
+  return rows.map((r) => ({ ...r, id: Number(r.id), photos: r.photos ?? null }));
+}
+
+/** Avaliações de um número de WhatsApp (compara só os dígitos, ignorando máscara e DDI). */
+export async function listEvaluationsByWhatsapp(digits: string): Promise<ErasableEvaluation[]> {
+  const wanted = String(digits).replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  if (wanted.length < 10) return [];
+  const same = (value: string) => String(value).replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") === wanted;
+  if (isMemoryMode()) {
+    return memoryRows
+      .filter((r) => same(r.whatsapp))
+      .map((r) => ({ id: r.id, status: r.status, createdAt: r.createdAt, statusChangedAt: r.statusChangedAt, photos: r.photos }));
+  }
+  const db = getDb();
+  await ensureTables();
+  const rows = await db
+    .select({
+      id: evaluations.id,
+      whatsapp: evaluations.whatsapp,
+      status: evaluations.status,
+      createdAt: evaluations.createdAt,
+      statusChangedAt: evaluations.statusChangedAt,
+      photos: evaluations.photos,
+    })
+    .from(evaluations);
+  return rows
+    .filter((r) => same(r.whatsapp))
+    .map((r) => ({ id: Number(r.id), status: r.status, createdAt: r.createdAt, statusChangedAt: r.statusChangedAt, photos: r.photos ?? null }));
+}
+
+/** Remove as linhas das avaliações (as fotos, anotações e mensagens são apagadas por quem chama). */
+export async function deleteEvaluationRows(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  if (isMemoryMode()) {
+    memoryRows = memoryRows.filter((r) => !ids.includes(r.id));
+    return;
+  }
+  const db = getDb();
+  await ensureTables();
+  await db.delete(evaluations).where(inArray(evaluations.id, ids));
 }

@@ -40,6 +40,11 @@ export const SETTING_KEYS = {
   teamNotifyNumbers: "team_notify_numbers", // números ou grupos do WhatsApp que recebem o aviso de nova avaliação
   socialProofEnabled: "social_proof_enabled", // "1" | "0": faixa "quem já comprou" na página inicial
   socialProofTitle: "social_proof_title", // título da faixa
+  retentionAuto: "retention_auto", // "1" | "0": a rotina apaga sozinha as avaliações com prazo vencido (desligada por padrão)
+  retentionOpenMonths: "retention_open_months", // meses até apagar avaliações não concluídas (0 = nunca apagar)
+  retentionClosedMonths: "retention_closed_months", // meses até apagar avaliações concluídas (0 = nunca apagar)
+  privacyOfficerName: "privacy_officer_name", // nome do encarregado (DPO), mostrado na Política de Privacidade
+  privacyEmail: "privacy_email", // e-mail do canal do titular (opcional), mostrado na Política de Privacidade
   adminPassword: "admin_password", // nunca exposta publicamente
 } as const;
 
@@ -369,6 +374,11 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   team_notify_numbers: "",
   social_proof_enabled: "0", // desligada até o ERP publicar o endpoint e o dono ligar
   social_proof_title: "Quem confia e já faz parte da família Lojinha ❤️",
+  retention_auto: "0",
+  retention_open_months: "12",
+  retention_closed_months: "60",
+  privacy_officer_name: "",
+  privacy_email: "",
   admin_password: "lojinha123",
 };
 

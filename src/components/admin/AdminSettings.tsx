@@ -41,6 +41,7 @@ import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
 import ValuationAdjustmentsEditor from "@/components/admin/ValuationAdjustmentsEditor";
 import { buildPriceList } from "@/lib/priceList";
 import FixedPriceList from "@/components/admin/FixedPriceList";
+import PrivacySection from "@/components/admin/PrivacySection";
 import ValuationSimulator from "@/components/admin/ValuationSimulator";
 import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
 import AutoMessagesSection from "@/components/admin/evaluations/AutoMessagesSection";
@@ -1159,6 +1160,11 @@ export default function AdminSettings() {
           />
         </Field>
       </section>
+
+      <PrivacySection
+        values={values}
+        onChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}
+      />
 
       {/* Popup */}
       <section className="rounded-2xl border border-[#e5e5e7] bg-white p-6 shadow-2xs">

@@ -1,4 +1,5 @@
 import { trpc } from "@/providers/trpc";
+import { useShopSettings, waLink } from "@/lib/shop";
 
 const AVATAR_COLORS = ["#f59e0b", "#6366f1", "#14b8a6", "#ef4444", "#3b82f6", "#84cc16", "#a855f7", "#06b6d4", "#ec4899", "#22c55e"];
 const MIN_ITEMS = 3;
@@ -42,6 +43,8 @@ function Pill({ buyer }: { buyer: Buyer }) {
  */
 export default function SocialProofStrip() {
   const query = trpc.shop.socialProof.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: 0 });
+  const shop = useShopSettings();
+  const contact = shop.whatsappJardim || shop.whatsappGll;
   const data = query.data;
   if (!data || data.items.length < MIN_ITEMS) return null;
 
@@ -65,6 +68,19 @@ export default function SocialProofStrip() {
           </ul>
         </div>
       </div>
+      {contact && (
+        <p className="mt-3 px-4 text-center text-[11px] text-[#86868b]">
+          Comprou com a gente e prefere não aparecer?{" "}
+          <a
+            href={waLink(contact, "Olá! Comprei na Lojinha do Celular e gostaria de não aparecer na faixa “Quem já comprou” do site.")}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-[#1d1d1f] underline underline-offset-2 hover:text-black"
+          >
+            Peça a remoção
+          </a>
+        </p>
+      )}
     </section>
   );
 }

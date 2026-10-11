@@ -2,7 +2,7 @@
  * Histórico das mensagens automáticas enviadas por avaliação.
  * Em memória durante os testes ou sem DATABASE_URL.
  */
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { evaluationMessages } from "@db/schema";
 import { ensureTables, getDb } from "../queries/connection";
 
@@ -74,4 +74,16 @@ export async function recordEvaluationMessage(message: NewEvaluationMessage): Pr
   const db = getDb();
   await ensureTables();
   await db.insert(evaluationMessages).values(clean);
+}
+
+/** Apaga o histórico de mensagens (que guarda o texto enviado ao cliente) das avaliações. */
+export async function deleteEvaluationMessagesFor(evaluationIds: number[]): Promise<void> {
+  if (evaluationIds.length === 0) return;
+  if (isMemoryMode()) {
+    memoryMessages = memoryMessages.filter((m) => !evaluationIds.includes(m.evaluationId));
+    return;
+  }
+  const db = getDb();
+  await ensureTables();
+  await db.delete(evaluationMessages).where(inArray(evaluationMessages.evaluationId, evaluationIds));
 }

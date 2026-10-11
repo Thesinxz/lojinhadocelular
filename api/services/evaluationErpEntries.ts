@@ -4,7 +4,7 @@
  * seguem direto para o ERP e NÃO ficam no nosso banco.
  * Em memória durante os testes ou sem DATABASE_URL.
  */
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { evaluationErpEntries } from "@db/schema";
 import { ensureTables, getDb } from "../queries/connection";
 
@@ -137,4 +137,16 @@ export async function releaseErpEntry(evaluationId: number): Promise<void> {
   await db
     .delete(evaluationErpEntries)
     .where(and(eq(evaluationErpEntries.evaluationId, evaluationId), eq(evaluationErpEntries.status, "sending")));
+}
+
+/** Apaga o controle de entrada no ERP das avaliações removidas. */
+export async function deleteErpEntriesFor(evaluationIds: number[]): Promise<void> {
+  if (evaluationIds.length === 0) return;
+  if (isMemoryMode()) {
+    for (const id of evaluationIds) memory.delete(id);
+    return;
+  }
+  const db = getDb();
+  await ensureTables();
+  await db.delete(evaluationErpEntries).where(inArray(evaluationErpEntries.evaluationId, evaluationIds));
 }

@@ -2,7 +2,7 @@
  * Anotações internas das avaliações (timeline do atendimento).
  * Em memória durante os testes ou sem DATABASE_URL.
  */
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { evaluationNotes } from "@db/schema";
 import type { SessionUser } from "@contracts/permissions";
 import { ensureTables, getDb } from "../queries/connection";
@@ -74,4 +74,16 @@ export async function addEvaluationNote(
   await ensureTables();
   const result = await db.insert(evaluationNotes).values(note);
   return { ...note, id: Number(result[0]?.insertId ?? 0), createdAt: new Date() };
+}
+
+/** Apaga as anotações das avaliações (exclusão de dados pessoais). */
+export async function deleteEvaluationNotesFor(evaluationIds: number[]): Promise<void> {
+  if (evaluationIds.length === 0) return;
+  if (isMemoryMode()) {
+    memoryNotes = memoryNotes.filter((n) => !evaluationIds.includes(n.evaluationId));
+    return;
+  }
+  const db = getDb();
+  await ensureTables();
+  await db.delete(evaluationNotes).where(inArray(evaluationNotes.evaluationId, evaluationIds));
 }
