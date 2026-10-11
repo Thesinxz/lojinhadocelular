@@ -38,6 +38,10 @@ import {
   normalizeKey,
 } from "@/lib/valuationEngine";
 import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
+import ValuationAdjustmentsEditor from "@/components/admin/ValuationAdjustmentsEditor";
+import { buildPriceList } from "@/lib/priceList";
+import FixedPriceList from "@/components/admin/FixedPriceList";
+import ValuationSimulator from "@/components/admin/ValuationSimulator";
 import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
 import AutoMessagesSection from "@/components/admin/evaluations/AutoMessagesSection";
 
@@ -69,7 +73,7 @@ export default function AdminSettings() {
   );
   const [modelFilter, setModelFilter] = useState("");
   const [selectedCapacity, setSelectedCapacity] = useState<string>("all");
-  const [pricingViewMode, setPricingViewMode] = useState<"models" | "all">("models");
+  const [pricingViewMode, setPricingViewMode] = useState<"list" | "models" | "all">("list");
   const [onlyCustomFilter, setOnlyCustomFilter] = useState(false);
   const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
   const [templates, setTemplates] = useState<WhatsappTemplate[]>([]);
@@ -149,6 +153,37 @@ export default function AdminSettings() {
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [key]: e.target.value }));
+
+  const savedValuationConfig = useMemo(
+    () => parseValuationConfig(query.data?.[SETTING_KEYS.valuationConfig]),
+    [query.data],
+  );
+
+  // Modelos com algum armazenamento sem preço: ficam "sob consulta" para o cliente até serem definidos.
+  const pendingPriceModels = useMemo(() => {
+    const custom = valuationConfig.customBasePrices ?? {};
+    return buildPriceList(custom).filter((m) => m.rows.some((r) => !(custom[r.key] > 0) && r.suggested <= 0));
+  }, [valuationConfig.customBasePrices]);
+
+  const discardChanges = () => {
+    if (baseline === null) return;
+    try {
+      const saved = JSON.parse(baseline) as {
+        values: Record<string, string>;
+        fees: Record<string, string>;
+        heroText: string;
+        valuationConfig: ValuationConfig;
+        templates: WhatsappTemplate[];
+        autoMessages: AutoMessagesConfig;
+      };
+      setValues(saved.values);
+      setFees(saved.fees);
+      setHeroText(saved.heroText);
+      setValuationConfig(saved.valuationConfig);
+      setTemplates(saved.templates);
+      setAutoMessages(saved.autoMessages);
+    } catch {}
+  };
 
   const customPricesCount = useMemo(() => {
     return Object.keys(valuationConfig.customBasePrices || {}).filter(
@@ -333,6 +368,25 @@ export default function AdminSettings() {
           </span>
         </div>
 
+        {pendingPriceModels.length > 0 && (
+          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <span>
+              <strong>
+                {pendingPriceModels.length} modelo{pendingPriceModels.length > 1 ? "s" : ""} com armazenamento sem preço
+              </strong>
+              : {pendingPriceModels.map((m) => m.name).join(", ")}. O cliente que escolher
+              {pendingPriceModels.length > 1 ? " esses modelos fica" : " esse modelo fica"} sem cotação (“sob consulta”).
+            </span>
+            <button
+              type="button"
+              onClick={() => document.getElementById("tabela-precos")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white hover:bg-amber-700 cursor-pointer"
+            >
+              Definir agora
+            </button>
+          </div>
+        )}
+
         {/* Parâmetros Globais */}
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Multiplicador Global */}
@@ -436,7 +490,7 @@ export default function AdminSettings() {
 
           {/* Desconto de Bateria Degradada */}
           <div className="rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
-            <span className="block text-xs font-semibold text-[#6e6e73]">Deságio Bateria &lt; 80%</span>
+            <span className="block text-xs font-semibold text-[#6e6e73]">Deságio máximo da bateria</span>
             <div className="mt-1.5 flex items-center gap-2">
               <input
                 type="number"
@@ -456,7 +510,7 @@ export default function AdminSettings() {
               <span className="font-bold text-sm text-[#1d1d1f]">%</span>
             </div>
             <p className="mt-1.5 text-[11px] text-[#86868b]">
-              Desconto proporcional pelo custo de troca técnica da bateria degradada.
+              Desconto máximo, aplicado quando a bateria está bem abaixo do limite (veja “Descontos do motor”).
             </p>
           </div>
         </div>
@@ -502,7 +556,11 @@ export default function AdminSettings() {
         </div>
 
         {/* Preços Base dos Modelos Mais Populares & Matriz Completa (GB e Cores) */}
-        <div className="mt-6 border-t border-[#e5e5e7] pt-5">
+        <ValuationAdjustmentsEditor config={valuationConfig} onChange={setValuationConfig} />
+
+        <ValuationSimulator config={valuationConfig} savedConfig={savedValuationConfig} />
+
+        <div id="tabela-precos" className="mt-6 scroll-mt-24 border-t border-[#e5e5e7] pt-5">
           <div className="flex flex-col gap-3 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div>
@@ -592,6 +650,19 @@ export default function AdminSettings() {
                 <div className="inline-flex rounded-lg border border-[#e5e5e7] bg-white p-0.5">
                   <button
                     type="button"
+                    onClick={() => setPricingViewMode("list")}
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
+                      pricingViewMode === "list"
+                        ? "bg-[#1d1d1f] text-white"
+                        : "text-[#6e6e73] hover:text-[#1d1d1f]"
+                    }`}
+                    title="Lista fixa: um preço por modelo e armazenamento"
+                  >
+                    <ListFilter className="h-3 w-3" />
+                    Lista fixa
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPricingViewMode("models")}
                     className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
                       pricingViewMode === "models"
@@ -623,7 +694,9 @@ export default function AdminSettings() {
             {/* Sub-barra com ações e contagem */}
             <div className="flex items-center justify-between text-xs text-[#86868b] px-1">
               <span>
-                {pricingViewMode === "models"
+                {pricingViewMode === "list"
+                  ? "Um preço por modelo e armazenamento. Deixe vazio para o motor calcular."
+                  : pricingViewMode === "models"
                   ? `Exibindo ${filteredModels.length} modelos`
                   : `Exibindo ${filteredVariations.length} de ${IPHONE_REFERENCE_PRICES.length} variações`}
               </span>
@@ -641,7 +714,15 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          {pricingViewMode === "models" ? (
+          {pricingViewMode === "list" ? (
+            <FixedPriceList
+              config={valuationConfig}
+              onChange={setValuationConfig}
+              search={modelFilter}
+              capacity={selectedCapacity}
+              onlyEdited={onlyCustomFilter}
+            />
+          ) : pricingViewMode === "models" ? (
             <div className="max-h-[500px] overflow-y-auto rounded-xl border border-[#e5e5e7] bg-white divide-y divide-[#f0f0f2]">
               {filteredModels.length === 0 ? (
                 <div className="p-8 text-center text-xs text-[#86868b]">
@@ -1127,60 +1208,70 @@ export default function AdminSettings() {
 
       </div>
 
-      <button
-        onClick={() => {
-          const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
-          if (!Number.isFinite(slaHours) || slaHours <= 0 || slaHours > 720) {
-            toast.error("Prazo de resposta inválido: informe um número de horas entre 0 e 720.");
-            return;
-          }
-          const cleanTemplates = templates
-            .map((t) => ({ ...t, label: t.label.trim(), body: t.body.trim() }))
-            .filter((t) => t.label && t.body);
-          if (cleanTemplates.length !== templates.length) {
-            toast.error("Preencha o título e o texto de todas as mensagens prontas (ou remova as vazias).");
-            return;
-          }
-          const feesJson = JSON.stringify(
-            Object.fromEntries(
-              Object.entries(fees).map(([k, v]) => [
-                k,
-                Number(v.replace(",", ".")) || 0,
-              ]),
-            ),
-          );
-          update.mutate({
-            values: {
-              ...values,
-              [SETTING_KEYS.installmentFees]: feesJson,
-              [SETTING_KEYS.heroImages]: JSON.stringify(
-                heroText.split("\n").map((u) => u.trim()).filter(Boolean),
+      <div className="sticky bottom-0 z-20 -mx-2 flex flex-wrap items-center gap-3 rounded-2xl border border-[#e5e5e7] bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+        <button
+          onClick={() => {
+            const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
+            if (!Number.isFinite(slaHours) || slaHours <= 0 || slaHours > 720) {
+              toast.error("Prazo de resposta inválido: informe um número de horas entre 0 e 720.");
+              return;
+            }
+            const cleanTemplates = templates
+              .map((t) => ({ ...t, label: t.label.trim(), body: t.body.trim() }))
+              .filter((t) => t.label && t.body);
+            if (cleanTemplates.length !== templates.length) {
+              toast.error("Preencha o título e o texto de todas as mensagens prontas (ou remova as vazias).");
+              return;
+            }
+            const feesJson = JSON.stringify(
+              Object.fromEntries(
+                Object.entries(fees).map(([k, v]) => [
+                  k,
+                  Number(v.replace(",", ".")) || 0,
+                ]),
               ),
-              [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
-              [SETTING_KEYS.evaluationSlaHours]: String(slaHours),
-              [SETTING_KEYS.whatsappTemplates]: JSON.stringify(cleanTemplates),
-              [SETTING_KEYS.autoMessages]: JSON.stringify(autoMessages),
-            },
-          });
-        }}
-        disabled={update.isPending}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-      >
-        {update.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : saved ? (
-          <Check className="h-4 w-4 text-emerald-400" />
-        ) : (
-          <Save className="h-4 w-4" />
+            );
+            update.mutate({
+              values: {
+                ...values,
+                [SETTING_KEYS.installmentFees]: feesJson,
+                [SETTING_KEYS.heroImages]: JSON.stringify(
+                  heroText.split("\n").map((u) => u.trim()).filter(Boolean),
+                ),
+                [SETTING_KEYS.valuationConfig]: JSON.stringify(valuationConfig),
+                [SETTING_KEYS.evaluationSlaHours]: String(slaHours),
+                [SETTING_KEYS.whatsappTemplates]: JSON.stringify(cleanTemplates),
+                [SETTING_KEYS.autoMessages]: JSON.stringify(autoMessages),
+              },
+            });
+          }}
+          disabled={update.isPending}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black px-6 py-3 font-display font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+        >
+          {update.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : saved ? (
+            <Check className="h-4 w-4 text-emerald-400" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {update.isPending ? "Salvando configurações..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
+        </button>
+        {dirty && !update.isPending && (
+          <>
+            <span className="text-xs font-semibold text-amber-700" role="status">
+              Alterações não salvas (valem para todas as abas).
+            </span>
+            <button
+              type="button"
+              onClick={discardChanges}
+              className="rounded-xl border border-[#d2d2d7] px-4 py-2.5 text-sm font-semibold text-[#424245] hover:bg-[#f5f5f7] cursor-pointer"
+            >
+              Descartar
+            </button>
+          </>
         )}
-        {update.isPending ? "Salvando configurações..." : saved ? "Salvo com sucesso!" : "Salvar configurações"}
-      </button>
-      {dirty && !update.isPending && (
-        <p className="text-xs font-semibold text-amber-700" role="status">
-          Você tem alterações não salvas (vale para todas as abas).
-        </p>
-      )}
-
+      </div>
       {saveError && (
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />

@@ -5,6 +5,7 @@ import { AUTO_MESSAGE_EVENTS, AUTO_MESSAGE_EVENT_LABELS, type AutoMessageEvent }
 import { formatDateTime } from "./evaluationUi";
 
 function eventLabel(event: string): string {
+  if (event === "manual") return "Mensagem manual";
   return AUTO_MESSAGE_EVENT_LABELS[event as AutoMessageEvent] ?? event;
 }
 

@@ -25,7 +25,7 @@ import { buildWhatsappLink } from "@/lib/whatsappTemplates";
 import {
   evaluateDevice,
   formatBRL as formatReais,
-  generateAdminWhatsAppResponse,
+  buildAdminWhatsAppMessage,
   getGradeBadgeConfig,
   parseValuationConfig,
 } from "@/lib/valuationEngine";
@@ -36,6 +36,7 @@ import NotesTimeline, { EvaluationAuditList } from "@/components/admin/evaluatio
 import LoyaltyCard from "@/components/admin/evaluations/LoyaltyCard";
 import ErpEntryCard from "@/components/admin/evaluations/ErpEntryCard";
 import SentMessagesCard from "@/components/admin/evaluations/SentMessagesCard";
+import SendWhatsappDialog from "@/components/admin/evaluations/SendWhatsappDialog";
 import WhatsappTemplatesCard from "@/components/admin/evaluations/WhatsappTemplatesCard";
 import {
   formatDateTime,
@@ -88,9 +89,9 @@ function ValuationBox({ item, configJson }: { item: EvaluationRow; configJson: s
     );
   }, [item, config]);
   const grade = getGradeBadgeConfig(valuation.grade);
-  const estimateLink = generateAdminWhatsAppResponse(
+  const [estimateOpen, setEstimateOpen] = useState(false);
+  const estimateText = buildAdminWhatsAppMessage(
     item.name,
-    item.whatsapp,
     valuation,
     { model: item.model, storage: item.storage ?? undefined, color: item.color ?? undefined },
     config.loyaltyBonusPercent ?? 5,
@@ -137,15 +138,24 @@ function ValuationBox({ item, configJson }: { item: EvaluationRow; configJson: s
         </p>
       )}
       {valuation.priceable && (
-        <a
-          href={estimateLink}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-        >
-          <MessageCircle className="h-3.5 w-3.5" />
-          Enviar estimativa no WhatsApp
-        </a>
+        <>
+          <button
+            type="button"
+            onClick={() => setEstimateOpen(true)}
+            className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Enviar estimativa no WhatsApp
+          </button>
+          <SendWhatsappDialog
+            open={estimateOpen}
+            onClose={() => setEstimateOpen(false)}
+            evaluationId={item.id}
+            clientPhone={item.whatsapp}
+            title="Enviar estimativa"
+            initialText={estimateText}
+          />
+        </>
       )}
     </div>
   );
@@ -511,6 +521,7 @@ export default function EvaluationDetailPage() {
 
           {config && (
             <WhatsappTemplatesCard
+              evaluationId={evaluation.id}
               templates={config.templates}
               clientPhone={evaluation.whatsapp}
               evaluation={evaluation}

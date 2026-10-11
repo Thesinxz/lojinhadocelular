@@ -68,6 +68,89 @@ export const DEFAULT_FEES: Record<string, number> = {
   "21": 21.79,
 };
 
+/** Estado visual: ajuste em % sobre o valor (negativo desconta, positivo acrescenta). */
+export const VISUAL_ADJUSTMENT_KEYS = ["novo", "poucas", "normais", "riscos", "trinco"] as const;
+export type VisualAdjustmentKey = (typeof VISUAL_ADJUSTMENT_KEYS)[number];
+export const VISUAL_ADJUSTMENT_LABELS: Record<VisualAdjustmentKey, string> = {
+  novo: "Parece novo, sem marcas",
+  poucas: "Pouquíssimas marcas de uso",
+  normais: "Marcas normais do dia a dia",
+  riscos: "Riscos ou amassados visíveis",
+  trinco: "Tela ou tampa com trinco",
+};
+
+/** Itens do diagnóstico técnico; "Não" na resposta do cliente aplica a regra. */
+export const DEFECT_KEYS = ["faceId", "screen", "batteryOriginal", "cameras", "audio", "chargingPort", "opened"] as const;
+export type DefectKey = (typeof DEFECT_KEYS)[number];
+export const DEFECT_LABELS: Record<DefectKey, string> = {
+  faceId: "Face ID não funciona",
+  screen: "Tela trocada / não original",
+  batteryOriginal: "Bateria trocada / não original",
+  cameras: "Câmeras com problema",
+  audio: "Áudio com problema",
+  chargingPort: "Conector de carga com problema",
+  opened: "Já foi aberto / reparado",
+};
+
+export interface DefectRule {
+  /** Desconto em % do valor do aparelho. */
+  percent: number;
+  /** Desconto fixo em R$ (ex.: custo de trocar a peça). Soma com o percentual. */
+  reais: number;
+  /** Mesmo com desconto, marca "conferir na loja" para a equipe decidir. */
+  manual: boolean;
+}
+
+export interface ValuationAdjustments {
+  visual: Record<VisualAdjustmentKey, number>;
+  defects: Record<DefectKey, DefectRule>;
+  /** Desconto quando o cliente não sabe a saúde da bateria. */
+  batteryUnknownPercent: number;
+  /** Folga da faixa mostrada: valor estimado ± este %. */
+  rangePercent: number;
+}
+
+export const DEFAULT_ADJUSTMENTS: ValuationAdjustments = {
+  visual: { novo: 2, poucas: -4, normais: -12, riscos: -26, trinco: -50 },
+  defects: {
+    faceId: { percent: 15, reais: 0, manual: false },
+    screen: { percent: 14, reais: 0, manual: false },
+    batteryOriginal: { percent: 7, reais: 0, manual: false },
+    cameras: { percent: 18, reais: 0, manual: false },
+    audio: { percent: 8, reais: 0, manual: false },
+    chargingPort: { percent: 7, reais: 0, manual: false },
+    opened: { percent: 4, reais: 0, manual: false },
+  },
+  batteryUnknownPercent: 6,
+  rangePercent: 5,
+};
+
+function num(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+}
+
+/** Junta o que foi salvo com os padrões (valores inválidos voltam ao padrão e são limitados a faixas seguras). */
+export function resolveAdjustments(raw?: Partial<ValuationAdjustments> | null): ValuationAdjustments {
+  const d = DEFAULT_ADJUSTMENTS;
+  const visual = { ...d.visual };
+  for (const key of VISUAL_ADJUSTMENT_KEYS) visual[key] = num(raw?.visual?.[key], d.visual[key], -90, 30);
+  const defects = {} as Record<DefectKey, DefectRule>;
+  for (const key of DEFECT_KEYS) {
+    const r = raw?.defects?.[key];
+    defects[key] = {
+      percent: num(r?.percent, d.defects[key].percent, 0, 90),
+      reais: num(r?.reais, d.defects[key].reais, 0, 20000),
+      manual: typeof r?.manual === "boolean" ? r.manual : d.defects[key].manual,
+    };
+  }
+  return {
+    visual,
+    defects,
+    batteryUnknownPercent: num(raw?.batteryUnknownPercent, d.batteryUnknownPercent, 0, 50),
+    rangePercent: num(raw?.rangePercent, d.rangePercent, 0, 25),
+  };
+}
+
 export interface ValuationConfig {
   globalMultiplier: number; // ex: 1.0 = 100%, 0.95 = 95%, 1.05 = 105%
   loyaltyBonusPercent: number; // ex: 5 = +5%
@@ -75,6 +158,8 @@ export interface ValuationConfig {
   minBatteryThreshold: number; // ex: 80 = 80%
   batteryPenaltyUnder80: number; // ex: 18 = -18%
   customBasePrices: Record<string, number>; // ex: {"iphone 16 pro max": 6500, ...}
+  /** Descontos por estado visual e defeitos; ausente = padrões. */
+  adjustments?: Partial<ValuationAdjustments>;
   disclaimerText?: string;
   hidePricesToClient?: boolean; // Se true, o cliente não vê valores monetários (R$) no site nem na mensagem do WhatsApp
 }

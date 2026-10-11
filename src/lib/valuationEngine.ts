@@ -14,7 +14,11 @@
 
 import {
   type ValuationConfig,
+  type VisualAdjustmentKey,
+  type DefectKey,
   DEFAULT_VALUATION_CONFIG,
+  DEFECT_LABELS,
+  resolveAdjustments,
 } from "@contracts/types";
 
 export type ValuationGrade = "A+" | "A" | "B" | "C";
@@ -350,6 +354,9 @@ export function parseValuationConfig(json?: string | Partial<ValuationConfig> | 
         typeof parsed.customBasePrices === "object" && parsed.customBasePrices
           ? parsed.customBasePrices
           : {},
+      adjustments: resolveAdjustments(
+        typeof parsed.adjustments === "object" ? parsed.adjustments : undefined,
+      ),
       disclaimerText:
         typeof parsed.disclaimerText === "string" && parsed.disclaimerText.trim()
           ? parsed.disclaimerText
@@ -587,93 +594,78 @@ const PENDING_CHECK_LABELS: Array<[keyof ValuationInput, string]> = [
   ["openedBefore", "Se já foi aberto/reparado"],
 ];
 
+export type PriceSource = "personalizado" | "tabela" | "calculado" | "sem-preco";
+
+function storageAdjustment(base: number, storage?: string): { bonus: number; highlight?: string } {
+  const norm = (storage || "").toLowerCase();
+  if (base <= 0) return { bonus: 0 };
+  if (norm.includes("1tb") || norm.includes("1 tb")) {
+    return { bonus: Math.max(500, Math.round(base * 0.18)), highlight: "Capacidade alta de 1TB (+ valor)" };
+  }
+  if (norm.includes("512")) return { bonus: Math.max(300, Math.round(base * 0.12)), highlight: "Capacidade 512GB (+ valor)" };
+  if (norm.includes("256")) return { bonus: Math.max(100, Math.round(base * 0.06)), highlight: "Capacidade 256GB" };
+  if (norm.includes("64")) return { bonus: -Math.max(80, Math.round(base * 0.06)) };
+  return { bonus: 0 };
+}
+
+/**
+ * Preço de referência de um aparelho (modelo + capacidade [+ cor]) antes de bateria, estado e defeitos.
+ * `base + storageBonus` é o valor que o motor usa; `source` diz de onde ele veio.
+ */
+export function resolveDevicePrice(
+  model: string,
+  storage?: string,
+  color?: string,
+  customPrices?: Record<string, number>,
+): { base: number; storageBonus: number; source: PriceSource; highlights: string[] } {
+  const highlights: string[] = [];
+  const customMatch = getCustomBasePriceMatch(model, customPrices, storage, color);
+  if (customMatch) {
+    if (customMatch.isSpecificCapacity) {
+      if (storage) highlights.push(`Capacidade ${storage} (personalizada)`);
+      return { base: customMatch.price, storageBonus: 0, source: "personalizado", highlights };
+    }
+    const adj = storageAdjustment(customMatch.price, storage);
+    if (adj.highlight) highlights.push(adj.highlight);
+    return { base: customMatch.price, storageBonus: adj.bonus, source: "personalizado", highlights };
+  }
+  const ref = findReferenceDevicePrice(model, storage, color);
+  if (ref) {
+    if (ref.capacity) highlights.push(`Capacidade ${ref.capacity} (tabela oficial)`);
+    return { base: ref.priceBrl, storageBonus: 0, source: "tabela", highlights };
+  }
+  const base = findBasePrice(model);
+  const adj = storageAdjustment(base, storage);
+  if (adj.highlight) highlights.push(adj.highlight);
+  return { base, storageBonus: adj.bonus, source: base > 0 ? "calculado" : "sem-preco", highlights };
+}
+
 export function evaluateDevice(input: ValuationInput, config?: ValuationConfig): ValuationResult {
   const cfg = config || DEFAULT_VALUATION_CONFIG;
   let multiplier = cfg.globalMultiplier ?? 1.0;
   let score = 95;
   const highlights: string[] = [];
 
-  // Determinação do valor base e capacidade:
-  // Se o lojista configurou preço customizado no Admin (seja por modelo, capacidade ou cor), ele tem prioridade máxima.
-  const customMatch = getCustomBasePriceMatch(
-    input.model,
-    cfg.customBasePrices,
-    input.storage,
-    input.color
-  );
-  const refDevice = !customMatch
-    ? findReferenceDevicePrice(input.model, input.storage, input.color)
-    : null;
+  // Valor base e capacidade: preço personalizado no painel > tabela oficial da loja > preço do modelo + ajuste de GB.
+  const resolved = resolveDevicePrice(input.model, input.storage, input.color, cfg.customBasePrices);
+  const base = resolved.base;
+  let storageBonus = resolved.storageBonus;
+  highlights.push(...resolved.highlights);
 
-  let base: number;
-  let storageBonus = 0;
-
-  if (customMatch) {
-    base = customMatch.price;
-    if (customMatch.isSpecificCapacity) {
-      // Preço customizado especificamente para este GB/cor: não soma bônus genérico
-      storageBonus = 0;
-      if (input.storage) {
-        highlights.push(`Capacidade ${input.storage} (personalizada)`);
-      }
-    } else {
-      // Preço customizado no modelo base (128GB Grau A): calcula bônus de armazenamento proporcional
-      const storageNorm = (input.storage || "").toLowerCase();
-      if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
-        storageBonus = Math.max(500, Math.round(base * 0.18));
-        highlights.push("Capacidade alta de 1TB (+ valor)");
-      } else if (storageNorm.includes("512")) {
-        storageBonus = Math.max(300, Math.round(base * 0.12));
-        highlights.push("Capacidade 512GB (+ valor)");
-      } else if (storageNorm.includes("256")) {
-        storageBonus = Math.max(100, Math.round(base * 0.06));
-        highlights.push("Capacidade 256GB");
-      } else if (storageNorm.includes("64")) {
-        storageBonus = -Math.max(80, Math.round(base * 0.06));
-      }
-    }
-  } else if (refDevice) {
-    // Aparelho bate diretamente com a tabela oficial de compra da loja!
-    base = refDevice.priceBrl;
-    storageBonus = 0;
-    if (refDevice.capacity) {
-      highlights.push(`Capacidade ${refDevice.capacity} (tabela oficial)`);
-    }
-  } else {
-    base = findBasePrice(input.model);
-    const storageNorm = base > 0 ? (input.storage || "").toLowerCase() : "";
-    if (storageNorm.includes("1tb") || storageNorm.includes("1 tb")) {
-      storageBonus = Math.max(500, Math.round(base * 0.18));
-      highlights.push("Capacidade alta de 1TB (+ valor)");
-    } else if (storageNorm.includes("512")) {
-      storageBonus = Math.max(300, Math.round(base * 0.12));
-      highlights.push("Capacidade 512GB (+ valor)");
-    } else if (storageNorm.includes("256")) {
-      storageBonus = Math.max(100, Math.round(base * 0.06));
-      highlights.push("Capacidade 256GB");
-    } else if (storageNorm.includes("64")) {
-      storageBonus = -Math.max(80, Math.round(base * 0.06));
-    }
-  }
-
-  // 2. Condição visual
+  // 2. Condição visual (ajustes configuráveis em %)
+  const adj = resolveAdjustments(cfg.adjustments);
   const visual = (input.visualCondition || input.condition || "").toLowerCase();
-  if (visual.includes("parece novo") || visual.includes("sem marcas")) {
-    multiplier *= 1.02;
-    score += 4;
-    highlights.push("Estado impecável sem marcas visíveis");
-  } else if (visual.includes("pouquissimas") || visual.includes("poucas")) {
-    multiplier *= 0.96;
-    score -= 3;
-  } else if (visual.includes("normais")) {
-    multiplier *= 0.88;
-    score -= 10;
-  } else if (visual.includes("riscos") || visual.includes("amassados")) {
-    multiplier *= 0.74;
-    score -= 25;
-  } else if (visual.includes("trinco") || visual.includes("trincada")) {
-    multiplier *= 0.5;
-    score -= 45;
+  let visualKey: VisualAdjustmentKey | null = null;
+  if (visual.includes("parece novo") || visual.includes("sem marcas")) visualKey = "novo";
+  else if (visual.includes("pouquissimas") || visual.includes("poucas")) visualKey = "poucas";
+  else if (visual.includes("normais")) visualKey = "normais";
+  else if (visual.includes("riscos") || visual.includes("amassados")) visualKey = "riscos";
+  else if (visual.includes("trinco") || visual.includes("trincada")) visualKey = "trinco";
+  if (visualKey) {
+    const pct = adj.visual[visualKey];
+    multiplier *= 1 + pct / 100;
+    score += visualKey === "novo" ? 4 : visualKey === "poucas" ? -3 : visualKey === "normais" ? -10 : visualKey === "riscos" ? -25 : -45;
+    if (visualKey === "novo") highlights.push("Estado impecável sem marcas visíveis");
   }
 
   // 3. Bateria
@@ -681,7 +673,7 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   const penalty = (cfg.batteryPenaltyUnder80 ?? 18) / 100;
 
   if (input.batteryUnknown) {
-    multiplier *= 0.94;
+    multiplier *= 1 - adj.batteryUnknownPercent / 100;
     score -= 5;
   } else if (typeof input.batteryPercent === "number") {
     const bat = input.batteryPercent;
@@ -699,34 +691,24 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     }
   }
 
-  // 4. Diagnóstico Técnico
-  if (input.faceId === "Não") {
-    multiplier *= 0.85;
-    score -= 20;
-  }
-  if (input.screenOriginal === "Não") {
-    multiplier *= 0.86;
-    score -= 18;
-  }
-  if (input.batteryOriginal === "Não") {
-    multiplier *= 0.93;
-    score -= 6;
-  }
-  if (input.camerasOk === "Não") {
-    multiplier *= 0.82;
-    score -= 20;
-  }
-  if (input.audioOk === "Não") {
-    multiplier *= 0.92;
-    score -= 8;
-  }
-  if (input.chargingPortOk === "Não") {
-    multiplier *= 0.93;
-    score -= 8;
-  }
+  // 4. Diagnóstico Técnico (descontos configuráveis: % e/ou R$ fixo; "manual" pede conferência na loja)
+  let fixedDeduction = 0;
+  const manualChecks: string[] = [];
+  const applyDefect = (key: DefectKey, scorePenalty: number) => {
+    const rule = adj.defects[key];
+    multiplier *= 1 - rule.percent / 100;
+    fixedDeduction += rule.reais;
+    score -= scorePenalty;
+    if (rule.manual) manualChecks.push(`${DEFECT_LABELS[key]}: definir o desconto na loja`);
+  };
+  if (input.faceId === "Não") applyDefect("faceId", 20);
+  if (input.screenOriginal === "Não") applyDefect("screen", 18);
+  if (input.batteryOriginal === "Não") applyDefect("batteryOriginal", 6);
+  if (input.camerasOk === "Não") applyDefect("cameras", 20);
+  if (input.audioOk === "Não") applyDefect("audio", 8);
+  if (input.chargingPortOk === "Não") applyDefect("chargingPort", 8);
   if (input.openedBefore === "Sim") {
-    multiplier *= 0.96;
-    score -= 4;
+    applyDefect("opened", 4);
   } else if (input.openedBefore === "Não") {
     highlights.push("Aparelho nunca aberto");
   }
@@ -777,16 +759,17 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   const priceable = base > 0;
 
   // Cálculo final com margem de segurança (mínimo e máximo)
-  const adjustedBase = (base + storageBonus) * multiplier;
+  const adjustedBase = Math.max(0, (base + storageBonus) * multiplier - fixedDeduction);
   const roundedEstimated = Math.round(adjustedBase / 50) * 50;
 
   // Faixa de -5% a +5% em torno da média estimada
-  const minEstimatedValue = priceable ? Math.max(200, Math.round((roundedEstimated * 0.95) / 50) * 50) : 0;
-  const maxEstimatedValue = priceable ? Math.max(minEstimatedValue + 100, Math.round((roundedEstimated * 1.05) / 50) * 50) : 0;
+  const minEstimatedValue = priceable ? Math.max(200, Math.round((roundedEstimated * (1 - adj.rangePercent / 100)) / 50) * 50) : 0;
+  const maxEstimatedValue = priceable ? Math.max(minEstimatedValue + 100, Math.round((roundedEstimated * (1 + adj.rangePercent / 100)) / 50) * 50) : 0;
 
   // "Não sei" não muda o preço, mas a equipe precisa conferir.
   const pendingChecks = PENDING_CHECK_LABELS.filter(([field]) => input[field] === "Não sei").map(([, label]) => label);
   if (input.batteryUnknown) pendingChecks.push("Saúde da bateria");
+  pendingChecks.push(...manualChecks);
   const blockers = input.icloudFree === "Não" ? ["iCloud bloqueado: não compramos aparelho com bloqueio de conta"] : [];
 
   // Cálculo de Volta para o modelo desejado (se houver)
@@ -885,9 +868,8 @@ export function getGradeBadgeConfig(grade: ValuationGrade): {
 /**
  * Gera a mensagem personalizada pronta para o atendente enviar ao cliente pelo WhatsApp
  */
-export function generateAdminWhatsAppResponse(
+export function buildAdminWhatsAppMessage(
   clientName: string,
-  whatsapp: string,
   valuation: ValuationResult,
   itemData: {
     model: string;
@@ -896,9 +878,6 @@ export function generateAdminWhatsAppResponse(
   },
   loyaltyBonusPercent: number = 5
 ): string {
-  const digits = whatsapp.replace(/\D/g, "");
-  const fullNumber = digits.length <= 11 ? `55${digits}` : digits;
-
   const tradeText =
     valuation.targetModelName && valuation.minTradeDelta !== undefined
       ? `\n🎯 *Troca pelo ${valuation.targetModelName}:* Volta estimada de *${formatBRL(
@@ -921,5 +900,19 @@ export function generateAdminWhatsAppResponse(
     loyaltyText +
     `\n\nPodemos dar continuidade para fechar o negócio? Se quiser, você pode trazer hoje mesmo na nossa loja para conferência rápida em 10 minutos!`;
 
+  return message;
+}
+
+/** Mesma mensagem, como link wa.me (reserva quando a Evolution não está disponível). */
+export function generateAdminWhatsAppResponse(
+  clientName: string,
+  whatsapp: string,
+  valuation: ValuationResult,
+  itemData: { model: string; storage?: string; color?: string },
+  loyaltyBonusPercent: number = 5
+): string {
+  const digits = whatsapp.replace(/\D/g, "");
+  const fullNumber = digits.length <= 11 ? `55${digits}` : digits;
+  const message = buildAdminWhatsAppMessage(clientName, valuation, itemData, loyaltyBonusPercent);
   return `https://wa.me/${fullNumber}?text=${encodeURIComponent(message)}`;
 }
