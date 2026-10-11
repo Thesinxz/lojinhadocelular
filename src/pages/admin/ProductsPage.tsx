@@ -1,3 +1,4 @@
+import { ERP_APP_URL, erpProductUrl } from "@/lib/erpLinks";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import {
@@ -242,7 +243,7 @@ export default function ProductsPage() {
                 </button>
 
                 <a
-                  href="https://gestaocelular.com.br"
+                  href={ERP_APP_URL}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1d1d1f] hover:bg-black text-white px-3.5 py-2 text-xs font-semibold shadow-2xs transition active:scale-95"
@@ -573,11 +574,11 @@ export default function ProductsPage() {
                                 Editar Vitrine
                               </button>
                               <a
-                                href="https://gestaocelular.com.br"
+                                href={erpProductUrl((p as { externalId?: string }).externalId ?? String(p.id))}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="rounded-xl border border-blue-200 bg-blue-50/60 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition flex items-center gap-1"
-                                title="Abrir página no Gestão Celular ERP"
+                                title="Abrir este produto no Gestão Celular ERP"
                               >
                                 <ExternalLink className="h-3.5 w-3.5" />
                                 ERP
