@@ -61,10 +61,10 @@ describe("sanitizeBuyers", () => {
     expect(Object.keys(buyer).sort()).toEqual(["brand", "firstName", "lastInitial", "model"]);
   });
 
-  it("remove duplicados e limita a 20", () => {
+  it("remove duplicados e limita a 30", () => {
     expect(sanitizeBuyers(envelope([item(), item()]))).toHaveLength(1);
-    const many = Array.from({ length: 30 }, (_, i) => item({ first_name: `Nome${String.fromCharCode(97 + (i % 26))}x`.replace(/\d/g, ""), model: `iPhone ${i}` }));
-    expect(sanitizeBuyers(envelope(many)).length).toBeLessThanOrEqual(20);
+    const many = Array.from({ length: 40 }, (_, i) => item({ first_name: `Nome${String.fromCharCode(97 + (i % 26))}x`.replace(/\d/g, ""), model: `iPhone ${i}` }));
+    expect(sanitizeBuyers(envelope(many))).toHaveLength(30);
   });
 
   it("formatos desconhecidos viram lista vazia", () => {
@@ -82,7 +82,7 @@ describe("getRecentBuyers (cache e falhas)", () => {
     expect(await getRecentBuyers(t0)).toHaveLength(1);
     expect(await getRecentBuyers(t0 + 5 * 60_000)).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String((fetchMock.mock.calls as unknown as string[][])[0][0])).toMatch(/\/api\/storefront\/.+\/compras-recentes\?limit=20$/);
+    expect(String((fetchMock.mock.calls as unknown as string[][])[0][0])).toMatch(/\/api\/storefront\/.+\/compras-recentes\?limit=30$/);
     await getRecentBuyers(t0 + 11 * 60_000);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
