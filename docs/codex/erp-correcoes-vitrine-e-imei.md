@@ -30,21 +30,22 @@ O catálogo (`/catalog`) funciona porque usa `this.prisma.getTenantClient(tenant
 Verifique também `serviceType` (já usa `tenantClient`) e qualquer outro acesso a modelo de tenant nesse módulo.
 Se `service_type_id` do agendamento vier de fora, garanta que o tipo de serviço pertence ao tenant do slug (não aceitar ID de outro tenant).
 
-### Defeito 2 — rotas de blacklist de IMEI sem permissão e com `tenant_id` errado
+### Defeito 2 — rotas de blacklist de IMEI sem permissão
 
 `backend/src/modules/tools/tools-imei.controller.ts`:
 - `POST /api/tools/imei/blacklist` e `DELETE /api/tools/imei/blacklist/:imei` **não têm `@Permissions(...)`**. Qualquer usuário autenticado
   (inclusive perfis operacionais) consegue incluir/remover IMEI da blacklist do tenant.
-- O `DELETE` lê `req.user.tenant_id`, mas o usuário autenticado expõe `req.user.tenantId` (o `POST` e o `consultar` usam `tenantId`).
-  Resultado: o `DELETE` passa `undefined` ao serviço e quebra.
+- O `DELETE` usa `req.user.tenant_id`; o `POST` e o `consultar` usam `req.user.tenantId`. O `JwtStrategy` expõe os dois campos
+  (`jwt.strategy.ts`), então **funciona** e a busca é limitada ao tenant pela chave composta `tenant_id_imei`. A única lacuna é de **autorização**.
+  Padronize para `tenantId` por consistência, sem mudar comportamento.
 - Tokens de API já são negados por padrão nessas rotas (deny-by-default sem `@ApiTokenScope`); **mantenha assim**.
 
 **Correção esperada:**
-1. Usar `req.user.tenantId` no `DELETE`.
+1. Padronizar `req.user.tenantId` no `DELETE` (apenas consistência).
 2. Proteger `POST`/`DELETE` blacklist com `@Permissions(...)` usando **uma permissão já existente** em `shared/constants/default-roles.ts`
    que, na prática, só ADMIN e GERENTE possuam (não VENDEDOR, CAIXA, TÉCNICO). Se nenhuma existente servir, **pare e relate** as opções;
    não crie permissão nova sem aprovar.
-3. Teste: perfil sem permissão recebe 403; ADMIN/GERENTE passam; `DELETE` usa o tenant certo e não remove IMEI de outro tenant;
+3. Teste: perfil sem permissão recebe 403; ADMIN/GERENTE passam; `DELETE` não remove IMEI de outro tenant (teste de isolamento);
    token de API continua negado; `consultar` continua acessível como está (`@ApiTokenScope('aquisicoes:criar')`).
 
 ## Regras
