@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { safeSessionStorage } from "@/lib/storage";
 
 interface Props {
@@ -63,34 +64,40 @@ export default class ErrorBoundary extends Component<Props, State> {
         msg.includes("dynamically imported module") ||
         msg.includes("Importing a module script failed");
 
+      const Icon = isChunkOrDeployError ? RefreshCw : AlertTriangle;
       return (
-        <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-neutral-50 px-4 py-12 text-center">
-          <div className="w-full max-w-md rounded-3xl border-3 border-ink bg-white p-8 shadow-[6px_6px_0_0_#141414]">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-brand text-2xl font-bold text-ink">
-              {isChunkOrDeployError ? "✨" : "📱"}
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#fbfbfd] px-4 py-12 text-center">
+          <div role="alert" className="w-full max-w-md rounded-2xl border border-[#e5e5e7] bg-white p-8 shadow-sm">
+            <div
+              className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl ${
+                isChunkOrDeployError ? "bg-[#0071e3]/10 text-[#0071e3]" : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              <Icon className="h-6 w-6" aria-hidden="true" />
             </div>
-            <h2 className="mt-4 font-display text-2xl font-bold text-ink">
-              {isChunkOrDeployError ? "Atualizamos o site!" : "Ops, algo deu errado"}
+            <h2 className="mt-4 font-display text-xl font-bold tracking-tight text-[#1d1d1f]">
+              {isChunkOrDeployError ? "Nova versão disponível" : "Algo não saiu como esperado"}
             </h2>
-            <p className="mt-2 text-sm font-medium text-neutral-600">
+            <p className="mt-2 text-sm text-[#6e6e73]">
               {isChunkOrDeployError
-                ? "Novas ofertas e novidades foram publicadas. Clique no botão abaixo para carregar a versão mais recente."
-                : "Tivemos um imprevisto temporário ao carregar esta página. Você pode recarregar ou voltar para o início."}
+                ? "Acabamos de publicar uma atualização. Recarregue a página para continuar com a versão mais recente."
+                : "Tivemos um imprevisto ao carregar esta página. Você pode recarregar ou voltar para o início."}
             </p>
 
-            <div className="mt-6 flex flex-col gap-3">
+            <div className="mt-6 flex flex-col gap-2.5">
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full rounded-2xl border-2 border-ink bg-ink py-3.5 font-display text-base font-bold text-brand shadow-[3px_3px_0_0_rgba(20,20,20,0.3)] transition active:translate-y-0.5 hover:-translate-y-0.5"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 text-sm font-semibold text-white transition hover:bg-black active:scale-[0.98]"
               >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
                 Recarregar página
               </button>
               {!isChunkOrDeployError && (
                 <button
                   type="button"
                   onClick={this.handleGoHome}
-                  className="w-full rounded-2xl border-2 border-ink bg-white py-3 font-display text-sm font-bold text-ink transition hover:bg-neutral-100"
+                  className="min-h-11 w-full rounded-xl border border-[#d2d2d7] bg-white px-4 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7]"
                 >
                   Voltar para a página inicial
                 </button>
