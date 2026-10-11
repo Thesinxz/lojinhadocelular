@@ -1,7 +1,8 @@
 # Pedido para o Codex — "Quem já comprou com a gente" (prova social), na pasta do ERP (`old_gestao`)
 
 > Cole o bloco abaixo (de "Contexto" até "Entrega") no Codex, com o diretório em `/Users/marlon/Documents/old_gestao`.
-> **Antes:** `git checkout main && git pull`, depois `git checkout -b feat/social-proof`.
+> **Antes:** `git checkout main && git pull`, depois `git checkout feat/social-proof` (já existe, vazia) e `git merge main` para trazer a correção da vitrine (PR #5).
+> **Backup do Postgres do ERP:** já feito em 2026-10-11 pelo Coolify (execuções "Success"); mesmo assim, a migration precisa ser aditiva.
 > **Importante:** o Coolify do backend publica a `main` por webhook e roda `prisma migrate deploy` ao subir. **Nada de push na `main`**; só na branch.
 
 ---
@@ -19,6 +20,12 @@ o cliente, existe **opt-out**: qualquer pedido de remoção deve ser atendido na
 - **Todo cliente elegível aparece por padrão**, **exceto** quem estiver marcado como "não divulgar". Padrão de todos os clientes existentes: **não marcado**.
 - **Dado mínimo:** nada de CPF, telefone, e-mail, ID, datas exatas, valores, IMEI, unidade nem número de venda.
 - Marcar "não divulgar" faz a pessoa **sumir do endpoint** imediatamente (respeitando só o cache curto) e o marcador **nunca** é desfeito automaticamente.
+
+**Regra crítica de multitenant em rota pública (acabamos de corrigir um 500 por isso — PR #5):** `Customer`, `Sale` e `SaleItem` são
+modelos de tenant. Em rota `@PublicRoute()` **não há** `tenantStorage`; usar `this.prisma.customer...` lança
+`Consulta ao modelo "..." sem contexto de tenant`. Resolva o tenant pelo `slug` (modelo global `tenant`) e use
+`const tenantClient = this.prisma.getTenantClient(tenant.id)` para TODAS as consultas dessa rota, exatamente como `getCatalogBySlug`.
+O teste deve exercitar a rota **sem** `tenantStorage` (mesmo estilo do teste de integração da vitrine pública, em `backend/test/api-token-tenant-context.e2e-spec.ts`).
 
 Fatos do código (já verificados — confirme antes de usar):
 - `Customer` (`backend/prisma/schema.prisma`): `nome_completo`, `tipo`, `cpf`, `cnpj`, `deleted_at`, relação `sales`.
