@@ -13,7 +13,8 @@ export interface RecentBuyer {
   brand: string;
 }
 
-const MAX_ITEMS = 20;
+/** Máximo aceito pelo ERP na rota de compras recentes. */
+const MAX_ITEMS = 30;
 const FRESH_MS = 10 * 60 * 1000;
 const STALE_MS = 60 * 60 * 1000;
 const TIMEOUT_MS = 8_000;

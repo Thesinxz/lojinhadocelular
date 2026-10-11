@@ -191,7 +191,8 @@ export default function TradeIn() {
   const [whatsappUrl, setWhatsappUrl] = useState("");
   const [photoWarning, setPhotoWarning] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lgpdConsent, setLgpdConsent] = useState(true);
+  // Consentimento precisa de ato afirmativo: começa desmarcado.
+  const [lgpdConsent, setLgpdConsent] = useState(false);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
 
   const fileInputRefs = useRef<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>({});
