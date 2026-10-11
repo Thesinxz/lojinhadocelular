@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useState, useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,16 +25,47 @@ import {
   FALLBACK_STORAGE_OPTIONS,
   FALLBACK_COLOR_OPTIONS,
 } from "@/lib/iphoneCatalog";
-import {
-  evaluateDevice,
-  formatBRL,
-  getGradeBadgeConfig,
-  parseValuationConfig,
-} from "@/lib/valuationEngine";
+import { formatBRL, getGradeBadgeConfig } from "@/lib/iphoneKeys";
+import type { ValuationResult } from "@contracts/valuation";
 import { compressImage, formatFileSize } from "@/lib/imageCompressor";
 import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
 import { isValidCpf, onlyDigits } from "@contracts/brDocs";
+
+/** Cotação vazia: usada enquanto o valor não vem do servidor (ou quando a loja oculta valores). */
+const EMPTY_VALUATION: ValuationResult = {
+  modelName: "",
+  basePrice: 0,
+  minEstimatedValue: 0,
+  maxEstimatedValue: 0,
+  grade: "A",
+  gradeLabel: "",
+  score: 0,
+  loyaltyBonusApplied: false,
+  highlights: [],
+  disclaimer: "",
+  priceable: false,
+  pendingChecks: [],
+  blockers: [],
+};
+
+/** Pontos positivos mostrados ao cliente SEM valores nem regras de preço: só o que ele mesmo respondeu. */
+function publicHighlights(answers: {
+  batteryPercent?: number | null;
+  batteryUnknown?: boolean;
+  openedBefore?: string;
+  visualCondition?: string;
+}): string[] {
+  const list: string[] = [];
+  const battery = answers.batteryPercent;
+  if (!answers.batteryUnknown && typeof battery === "number") {
+    if (battery >= 90) list.push(`Bateria saudável (${battery}%)`);
+    else if (battery >= 85) list.push(`Bateria boa (${battery}%)`);
+  }
+  if (answers.openedBefore === "Não") list.push("Aparelho nunca aberto");
+  if (/parece novo|sem marcas/i.test(answers.visualCondition ?? "")) list.push("Estado impecável sem marcas visíveis");
+  return list;
+}
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
@@ -223,50 +254,52 @@ export default function TradeIn() {
     return FALLBACK_COLOR_OPTIONS;
   }, [detectedModel]);
 
-  const valuationConfig = useMemo(
-    () => parseValuationConfig(settings.valuationConfig),
-    [settings.valuationConfig]
-  );
+  // O valor NÃO é calculado aqui: as tabelas de preço ficam só no servidor. Por padrão o cliente não vê valor
+  // (cotação em andamento); se o dono liberar, a estimativa vem do servidor, sob demanda.
+  const optionsQuery = trpc.shop.tradeInOptions.useQuery(undefined, { staleTime: 1000 * 60 * 5 });
+  const hidePrices = optionsQuery.data?.hidePrices ?? true;
 
-  const valuation = useMemo(
-    () =>
-      evaluateDevice(
-        {
-          model: data.model,
-          storage: data.storage,
-          color: data.color,
-          purchaseLocation: data.purchaseLocation,
-          batteryPercent: data.batteryPercent,
-          batteryUnknown: data.batteryUnknown,
-          targetModel: data.targetModel,
-          visualCondition: data.visualCondition,
-          faceId: data.faceId,
-          screenOriginal: data.screenOriginal,
-          batteryOriginal: data.batteryOriginal,
-          camerasOk: data.camerasOk,
-          audioOk: data.audioOk,
-          chargingPortOk: data.chargingPortOk,
-          openedBefore: data.openedBefore,
-          hasBox: data.hasBox,
-          icloudFree: data.icloudFree,
-          notes: data.notes,
-        },
-        valuationConfig
-      ),
-    [data, valuationConfig]
+  const quoteInput = useMemo(
+    () => ({
+      model: data.model,
+      storage: data.storage || undefined,
+      color: data.color || undefined,
+      purchaseLocation: data.purchaseLocation || undefined,
+      batteryPercent: typeof data.batteryPercent === "number" ? data.batteryPercent : undefined,
+      batteryUnknown: data.batteryUnknown || undefined,
+      targetModel: data.targetModel || undefined,
+      visualCondition: data.visualCondition || undefined,
+      faceId: data.faceId || undefined,
+      screenOriginal: data.screenOriginal || undefined,
+      batteryOriginal: data.batteryOriginal || undefined,
+      camerasOk: data.camerasOk || undefined,
+      audioOk: data.audioOk || undefined,
+      chargingPortOk: data.chargingPortOk || undefined,
+      openedBefore: data.openedBefore || undefined,
+      hasBox: data.hasBox || undefined,
+      icloudFree: data.icloudFree || undefined,
+    }),
+    [data],
   );
-
+  const [debouncedQuoteInput, setDebouncedQuoteInput] = useState(quoteInput);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuoteInput(quoteInput), 400);
+    return () => clearTimeout(timer);
+  }, [quoteInput]);
+  const quoteQuery = trpc.shop.tradeInQuote.useQuery(debouncedQuoteInput, {
+    enabled: !hidePrices && Boolean(debouncedQuoteInput.model),
+    retry: 0,
+    staleTime: 1000 * 30,
+  });
+  const valuation: ValuationResult = quoteQuery.data ?? EMPTY_VALUATION;
   const gradeConfig = useMemo(() => getGradeBadgeConfig(valuation.grade), [valuation.grade]);
-  const hidePrices = valuationConfig.hidePricesToClient !== false;
-  // Só mostra valor quando a loja permite E o modelo tem preço cadastrado; senão fica "cotação em andamento".
+  // Só mostra valor quando a loja permite E o servidor devolveu uma cotação com preço; senão fica "cotação em andamento".
   const showPrices = !hidePrices && valuation.priceable;
-  // Com valores ocultos, o cliente não vê nada que revele a conta (R$, %, bônus, "tabela oficial").
+  const loyaltyDeclared = declaredLojinhaPurchase(data.purchaseLocation);
+
   const customerHighlights = useMemo(
-    () =>
-      hidePrices
-        ? valuation.highlights.filter(hl => !/R\$|%\s*(na|de)|\+\s*\d|tabela oficial|personalizada|b[ôo]nus|\+ valor/i.test(hl) || /^Bateria/i.test(hl))
-        : valuation.highlights,
-    [hidePrices, valuation.highlights]
+    () => (hidePrices ? publicHighlights(data) : valuation.highlights),
+    [hidePrices, data, valuation.highlights],
   );
 
   // WhatsApp da loja escolhida pelo cliente (cai no padrão se não houver número)
@@ -555,7 +588,6 @@ export default function TradeIn() {
       `📍 *Loja:* ${unitLabel || "Não informada"}`,
       "",
       ...(showPrices ? [`✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`] : []),
-      ...(!valuation.priceable ? ["⚠️ *Modelo não reconhecido na tabela: avaliar manualmente*"] : []),
       ...(!showPrices
         ? [
             "💬 *Proposta:* Aguardando análise técnica e cotação da equipe Lojinha do Celular",
@@ -566,7 +598,7 @@ export default function TradeIn() {
               ? `🎯 *Volta Estimada (${valuation.targetModelName}):* ${formatBRL(valuation.minTradeDelta)} a ${formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}`
               : "",
           ]),
-      valuation.loyaltyBonusApplied ? "🎁 *Declarou compra na Lojinha do Celular (conferir cadastro para o bônus de fidelidade)*" : "",
+      loyaltyDeclared ? "🎁 *Declarou compra na Lojinha do Celular (conferir cadastro para o bônus de fidelidade)*" : "",
       "",
       "🔍 *Diagnóstico Rápido:*",
       `• iCloud livre: ${data.icloudFree || "Não informado"}`,
@@ -1831,7 +1863,7 @@ export default function TradeIn() {
                   <div className="mt-2 text-xs sm:text-sm font-medium text-[#1d1d1f] leading-relaxed">
                     Ao enviar, nossa equipe técnica{unitLabel ? ` de ${unitLabel}` : ""} analisa suas fotos e o diagnóstico e passa a proposta direto no seu WhatsApp. O valor é confirmado na conferência presencial.
                   </div>
-                  {valuation.loyaltyBonusApplied && (
+                  {loyaltyDeclared && (
                     <p className="mt-2 text-xs font-semibold text-purple-900 flex items-center gap-1">
                       🎁 Você disse que comprou com a gente: vamos conferir seu cadastro para aplicar o bônus de fidelidade.
                     </p>

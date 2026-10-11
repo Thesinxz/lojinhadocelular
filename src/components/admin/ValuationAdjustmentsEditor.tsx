@@ -3,7 +3,6 @@ import {
   DEFECT_LABELS,
   VISUAL_ADJUSTMENT_KEYS,
   VISUAL_ADJUSTMENT_LABELS,
-  resolveAdjustments,
   type DefectKey,
   type DefectRule,
   type ValuationAdjustments,
@@ -21,7 +20,8 @@ interface Props {
 
 /** Editor dos descontos do motor: estado visual, defeitos (% e R$), bateria e faixa de valores. */
 export default function ValuationAdjustmentsEditor({ config, onChange }: Props) {
-  const adj = resolveAdjustments(config.adjustments);
+  // O servidor já devolve a configuração completa (padrões aplicados).
+  const adj = config.adjustments as ValuationAdjustments;
   const setAdj = (patch: Partial<ValuationAdjustments>) =>
     onChange({ ...config, adjustments: { ...adj, ...patch } });
   const setVisual = (key: VisualAdjustmentKey, value: string) =>

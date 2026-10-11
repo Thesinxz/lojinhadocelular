@@ -1,11 +1,12 @@
+import { getGradeBadgeConfig } from "../src/lib/iphoneKeys";
 import { describe, it, expect } from "vitest";
 import {
   evaluateDevice,
   formatBRL,
-  getGradeBadgeConfig,
+  
   getReferenceVariationKey,
   getCustomBasePriceMatch,
-} from "../src/lib/valuationEngine";
+} from "./valuation/engine";
 
 describe("valuationEngine", () => {
   it("evaluates a pristine iPhone 16 Pro Max with 512GB and loyalty bonus as Grade A+", () => {
@@ -321,7 +322,7 @@ describe("valuationEngine", () => {
   });
 
   it("suporta configuração de ocultar valores para o cliente e normaliza capacidades com espaços", async () => {
-    const { parseValuationConfig, findReferenceDevicePrice } = await import("../src/lib/valuationEngine");
+    const { parseValuationConfig, findReferenceDevicePrice } = await import("./valuation/engine");
 
     // 1. Testa parseValuationConfig com hidePricesToClient
     const defaultConfig = parseValuationConfig(null);

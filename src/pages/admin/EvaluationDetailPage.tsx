@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   AlertTriangle,
@@ -16,19 +16,13 @@ import {
 import { toast } from "sonner";
 import { STORE_UNITS } from "@contracts/permissions";
 import { loyaltyApplies, declaredLojinhaPurchase } from "@contracts/loyalty";
-import { formatBRL, SETTING_KEYS, type EvaluationPhotoItem, type EvaluationStatus } from "@contracts/types";
+import { formatBRL, type EvaluationPhotoItem, type EvaluationStatus } from "@contracts/types";
 import { trpc } from "@/providers/trpc";
 import { useAdminSession } from "@/lib/adminSession";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { compressImage, fileToDataUrl } from "@/lib/imageCompressor";
 import { buildWhatsappLink } from "@/lib/whatsappTemplates";
-import {
-  evaluateDevice,
-  formatBRL as formatReais,
-  buildAdminWhatsAppMessage,
-  getGradeBadgeConfig,
-  parseValuationConfig,
-} from "@/lib/valuationEngine";
+import { formatBRL as formatReais, getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import AssigneeBadge from "@/components/admin/evaluations/AssigneeBadge";
 import EvaluationPhotos from "@/components/admin/evaluations/EvaluationPhotos";
 import NegotiationCard from "@/components/admin/evaluations/NegotiationCard";
@@ -56,46 +50,23 @@ function Answer({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function ValuationBox({ item, configJson }: { item: EvaluationRow; configJson: string | undefined }) {
-  const config = useMemo(() => parseValuationConfig(configJson), [configJson]);
-  const valuation = useMemo(() => {
-    const batteryNum = item.battery ? parseInt(item.battery.replace(/\D/g, ""), 10) : NaN;
-    return evaluateDevice(
-      {
-        model: item.model,
-        storage: item.storage ?? undefined,
-        color: item.color ?? undefined,
-        // O bônus de fidelidade só entra na estimativa depois de confirmado (ERP ou equipe).
-        purchaseLocation:
-          declaredLojinhaPurchase(item.purchaseLocation) && !loyaltyApplies(item.loyaltyStatus)
-            ? ""
-            : (item.purchaseLocation ?? undefined),
-        batteryPercent: Number.isNaN(batteryNum) ? undefined : batteryNum,
-        targetModel: item.targetModel ?? undefined,
-        visualCondition: item.visualCondition || item.condition || undefined,
-        faceId: item.faceId ?? undefined,
-        screenOriginal: item.screenOriginal ?? undefined,
-        batteryOriginal: item.batteryOriginal ?? undefined,
-        camerasOk: item.camerasOk ?? undefined,
-        audioOk: item.audioOk ?? undefined,
-        chargingPortOk: item.chargingPortOk ?? undefined,
-        openedBefore: item.openedBefore ?? undefined,
-        hasBox: item.hasBox ?? undefined,
-        icloudFree: item.icloudFree ?? undefined,
-        batteryUnknown: Number.isNaN(batteryNum) && /sei/i.test(item.battery ?? ""),
-        notes: item.notes ?? undefined,
-      },
-      config,
-    );
-  }, [item, config]);
-  const grade = getGradeBadgeConfig(valuation.grade);
-  const [estimateOpen, setEstimateOpen] = useState(false);
-  const estimateText = buildAdminWhatsAppMessage(
-    item.name,
-    valuation,
-    { model: item.model, storage: item.storage ?? undefined, color: item.color ?? undefined },
-    config.loyaltyBonusPercent ?? 5,
+function ValuationBox({ item }: { item: EvaluationRow }) {
+  // A conta é feita no servidor (as tabelas de preço não vão para o navegador).
+  const quote = trpc.admin.evaluationValuation.useQuery(
+    { id: item.id, stamp: `${item.loyaltyStatus ?? ""}|${item.purchaseLocation ?? ""}|${item.model}|${item.storage ?? ""}` },
+    { staleTime: 0 },
   );
+  const [estimateOpen, setEstimateOpen] = useState(false);
+
+  if (quote.isLoading || !quote.data) {
+    return (
+      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 text-xs text-[#6e6e73]">
+        {quote.isError ? "Não foi possível calcular a estimativa agora." : "Calculando estimativa..."}
+      </div>
+    );
+  }
+  const { valuation, estimateMessage: estimateText } = quote.data;
+  const grade = getGradeBadgeConfig(valuation.grade);
 
   return (
     <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-3.5">
@@ -172,7 +143,6 @@ export default function EvaluationDetailPage() {
 
   const detailQuery = trpc.admin.evaluationDetail.useQuery({ id }, { enabled: validId, retry: 1 });
   const configQuery = trpc.admin.evaluationConfig.useQuery(undefined, { staleTime: 1000 * 60 * 5 });
-  const shopSettingsQuery = trpc.shop.settings.useQuery(undefined, { staleTime: 1000 * 60 * 5 });
   const usersQuery = trpc.admin.users.list.useQuery(undefined, { enabled: canAssign, staleTime: 1000 * 60 });
 
   function refresh() {
@@ -500,7 +470,7 @@ export default function EvaluationDetailPage() {
             </div>
 
             <div className="mt-3">
-              <ValuationBox item={evaluation} configJson={shopSettingsQuery.data?.[SETTING_KEYS.valuationConfig]} />
+              <ValuationBox item={evaluation} />
             </div>
           </section>
         </div>

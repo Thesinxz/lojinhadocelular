@@ -1,3 +1,5 @@
+import { loadValuationConfig } from "./adminValuation";
+import { evaluateDevice } from "./valuation/engine";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb, ensureTables, getPool } from "./queries/connection";
 import { products, evaluations } from "../db/schema";
@@ -39,7 +41,6 @@ const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.popupEnabled,
   SETTING_KEYS.heroImages,
   SETTING_KEYS.warrantyBadgeText,
-  SETTING_KEYS.valuationConfig,
   SETTING_KEYS.retentionAuto,
   SETTING_KEYS.retentionOpenMonths,
   SETTING_KEYS.retentionClosedMonths,
@@ -422,6 +423,44 @@ export const shopRouter = createRouter({
         }
       }
       return null;
+    }),
+
+  /** Opções públicas do Troca Fácil: só se o valor aparece para o cliente e o aviso legal (sem nenhuma tabela de preço). */
+  tradeInOptions: publicQuery.query(async () => {
+    const config = await loadValuationConfig();
+    return { hidePrices: config.hidePricesToClient !== false, disclaimer: config.disclaimerText ?? "" };
+  }),
+
+  /**
+   * Estimativa mostrada ao cliente, calculada no servidor. Só responde quando a loja escolheu mostrar valores;
+   * com os valores ocultos (padrão) devolve `null` e nenhuma conta é feita.
+   */
+  tradeInQuote: publicQuery
+    .input(
+      z.object({
+        model: z.string().max(120),
+        storage: z.string().max(30).optional(),
+        color: z.string().max(60).optional(),
+        purchaseLocation: z.string().max(100).optional(),
+        batteryPercent: z.number().min(0).max(100).optional(),
+        batteryUnknown: z.boolean().optional(),
+        targetModel: z.string().max(120).optional(),
+        visualCondition: z.string().max(100).optional(),
+        faceId: z.string().max(30).optional(),
+        screenOriginal: z.string().max(30).optional(),
+        batteryOriginal: z.string().max(30).optional(),
+        camerasOk: z.string().max(30).optional(),
+        audioOk: z.string().max(30).optional(),
+        chargingPortOk: z.string().max(30).optional(),
+        openedBefore: z.string().max(30).optional(),
+        hasBox: z.string().max(30).optional(),
+        icloudFree: z.string().max(30).optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const config = await loadValuationConfig();
+      if (config.hidePricesToClient !== false) return null;
+      return evaluateDevice(input, config);
     }),
 
   // Configurações públicas da loja consultadas em batch único

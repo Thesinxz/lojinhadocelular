@@ -2,41 +2,18 @@
  * Lista fixa de preços: cada modelo do catálogo que a loja avalia, com todas as capacidades.
  * Cada linha (modelo + GB) pode ter um preço próprio em `customBasePrices`.
  */
-import { IPHONE_CATALOG } from "./iphoneCatalog";
+import { IPHONE_CATALOG } from "../../src/lib/iphoneCatalog";
 import {
   BASE_IPHONE_VALUES,
   POPULAR_CONFIG_IPHONES,
   getReferenceVariationKey,
   resolveDevicePrice,
   resolveIphoneModel,
-  type PriceSource,
-} from "./valuationEngine";
+} from "./engine";
 
-export interface PriceListColor {
-  name: string;
-  hex: string;
-  /** Chave salva em `customBasePrices` (modelo + capacidade + cor). */
-  key: string;
-  /** Valor que o motor usa para esta cor sem o preço próprio dela (o da capacidade). */
-  suggested: number;
-}
+import type { PriceListColor, PriceListModel, PriceListRow } from "@contracts/valuation";
 
-export interface PriceListRow {
-  /** Chave salva em `customBasePrices` (modelo + capacidade). */
-  key: string;
-  capacity: string;
-  /** Valor que o motor usa hoje para esta linha, sem contar o preço personalizado dela. */
-  suggested: number;
-  suggestedSource: PriceSource;
-  colors: PriceListColor[];
-}
-
-export interface PriceListModel {
-  key: string;
-  name: string;
-  year: number;
-  rows: PriceListRow[];
-}
+export type { PriceListColor, PriceListModel, PriceListRow };
 
 function evaluatedModelKeys(): Set<string> {
   const keys = new Set<string>();
@@ -81,12 +58,4 @@ export function buildPriceList(customBasePrices: Record<string, number> = {}): P
     });
   }
   return list;
-}
-
-/** "iPhone 18 Pro Max" → "iPhone 17 Pro Max"; `null` quando o nome não tem geração numérica. */
-export function previousGenerationName(name: string): string | null {
-  const match = /^iPhone (\d+)(.*)$/.exec(name);
-  if (!match) return null;
-  const generation = Number(match[1]) - 1;
-  return generation >= 6 ? `iPhone ${generation}${match[2]}` : null;
 }

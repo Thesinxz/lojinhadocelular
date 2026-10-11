@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { MODEL_REPAIR_KEYS, MODEL_REPAIR_LABELS, resolveAdjustments, type ModelRepairKey, type ValuationConfig } from "@contracts/types";
-import { formatBRL } from "@/lib/valuationEngine";
-import { buildPriceList, previousGenerationName, type PriceListModel, type PriceListRow } from "@/lib/priceList";
+import { MODEL_REPAIR_KEYS, MODEL_REPAIR_LABELS, type ModelRepairKey, type ValuationAdjustments, type ValuationConfig } from "@contracts/types";
+import type { PriceListModel, PriceListRow } from "@contracts/valuation";
+import { formatBRL, previousGenerationName } from "@/lib/iphoneKeys";
 
 const SOURCE_LABEL: Record<PriceListRow["suggestedSource"], string> = {
   personalizado: "personalizado",
@@ -12,6 +12,9 @@ const SOURCE_LABEL: Record<PriceListRow["suggestedSource"], string> = {
 };
 
 interface Props {
+  /** Lista calculada no servidor (modelo × armazenamento × cor, com o valor atual de cada linha). */
+  models: PriceListModel[];
+  loading?: boolean;
   config: ValuationConfig;
   onChange: (next: ValuationConfig) => void;
   search: string;
@@ -24,12 +27,12 @@ function matchesCapacity(rowCapacity: string, selected: string): boolean {
 }
 
 /** Lista fixa: um preço por modelo + armazenamento. Vazio = o motor calcula (valor sugerido aparece no campo). */
-export default function FixedPriceList({ config, onChange, search, capacity, onlyEdited }: Props) {
+export default function FixedPriceList({ models, loading, config, onChange, search, capacity, onlyEdited }: Props) {
   const custom = config.customBasePrices ?? {};
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
   const [openRepairs, setOpenRepairs] = useState<Record<string, boolean>>({});
-  const adjustments = resolveAdjustments(config.adjustments);
-  const modelRepairs = adjustments.modelRepairs;
+  const adjustments = (config.adjustments ?? { modelRepairs: {} }) as ValuationAdjustments;
+  const modelRepairs = adjustments.modelRepairs ?? {};
 
   const setRepair = (modelKey: string, item: ModelRepairKey, raw: string) => {
     const value = Number(raw);
@@ -48,7 +51,7 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
       adjustments: { ...adjustments, modelRepairs: { ...modelRepairs, [toKey]: { ...(modelRepairs[fromKey] ?? {}) } } },
     });
   };
-  const list = useMemo(() => buildPriceList(custom), [custom]);
+  const list = models;
 
   const setPrice = (key: string, raw: string) => {
     const value = Number(raw);
@@ -84,6 +87,10 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
       shown: m.rows.filter((r) => matchesCapacity(r.capacity, capacity) && (!onlyEdited || custom[r.key] > 0 || r.colors.some((c) => custom[c.key] > 0))),
     }))
     .filter((m) => m.shown.length > 0);
+
+  if (loading && list.length === 0) {
+    return <div className="h-40 animate-pulse rounded-xl border border-[#e5e5e7] bg-[#f5f5f7]" />;
+  }
 
   if (visible.length === 0) {
     return (
