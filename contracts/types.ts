@@ -92,6 +92,22 @@ export const DEFECT_LABELS: Record<DefectKey, string> = {
   opened: "Já foi aberto / reparado",
 };
 
+/** Custos de reparo por modelo (R$): quando preenchidos, substituem a regra geral daquele item. */
+export const MODEL_REPAIR_KEYS = ["cracked", "batteryLow", ...DEFECT_KEYS] as const;
+export type ModelRepairKey = (typeof MODEL_REPAIR_KEYS)[number];
+export const MODEL_REPAIR_LABELS: Record<ModelRepairKey, string> = {
+  cracked: "Tela trincada",
+  batteryLow: "Bateria abaixo do limite",
+  faceId: "Face ID",
+  screen: "Tela trocada (não original)",
+  batteryOriginal: "Bateria trocada (não original)",
+  cameras: "Câmeras",
+  audio: "Áudio",
+  chargingPort: "Conector de carga",
+  opened: "Já foi aberto",
+};
+export type ModelRepairs = Record<string, Partial<Record<ModelRepairKey, number>>>;
+
 export interface DefectRule {
   /** Desconto em % do valor do aparelho. */
   percent: number;
@@ -108,6 +124,8 @@ export interface ValuationAdjustments {
   batteryUnknownPercent: number;
   /** Folga da faixa mostrada: valor estimado ± este %. */
   rangePercent: number;
+  /** Custo de reparo em R$ por modelo (chave do modelo → item → valor). */
+  modelRepairs: ModelRepairs;
 }
 
 export const DEFAULT_ADJUSTMENTS: ValuationAdjustments = {
@@ -123,6 +141,7 @@ export const DEFAULT_ADJUSTMENTS: ValuationAdjustments = {
   },
   batteryUnknownPercent: 6,
   rangePercent: 5,
+  modelRepairs: {},
 };
 
 function num(value: unknown, fallback: number, min: number, max: number): number {
@@ -143,11 +162,25 @@ export function resolveAdjustments(raw?: Partial<ValuationAdjustments> | null): 
       manual: typeof r?.manual === "boolean" ? r.manual : d.defects[key].manual,
     };
   }
+  const modelRepairs: ModelRepairs = {};
+  const rawRepairs = raw?.modelRepairs;
+  if (rawRepairs && typeof rawRepairs === "object") {
+    for (const [modelKey, items] of Object.entries(rawRepairs).slice(0, 200)) {
+      if (!items || typeof items !== "object" || modelKey.length > 60) continue;
+      const clean: Partial<Record<ModelRepairKey, number>> = {};
+      for (const key of MODEL_REPAIR_KEYS) {
+        const value = (items as Record<string, unknown>)[key];
+        if (typeof value === "number" && Number.isFinite(value) && value > 0) clean[key] = Math.min(20000, Math.round(value));
+      }
+      if (Object.keys(clean).length > 0) modelRepairs[modelKey] = clean;
+    }
+  }
   return {
     visual,
     defects,
     batteryUnknownPercent: num(raw?.batteryUnknownPercent, d.batteryUnknownPercent, 0, 50),
     rangePercent: num(raw?.rangePercent, d.rangePercent, 0, 25),
+    modelRepairs,
   };
 }
 

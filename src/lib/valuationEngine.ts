@@ -657,6 +657,9 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
 
   // 2. Condição visual (ajustes configuráveis em %)
   const adj = resolveAdjustments(cfg.adjustments);
+  const modelKey = resolveIphoneModel(input.model)?.key;
+  const repairs = (modelKey && adj.modelRepairs[modelKey]) || {};
+  let fixedDeduction = 0;
   const visual = (input.visualCondition || input.condition || "").toLowerCase();
   let visualKey: VisualAdjustmentKey | null = null;
   if (visual.includes("parece novo") || visual.includes("sem marcas")) visualKey = "novo";
@@ -665,8 +668,12 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   else if (visual.includes("riscos") || visual.includes("amassados")) visualKey = "riscos";
   else if (visual.includes("trinco") || visual.includes("trincada")) visualKey = "trinco";
   if (visualKey) {
-    const pct = adj.visual[visualKey];
-    multiplier *= 1 + pct / 100;
+    if (visualKey === "trinco" && repairs.cracked) {
+      // Custo de trocar a tela deste modelo, no lugar do desconto percentual geral.
+      fixedDeduction += repairs.cracked;
+    } else {
+      multiplier *= 1 + adj.visual[visualKey] / 100;
+    }
     score += visualKey === "novo" ? 4 : visualKey === "poucas" ? -3 : visualKey === "normais" ? -10 : visualKey === "riscos" ? -25 : -45;
     if (visualKey === "novo") highlights.push("Estado impecável sem marcas visíveis");
   }
@@ -680,7 +687,12 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     score -= 5;
   } else if (typeof input.batteryPercent === "number") {
     const bat = input.batteryPercent;
-    multiplier *= batteryMultiplier(bat, batteryThreshold, penalty);
+    if (bat < batteryThreshold && repairs.batteryLow) {
+      // Abaixo do limite: custo de trocar a bateria deste modelo, no lugar da curva de desconto.
+      fixedDeduction += repairs.batteryLow;
+    } else {
+      multiplier *= batteryMultiplier(bat, batteryThreshold, penalty);
+    }
     if (bat >= 90) {
       highlights.push(`Bateria saudável (${bat}%)`);
     } else if (bat >= 85) {
@@ -695,12 +707,17 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   }
 
   // 4. Diagnóstico Técnico (descontos configuráveis: % e/ou R$ fixo; "manual" pede conferência na loja)
-  let fixedDeduction = 0;
   const manualChecks: string[] = [];
   const applyDefect = (key: DefectKey, scorePenalty: number) => {
     const rule = adj.defects[key];
-    multiplier *= 1 - rule.percent / 100;
-    fixedDeduction += rule.reais;
+    const modelCost = repairs[key];
+    if (modelCost) {
+      // Custo de reparo configurado para este modelo substitui o percentual e o valor geral.
+      fixedDeduction += modelCost;
+    } else {
+      multiplier *= 1 - rule.percent / 100;
+      fixedDeduction += rule.reais;
+    }
     score -= scorePenalty;
     if (rule.manual) manualChecks.push(`${DEFECT_LABELS[key]}: definir o desconto na loja`);
   };
