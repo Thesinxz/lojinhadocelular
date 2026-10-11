@@ -51,3 +51,27 @@ describe("lista fixa de preços (modelo × armazenamento)", () => {
     expect(evaluateDevice({ ...perfect, model: "iPhone 18 Pro Max", storage: "256GB" }, cfg).priceable).toBe(false);
   });
 });
+
+describe("preço por cor na lista fixa", () => {
+  const list = buildPriceList({});
+  const row = list.find((m) => m.name === "iPhone 15 Pro")!.rows.find((r) => r.capacity === "256GB")!;
+  const color = row.colors[0];
+
+  it("cada linha traz as cores do catálogo", () => {
+    expect(row.colors.length).toBeGreaterThan(1);
+    expect(new Set(row.colors.map((c) => c.key)).size).toBe(row.colors.length);
+  });
+
+  it("a cor com preço próprio vale só para ela; as outras seguem o preço do GB", () => {
+    const cfg = { ...DEFAULT_VALUATION_CONFIG, customBasePrices: { [row.key]: 3000, [color.key]: 3400 } };
+    const input = { ...perfect, model: "iPhone 15 Pro", storage: "256GB" };
+    expect(evaluateDevice({ ...input, color: color.name }, cfg).basePrice).toBe(3400);
+    expect(evaluateDevice({ ...input, color: row.colors[1].name }, cfg).basePrice).toBe(3000);
+    expect(evaluateDevice(input, cfg).basePrice).toBe(3000);
+  });
+
+  it("a sugestão da cor é o valor do GB quando ele tem preço próprio", () => {
+    const withGb = buildPriceList({ [row.key]: 3000 }).find((m) => m.name === "iPhone 15 Pro")!.rows.find((r) => r.capacity === "256GB")!;
+    expect(withGb.colors[0].suggested).toBe(3000);
+  });
+});

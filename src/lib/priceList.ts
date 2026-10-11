@@ -12,6 +12,15 @@ import {
   type PriceSource,
 } from "./valuationEngine";
 
+export interface PriceListColor {
+  name: string;
+  hex: string;
+  /** Chave salva em `customBasePrices` (modelo + capacidade + cor). */
+  key: string;
+  /** Valor que o motor usa para esta cor sem o preço próprio dela (o da capacidade). */
+  suggested: number;
+}
+
 export interface PriceListRow {
   /** Chave salva em `customBasePrices` (modelo + capacidade). */
   key: string;
@@ -19,6 +28,7 @@ export interface PriceListRow {
   /** Valor que o motor usa hoje para esta linha, sem contar o preço personalizado dela. */
   suggested: number;
   suggestedSource: PriceSource;
+  colors: PriceListColor[];
 }
 
 export interface PriceListModel {
@@ -59,6 +69,13 @@ export function buildPriceList(customBasePrices: Record<string, number> = {}): P
           capacity,
           suggested: resolved.base + resolved.storageBonus,
           suggestedSource: resolved.source,
+          colors: spec.colors.map((color) => {
+            const colorKey = getReferenceVariationKey(spec.name, capacity, color.name);
+            const { [colorKey]: _ownColor, ...rest } = customBasePrices;
+            void _ownColor;
+            const r = resolveDevicePrice(spec.name, capacity, color.name, rest);
+            return { name: color.name, hex: color.hex, key: colorKey, suggested: r.base + r.storageBonus };
+          }),
         };
       }),
     });
