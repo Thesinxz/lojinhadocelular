@@ -37,6 +37,7 @@ export const SETTING_KEYS = {
   evaluationSlaHours: "evaluation_sla_hours", // horas até uma avaliação pendente ficar "Atrasada"
   whatsappTemplates: "whatsapp_templates", // JSON: [{ id, label, body }] mensagens prontas do atendimento
   autoMessages: "auto_messages", // JSON: AutoMessagesConfig (mensagens automáticas via Evolution API)
+  teamNotifyNumbers: "team_notify_numbers", // números ou grupos do WhatsApp que recebem o aviso de nova avaliação
   socialProofEnabled: "social_proof_enabled", // "1" | "0": faixa "quem já comprou" na página inicial
   socialProofTitle: "social_proof_title", // título da faixa
   adminPassword: "admin_password", // nunca exposta publicamente
@@ -247,6 +248,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   evaluation_sla_hours: String(DEFAULT_EVALUATION_SLA_HOURS),
   whatsapp_templates: JSON.stringify(DEFAULT_WHATSAPP_TEMPLATES),
   auto_messages: JSON.stringify(DEFAULT_AUTO_MESSAGES),
+  team_notify_numbers: "",
   social_proof_enabled: "0", // desligada até o ERP publicar o endpoint e o dono ligar
   social_proof_title: "Quem confia e já faz parte da família Lojinha ❤️",
   admin_password: "lojinha123",

@@ -8,9 +8,21 @@ export function isEvolutionConfigured(): boolean {
   return Boolean(env.evolutionApiUrl && env.evolutionApiKey && env.evolutionInstance);
 }
 
-/** Normaliza para 55 + DDD + número; `null` quando não parece um celular/fixo brasileiro. */
+/** Lista de destinos (telefones ou grupos "…@g.us"), separados por vírgula, ponto e vírgula ou linha. */
+export function parseDestinations(raw: string | null | undefined): string[] {
+  const seen = new Set<string>();
+  for (const part of String(raw ?? "").split(/[\n,;]+/)) {
+    const normalized = normalizeBrazilNumber(part);
+    if (normalized) seen.add(normalized);
+  }
+  return [...seen];
+}
+
+/** Normaliza para 55 + DDD + número (ou mantém o ID de um grupo); `null` quando não parece válido. */
 export function normalizeBrazilNumber(raw: string | null | undefined): string | null {
-  let digits = String(raw ?? "").replace(/\D/g, "");
+  const trimmed = String(raw ?? "").trim();
+  if (/^[\d-]{10,}@g\.us$/.test(trimmed)) return trimmed; // grupo do WhatsApp
+  let digits = trimmed.replace(/\D/g, "");
   if (digits.startsWith("0")) digits = digits.replace(/^0+/, "");
   if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
   if (!/^55\d{10,11}$/.test(digits)) return null;

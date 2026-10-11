@@ -3,7 +3,7 @@ import { getPool } from "../queries/connection";
 import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
 import { parseAutoMessages, SETTING_KEYS } from "@contracts/types";
 import { getAllSettings } from "./settingsStore";
-import { isEvolutionConfigured, normalizeBrazilNumber, sendEvolutionText } from "./evolution";
+import { isEvolutionConfigured, normalizeBrazilNumber, parseDestinations, sendEvolutionText } from "./evolution";
 import { recordEvaluationMessage } from "./evaluationMessages";
 
 export type EvaluationNotificationStatus = "not_configured" | "sent" | "failed";
@@ -124,13 +124,17 @@ async function sendEvolutionTeamMessage(input: EvaluationNotificationInput): Pro
   const settings = await getAllSettings();
   if (!parseAutoMessages(settings[SETTING_KEYS.autoMessages]).teamEnabled) return "skipped";
 
+  // Números/grupos próprios da equipe têm prioridade. Sem eles, cai no WhatsApp da unidade, que costuma ser
+  // o MESMO número da instância da Evolution (enviar para si mesmo não avisa ninguém).
+  const own = parseDestinations(settings[SETTING_KEYS.teamNotifyNumbers]);
   const numbers = {
     jardim: settings[SETTING_KEYS.whatsappJardim],
     gll: settings[SETTING_KEYS.whatsappGll],
   };
   const targets = input.unit === "jardim" || input.unit === "gll" ? [numbers[input.unit]] : [numbers.jardim, numbers.gll];
-  const destinations = [...new Set(targets.map((n) => normalizeBrazilNumber(n)).filter((n): n is string => Boolean(n)))];
-  if (!destinations.length) throw new Error("Nenhum WhatsApp de unidade válido para avisar a equipe.");
+  const fallback = [...new Set(targets.map((n) => normalizeBrazilNumber(n)).filter((n): n is string => Boolean(n)))];
+  const destinations = own.length ? own : fallback;
+  if (!destinations.length) throw new Error("Nenhum WhatsApp válido para avisar a equipe. Cadastre os números da equipe em Configurações › Mensagens.");
 
   const unitLabel = STORE_UNITS.find((u) => u.value === input.unit)?.label;
   const lines = [

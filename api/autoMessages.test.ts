@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS, parseAutoMessages, SETTING_KEYS } from "@contracts/types";
-import { normalizeBrazilNumber } from "./services/evolution";
+import { normalizeBrazilNumber, parseDestinations } from "./services/evolution";
 import { dispatchCustomerEvent } from "./services/autoMessages";
 import { notifyEvaluationCreated } from "./services/evaluationNotification";
 import { listEvaluationMessages, resetEvaluationMessagesForTesting } from "./services/evaluationMessages";
@@ -43,6 +43,19 @@ describe("normalizeBrazilNumber", () => {
     expect(normalizeBrazilNumber("123")).toBeNull();
     expect(normalizeBrazilNumber("")).toBeNull();
     expect(normalizeBrazilNumber(null)).toBeNull();
+  });
+});
+
+describe("destinos da equipe", () => {
+  it("aceita telefones e grupos e ignora o que é inválido ou repetido", () => {
+    expect(normalizeBrazilNumber("120363025246125486@g.us")).toBe("120363025246125486@g.us");
+    expect(normalizeBrazilNumber("abc@g.us")).toBeNull();
+    expect(parseDestinations("(67) 99999-0001, 67999990001\n120363025246125486@g.us; xyz\n")).toEqual([
+      "5567999990001",
+      "120363025246125486@g.us",
+    ]);
+    expect(parseDestinations("")).toEqual([]);
+    expect(parseDestinations(undefined)).toEqual([]);
   });
 });
 
@@ -152,5 +165,30 @@ describe("Aviso à equipe pela Evolution", () => {
     expect(result).toEqual({ status: "sent" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)).number).toBe("5567998206533");
+  });
+});
+
+describe("números próprios da equipe", () => {
+  afterEach(async () => {
+    await saveSettings({ [SETTING_KEYS.teamNotifyNumbers]: "" });
+  });
+
+  it("usa os números da equipe (inclusive grupo) em vez do WhatsApp da unidade", async () => {
+    stubEvolution();
+    vi.stubEnv("EVALUATION_NOTIFICATION_WEBHOOK_URL", "");
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await saveSettings({
+      [SETTING_KEYS.whatsappJardim]: "5567992086012",
+      [SETTING_KEYS.teamNotifyNumbers]: "(67) 98888-0001\n120363025246125486@g.us",
+    });
+
+    const result = await notifyEvaluationCreated({ id: 9, name: "Cliente", whatsapp: "67999990000", model: "iPhone 14", unit: "jardim" });
+
+    expect(result).toEqual({ status: "sent" });
+    const numbers = fetchMock.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)).number);
+    expect(numbers).toEqual(["5567988880001", "120363025246125486@g.us"]);
+    expect(numbers).not.toContain("5567992086012");
+    await saveSettings({ [SETTING_KEYS.whatsappJardim]: DEFAULT_SETTINGS[SETTING_KEYS.whatsappJardim] });
   });
 });

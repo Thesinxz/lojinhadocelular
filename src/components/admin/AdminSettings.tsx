@@ -1041,7 +1041,12 @@ export default function AdminSettings() {
         onSlaChange={(value) => setValues((v) => ({ ...v, [SETTING_KEYS.evaluationSlaHours]: value }))}
         onTemplatesChange={setTemplates}
       />
-        <AutoMessagesSection config={autoMessages} onChange={setAutoMessages} />
+        <AutoMessagesSection
+          config={autoMessages}
+          onChange={setAutoMessages}
+          teamNumbers={values[SETTING_KEYS.teamNotifyNumbers] ?? ""}
+          onTeamNumbersChange={(value) => setValues((v) => ({ ...v, [SETTING_KEYS.teamNotifyNumbers]: value }))}
+        />
       </div>
 
       <div className={tab === "loja" ? "space-y-6" : "hidden"}>
