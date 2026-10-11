@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { ValuationConfig } from "@contracts/types";
+import { MODEL_REPAIR_KEYS, MODEL_REPAIR_LABELS, resolveAdjustments, type ModelRepairKey, type ValuationConfig } from "@contracts/types";
 import { formatBRL } from "@/lib/valuationEngine";
 import { buildPriceList, previousGenerationName, type PriceListModel, type PriceListRow } from "@/lib/priceList";
 
@@ -27,6 +27,27 @@ function matchesCapacity(rowCapacity: string, selected: string): boolean {
 export default function FixedPriceList({ config, onChange, search, capacity, onlyEdited }: Props) {
   const custom = config.customBasePrices ?? {};
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  const [openRepairs, setOpenRepairs] = useState<Record<string, boolean>>({});
+  const adjustments = resolveAdjustments(config.adjustments);
+  const modelRepairs = adjustments.modelRepairs;
+
+  const setRepair = (modelKey: string, item: ModelRepairKey, raw: string) => {
+    const value = Number(raw);
+    const nextModel = { ...(modelRepairs[modelKey] ?? {}) };
+    if (!raw || !(value > 0)) delete nextModel[item];
+    else nextModel[item] = Math.round(value);
+    const next = { ...modelRepairs };
+    if (Object.keys(nextModel).length > 0) next[modelKey] = nextModel;
+    else delete next[modelKey];
+    onChange({ ...config, adjustments: { ...adjustments, modelRepairs: next } });
+  };
+
+  const copyRepairs = (fromKey: string, toKey: string) => {
+    onChange({
+      ...config,
+      adjustments: { ...adjustments, modelRepairs: { ...modelRepairs, [toKey]: { ...(modelRepairs[fromKey] ?? {}) } } },
+    });
+  };
   const list = useMemo(() => buildPriceList(custom), [custom]);
 
   const setPrice = (key: string, raw: string) => {
@@ -78,6 +99,8 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
         const defined = m.rows.filter((r) => custom[r.key] > 0).length;
         const colorPrices = m.rows.reduce((n, r) => n + r.colors.filter((c) => custom[c.key] > 0).length, 0);
         const missing = m.rows.filter((r) => !(custom[r.key] > 0) && r.suggested <= 0).length;
+        const repairsSet = Object.keys(modelRepairs[m.key] ?? {}).length;
+        const repairsOpen = !!openRepairs[m.key];
         const previousName = previousGenerationName(m.name);
         const previous = previousName ? list.find((x) => x.name === previousName) : undefined;
         return (
@@ -92,6 +115,11 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
                 {colorPrices > 0 && (
                   <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
                     {colorPrices} cor{colorPrices > 1 ? "es" : ""} com preço diferente
+                  </span>
+                )}
+                {repairsSet > 0 && (
+                  <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
+                    {repairsSet} custo{repairsSet > 1 ? "s" : ""} de reparo
                   </span>
                 )}
                 {missing > 0 && (
@@ -210,6 +238,60 @@ export default function FixedPriceList({ config, onChange, search, capacity, onl
                 );
               })}
             </ul>
+
+            <div className="mt-2 border-t border-[#f0f0f2] pt-2">
+              <button
+                type="button"
+                aria-expanded={repairsOpen}
+                onClick={() => setOpenRepairs((prev) => ({ ...prev, [m.key]: !repairsOpen }))}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700 hover:underline cursor-pointer"
+              >
+                Custos de reparo deste modelo {repairsSet > 0 ? `(${repairsSet})` : ""}
+                {repairsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {repairsOpen && (
+                <div className="mt-2 rounded-lg border border-violet-100 bg-violet-50/40 p-3">
+                  <p className="text-[11px] text-[#6e6e73]">
+                    Quanto descontar (em R$) quando o cliente informar o problema. Preenchido, o valor substitui a regra geral
+                    para este modelo; vazio, vale a regra geral (percentual da seção “Descontos do motor”).
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {MODEL_REPAIR_KEYS.map((item) => (
+                      <label key={item} className="flex items-center justify-between gap-2 text-xs text-[#1d1d1f]">
+                        <span>{MODEL_REPAIR_LABELS[item]}</span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-[#6e6e73]">R$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={50}
+                            inputMode="numeric"
+                            aria-label={`${m.name}: custo de reparo, ${MODEL_REPAIR_LABELS[item]}`}
+                            value={modelRepairs[m.key]?.[item] ?? ""}
+                            placeholder="regra geral"
+                            onChange={(e) => setRepair(m.key, item, e.target.value)}
+                            className={`w-24 rounded-lg border px-2 py-1 text-right text-xs font-semibold outline-none transition ${
+                              modelRepairs[m.key]?.[item]
+                                ? "border-violet-500 bg-white text-violet-800"
+                                : "border-[#e5e5e7] bg-white text-[#1d1d1f] focus:border-violet-500"
+                            }`}
+                          />
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {previous && repairsSet === 0 && Object.keys(modelRepairs[previous.key] ?? {}).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => copyRepairs(previous.key, m.key)}
+                      className="mt-2 text-[11px] font-semibold text-violet-700 hover:underline cursor-pointer"
+                    >
+                      Copiar custos do {previous.name}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </section>
         );
       })}
