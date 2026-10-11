@@ -1,7 +1,7 @@
+import { DEFAULT_VALUATION_CONFIG } from "./valuation/config";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_VALUATION_CONFIG } from "@contracts/types";
-import { buildPriceList } from "../src/lib/priceList";
-import { evaluateDevice } from "../src/lib/valuationEngine";
+import { buildPriceList } from "./valuation/priceList";
+import { evaluateDevice } from "./valuation/engine";
 
 const perfect = {
   visualCondition: "Pouquíssimas marcas de uso",
@@ -88,7 +88,7 @@ describe("ajuste por capacidade", () => {
 
 describe("geração anterior", () => {
   it("encontra o modelo equivalente da geração anterior", async () => {
-    const { previousGenerationName } = await import("../src/lib/priceList");
+    const { previousGenerationName } = await import("../src/lib/iphoneKeys");
     expect(previousGenerationName("iPhone 18 Pro Max")).toBe("iPhone 17 Pro Max");
     expect(previousGenerationName("iPhone 18 Pro")).toBe("iPhone 17 Pro");
     expect(previousGenerationName("iPhone Air")).toBeNull();

@@ -133,61 +133,7 @@ export interface ValuationAdjustments {
   modelRepairs: ModelRepairs;
 }
 
-export const DEFAULT_ADJUSTMENTS: ValuationAdjustments = {
-  visual: { novo: 2, poucas: -4, normais: -12, riscos: -26, trinco: -50 },
-  defects: {
-    faceId: { percent: 15, reais: 0, manual: false },
-    screen: { percent: 14, reais: 0, manual: false },
-    batteryOriginal: { percent: 7, reais: 0, manual: false },
-    cameras: { percent: 18, reais: 0, manual: false },
-    audio: { percent: 8, reais: 0, manual: false },
-    chargingPort: { percent: 7, reais: 0, manual: false },
-    opened: { percent: 4, reais: 0, manual: false },
-  },
-  batteryUnknownPercent: 6,
-  rangePercent: 5,
-  modelRepairs: {},
-};
 
-function num(value: unknown, fallback: number, min: number, max: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
-}
-
-/** Junta o que foi salvo com os padrões (valores inválidos voltam ao padrão e são limitados a faixas seguras). */
-export function resolveAdjustments(raw?: Partial<ValuationAdjustments> | null): ValuationAdjustments {
-  const d = DEFAULT_ADJUSTMENTS;
-  const visual = { ...d.visual };
-  for (const key of VISUAL_ADJUSTMENT_KEYS) visual[key] = num(raw?.visual?.[key], d.visual[key], -90, 30);
-  const defects = {} as Record<DefectKey, DefectRule>;
-  for (const key of DEFECT_KEYS) {
-    const r = raw?.defects?.[key];
-    defects[key] = {
-      percent: num(r?.percent, d.defects[key].percent, 0, 90),
-      reais: num(r?.reais, d.defects[key].reais, 0, 20000),
-      manual: typeof r?.manual === "boolean" ? r.manual : d.defects[key].manual,
-    };
-  }
-  const modelRepairs: ModelRepairs = {};
-  const rawRepairs = raw?.modelRepairs;
-  if (rawRepairs && typeof rawRepairs === "object") {
-    for (const [modelKey, items] of Object.entries(rawRepairs).slice(0, 200)) {
-      if (!items || typeof items !== "object" || modelKey.length > 60) continue;
-      const clean: Partial<Record<ModelRepairKey, number>> = {};
-      for (const key of MODEL_REPAIR_KEYS) {
-        const value = (items as Record<string, unknown>)[key];
-        if (typeof value === "number" && Number.isFinite(value) && value > 0) clean[key] = Math.min(20000, Math.round(value));
-      }
-      if (Object.keys(clean).length > 0) modelRepairs[modelKey] = clean;
-    }
-  }
-  return {
-    visual,
-    defects,
-    batteryUnknownPercent: num(raw?.batteryUnknownPercent, d.batteryUnknownPercent, 0, 50),
-    rangePercent: num(raw?.rangePercent, d.rangePercent, 0, 25),
-    modelRepairs,
-  };
-}
 
 export interface ValuationConfig {
   globalMultiplier: number; // ex: 1.0 = 100%, 0.95 = 95%, 1.05 = 105%
@@ -201,18 +147,6 @@ export interface ValuationConfig {
   disclaimerText?: string;
   hidePricesToClient?: boolean; // Se true, o cliente não vê valores monetários (R$) no site nem na mensagem do WhatsApp
 }
-
-export const DEFAULT_VALUATION_CONFIG: ValuationConfig = {
-  globalMultiplier: 1.0,
-  loyaltyBonusPercent: 5,
-  boxBonusReais: 80,
-  minBatteryThreshold: 80,
-  batteryPenaltyUnder80: 18,
-  customBasePrices: {},
-  disclaimerText:
-    "Pré-avaliação online estimada. O valor exato é confirmado após a conferência física e testes rápidos na Lojinha do Celular.",
-  hidePricesToClient: true, // Padrão seguro solicitado pelo lojista para evitar divergências ou erros
-};
 
 // ===== Avaliações (Troca Fácil) =====
 
@@ -367,7 +301,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
     "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=900&q=80",
   ]),
   warranty_badge_text: "Garantia e procedência verificada.",
-  valuation_config: JSON.stringify(DEFAULT_VALUATION_CONFIG),
+  valuation_config: "", // vazio = padrões do servidor (api/valuation/config.ts)
   evaluation_sla_hours: String(DEFAULT_EVALUATION_SLA_HOURS),
   whatsapp_templates: JSON.stringify(DEFAULT_WHATSAPP_TEMPLATES),
   auto_messages: JSON.stringify(DEFAULT_AUTO_MESSAGES),

@@ -35,6 +35,8 @@ import { getErpOverride, saveErpOverride, type ErpProductOverride } from "./erp/
 import type { ShopProduct } from "./erp/types";
 import { getAdminSettings, saveSettings } from "./services/settingsStore";
 import { evaluationProcedures } from "./adminEvaluations";
+import { parseValuationConfig } from "./valuation/config";
+import { loadValuationConfig, valuationProcedures } from "./adminValuation";
 import { dashboardProcedures } from "./adminDashboard";
 import { erpOverviewProcedures } from "./erpOverview";
 import { getErpStatus, loadAdminProducts } from "./services/adminCatalog";
@@ -246,6 +248,11 @@ const productInput = z.object({
   active: z.boolean(),
   variants: z.array(variantInput).min(1),
 });
+
+/** Devolve as configurações com a do motor já completa (padrões aplicados), para o editor. */
+async function withResolvedValuation(settings: Record<string, string>): Promise<Record<string, string>> {
+  return { ...settings, [SETTING_KEYS.valuationConfig]: JSON.stringify(await loadValuationConfig()) };
+}
 
 export const adminRouter = createRouter({
   login: publicQuery
@@ -464,7 +471,7 @@ export const adminRouter = createRouter({
 
   getSettings: adminProcedure.query(async ({ ctx }) => {
     assertCan(ctx.user, "settings.manage");
-    return await getAdminSettings();
+    return await withResolvedValuation(await getAdminSettings());
   }),
 
   updateSettings: adminProcedure
@@ -474,7 +481,11 @@ export const adminRouter = createRouter({
       // A senha única antiga não é mais usada para login; não pode ser alterada por aqui.
       const values = { ...input.values };
       delete values[SETTING_KEYS.adminPassword];
-      const current = await getAdminSettings();
+      // A configuração do motor é saneada no servidor (valores inválidos voltam ao padrão).
+      if (SETTING_KEYS.valuationConfig in values) {
+        values[SETTING_KEYS.valuationConfig] = JSON.stringify(parseValuationConfig(values[SETTING_KEYS.valuationConfig]));
+      }
+      const current = await withResolvedValuation(await getAdminSettings());
       const changedKeys = Object.keys(values).filter(
         (key) => key in current && current[key] !== values[key],
       );
@@ -490,6 +501,7 @@ export const adminRouter = createRouter({
     }),
 
   ...evaluationProcedures,
+  ...valuationProcedures,
 
   erpOverride: adminProcedure
     .input(z.object({ externalId: z.string().min(1) }))

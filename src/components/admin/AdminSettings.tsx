@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import {
   Save,
   CreditCard,
@@ -7,13 +8,6 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-  ChevronDown,
-  ChevronUp,
-  Search,
-  RotateCcw,
-  Layers,
-  ListFilter,
-  X,
   Store,
   MessageCircle,
 } from "lucide-react";
@@ -26,20 +20,9 @@ import {
   DEFAULT_AUTO_MESSAGES,
   parseFees,
   type ValuationConfig,
-  DEFAULT_VALUATION_CONFIG,
 } from "@contracts/types";
-import {
-  parseValuationConfig,
-  POPULAR_CONFIG_IPHONES,
-  formatBRL,
-  IPHONE_REFERENCE_PRICES,
-  getReferenceVariationKey,
-  getDeviceColorHex,
-  normalizeKey,
-} from "@/lib/valuationEngine";
 import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
 import ValuationAdjustmentsEditor from "@/components/admin/ValuationAdjustmentsEditor";
-import { buildPriceList } from "@/lib/priceList";
 import FixedPriceList from "@/components/admin/FixedPriceList";
 import PrivacySection from "@/components/admin/PrivacySection";
 import ValuationSimulator from "@/components/admin/ValuationSimulator";
@@ -63,20 +46,36 @@ function initialTab(): TabId {
   }
 }
 
+/** Placeholder neutro enquanto a configuração carrega do servidor (não são os valores reais). */
+const EMPTY_VALUATION_CONFIG: ValuationConfig = {
+  globalMultiplier: 1,
+  loyaltyBonusPercent: 0,
+  boxBonusReais: 0,
+  minBatteryThreshold: 80,
+  batteryPenaltyUnder80: 0,
+  customBasePrices: {},
+};
+
+/** O servidor já devolve a configuração completa (padrões aplicados); aqui só se lê o JSON. */
+function readResolvedConfig(raw: string | undefined): ValuationConfig {
+  try {
+    return raw ? { ...EMPTY_VALUATION_CONFIG, ...(JSON.parse(raw) as ValuationConfig) } : EMPTY_VALUATION_CONFIG;
+  } catch {
+    return EMPTY_VALUATION_CONFIG;
+  }
+}
+
 export default function AdminSettings() {
   const utils = trpc.useUtils();
   const query = trpc.admin.getSettings.useQuery();
   const [values, setValues] = useState<Record<string, string>>({});
   const [fees, setFees] = useState<Record<string, string>>({});
   const [heroText, setHeroText] = useState("");
-  const [valuationConfig, setValuationConfig] = useState<ValuationConfig>(
-    DEFAULT_VALUATION_CONFIG
-  );
+  // Neutra só até carregar: os padrões e os valores reais vêm do servidor (nada fica no navegador de visitantes).
+  const [valuationConfig, setValuationConfig] = useState<ValuationConfig>(EMPTY_VALUATION_CONFIG);
   const [modelFilter, setModelFilter] = useState("");
   const [selectedCapacity, setSelectedCapacity] = useState<string>("all");
-  const [pricingViewMode, setPricingViewMode] = useState<"list" | "models" | "all">("list");
   const [onlyCustomFilter, setOnlyCustomFilter] = useState(false);
-  const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
   const [templates, setTemplates] = useState<WhatsappTemplate[]>([]);
   const [autoMessages, setAutoMessages] = useState<AutoMessagesConfig>(DEFAULT_AUTO_MESSAGES);
   const [tab, setTabState] = useState<TabId>(initialTab);
@@ -141,7 +140,7 @@ export default function AdminSettings() {
         ),
       );
       if (query.data[SETTING_KEYS.valuationConfig]) {
-        setValuationConfig(parseValuationConfig(query.data[SETTING_KEYS.valuationConfig]));
+        setValuationConfig(readResolvedConfig(query.data[SETTING_KEYS.valuationConfig]));
       }
       try {
         const imgs = JSON.parse(query.data[SETTING_KEYS.heroImages] ?? "[]");
@@ -155,16 +154,23 @@ export default function AdminSettings() {
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setValues((v) => ({ ...v, [key]: e.target.value }));
 
-  const savedValuationConfig = useMemo(
-    () => parseValuationConfig(query.data?.[SETTING_KEYS.valuationConfig]),
-    [query.data],
+  // Lista de preços calculada no servidor, com um pequeno atraso para não consultar a cada tecla.
+  const [debouncedCustomPrices, setDebouncedCustomPrices] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedCustomPrices(valuationConfig.customBasePrices ?? {}), 350);
+    return () => clearTimeout(timer);
+  }, [valuationConfig.customBasePrices]);
+  const priceListQuery = trpc.admin.priceList.useQuery(
+    { customBasePrices: debouncedCustomPrices },
+    { placeholderData: keepPreviousData, staleTime: 0 },
   );
+  const priceList = priceListQuery.data ?? [];
 
   // Modelos com algum armazenamento sem preço: ficam "sob consulta" para o cliente até serem definidos.
   const pendingPriceModels = useMemo(() => {
     const custom = valuationConfig.customBasePrices ?? {};
-    return buildPriceList(custom).filter((m) => m.rows.some((r) => !(custom[r.key] > 0) && r.suggested <= 0));
-  }, [valuationConfig.customBasePrices]);
+    return priceList.filter((m) => m.rows.some((r) => !(custom[r.key] > 0) && r.suggested <= 0));
+  }, [priceList, valuationConfig.customBasePrices]);
 
   const discardChanges = () => {
     if (baseline === null) return;
@@ -185,119 +191,6 @@ export default function AdminSettings() {
       setAutoMessages(saved.autoMessages);
     } catch {}
   };
-
-  const customPricesCount = useMemo(() => {
-    return Object.keys(valuationConfig.customBasePrices || {}).filter(
-      (k) => (valuationConfig.customBasePrices?.[k] ?? 0) > 0
-    ).length;
-  }, [valuationConfig.customBasePrices]);
-
-  const updateCustomPrice = (key: string, valueStr: string) => {
-    const val = valueStr === "" ? 0 : Number(valueStr);
-    setValuationConfig((prev) => {
-      const nextPrices = { ...(prev.customBasePrices || {}) };
-      if (val <= 0 || isNaN(val)) {
-        delete nextPrices[key];
-      } else {
-        nextPrices[key] = val;
-      }
-      return { ...prev, customBasePrices: nextPrices };
-    });
-  };
-
-  const resetCustomPrice = (key: string) => {
-    setValuationConfig((prev) => {
-      const nextPrices = { ...(prev.customBasePrices || {}) };
-      delete nextPrices[key];
-      return { ...prev, customBasePrices: nextPrices };
-    });
-  };
-
-  const resetAllCustomPrices = () => {
-    if (
-      window.confirm(
-        "Deseja restaurar todos os preços de iPhone para os valores padrão de referência da Lojinha?"
-      )
-    ) {
-      setValuationConfig((prev) => ({ ...prev, customBasePrices: {} }));
-    }
-  };
-
-  const toggleModelExpand = (modelId: string) => {
-    setExpandedModels((prev) => ({ ...prev, [modelId]: !prev[modelId] }));
-  };
-
-  const toggleExpandAll = () => {
-    const isAnyOpen = Object.values(expandedModels).some(Boolean);
-    if (isAnyOpen) {
-      setExpandedModels({});
-    } else {
-      const nextOpen: Record<string, boolean> = {};
-      POPULAR_CONFIG_IPHONES.forEach((m) => {
-        nextOpen[m.id] = true;
-      });
-      setExpandedModels(nextOpen);
-    }
-  };
-
-  const filteredModels = useMemo(() => {
-    return POPULAR_CONFIG_IPHONES.filter((m) => {
-      const modelNorm = normalizeKey(m.name);
-      const variations = IPHONE_REFERENCE_PRICES.filter(
-        (item) => normalizeKey(item.model) === modelNorm
-      );
-
-      const q = modelFilter.toLowerCase().trim();
-      if (q) {
-        const nameMatches = m.name.toLowerCase().includes(q);
-        const variationMatches = variations.some(
-          (v) =>
-            v.capacity.toLowerCase().includes(q) ||
-            v.color.toLowerCase().includes(q)
-        );
-        if (!nameMatches && !variationMatches) return false;
-      }
-
-      if (selectedCapacity !== "all") {
-        const capMatches = variations.some(
-          (v) => v.capacity.toLowerCase() === selectedCapacity.toLowerCase()
-        );
-        if (!capMatches && variations.length > 0) return false;
-      }
-
-      if (onlyCustomFilter) {
-        const hasModelCustom = (valuationConfig.customBasePrices?.[m.id] ?? 0) > 0;
-        const hasVarCustom = variations.some((v) => {
-          const k = getReferenceVariationKey(v.model, v.capacity, v.color);
-          return (valuationConfig.customBasePrices?.[k] ?? 0) > 0;
-        });
-        if (!hasModelCustom && !hasVarCustom) return false;
-      }
-
-      return true;
-    });
-  }, [modelFilter, selectedCapacity, onlyCustomFilter, valuationConfig.customBasePrices]);
-
-  const filteredVariations = useMemo(() => {
-    return IPHONE_REFERENCE_PRICES.filter((item) => {
-      const q = modelFilter.toLowerCase().trim();
-      if (q) {
-        const match =
-          item.model.toLowerCase().includes(q) ||
-          item.capacity.toLowerCase().includes(q) ||
-          item.color.toLowerCase().includes(q);
-        if (!match) return false;
-      }
-      if (selectedCapacity !== "all") {
-        if (item.capacity.toLowerCase() !== selectedCapacity.toLowerCase()) return false;
-      }
-      if (onlyCustomFilter) {
-        const varKey = getReferenceVariationKey(item.model, item.capacity, item.color);
-        if (!(valuationConfig.customBasePrices?.[varKey] ?? 0)) return false;
-      }
-      return true;
-    });
-  }, [modelFilter, selectedCapacity, onlyCustomFilter, valuationConfig.customBasePrices]);
 
   if (query.isLoading) {
     return <div className="mt-6 h-64 animate-pulse rounded-2xl bg-neutral-200" />;
@@ -559,462 +452,59 @@ export default function AdminSettings() {
         {/* Preços Base dos Modelos Mais Populares & Matriz Completa (GB e Cores) */}
         <ValuationAdjustmentsEditor config={valuationConfig} onChange={setValuationConfig} />
 
-        <ValuationSimulator config={valuationConfig} savedConfig={savedValuationConfig} />
+        <ValuationSimulator config={valuationConfig} models={priceList} />
 
         <div id="tabela-precos" className="mt-6 scroll-mt-24 border-t border-[#e5e5e7] pt-5">
-          <div className="flex flex-col gap-3 mb-4">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-display text-sm font-bold text-[#1d1d1f]">
-                    Tabela de Preços por Modelo, GB & Cores (iPhone)
-                  </h4>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#0071e3] border border-blue-100">
-                    <Sparkles className="h-3 w-3" /> 98 variações oficiais
-                  </span>
-                </div>
-                <p className="text-xs text-[#86868b] mt-1 max-w-2xl">
-                  Configure os valores de referência da Lojinha do Celular para pré-avaliação e compra técnica.
-                  Você pode personalizar o preço de qualquer modelo global, capacidade específica (GB) ou cor individual.
-                </p>
-              </div>
-
-              {/* Botão de reset global caso haja personalizações */}
-              {customPricesCount > 0 && (
-                <button
-                  type="button"
-                  onClick={resetAllCustomPrices}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50/80 hover:bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 transition shrink-0 cursor-pointer shadow-2xs"
-                  title="Redefine todas as customizações para os valores padrão de referência"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
-                  Restaurar padrões ({customPricesCount})
-                </button>
-              )}
-            </div>
-
-            {/* Barra de Ferramentas / Filtros */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-2.5">
-              {/* Campo de Busca */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#86868b]" />
-                <input
-                  type="text"
-                  placeholder="Buscar modelo, GB ou cor (ex: 16 Pro Max, 256GB, Desert)..."
-                  value={modelFilter}
-                  onChange={(e) => setModelFilter(e.target.value)}
-                  className="w-full rounded-lg border border-[#e5e5e7] bg-white pl-8 pr-7 py-1.5 text-xs text-[#1d1d1f] outline-none focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 transition"
-                />
-                {modelFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setModelFilter("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86868b] hover:text-[#1d1d1f]"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Filtro de Capacidades */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-                <span className="text-[11px] font-semibold text-[#86868b] mr-1 hidden lg:inline">GB:</span>
-                {(["all", "128GB", "256GB", "512GB", "1TB"] as const).map((cap) => (
-                  <button
-                    key={cap}
-                    type="button"
-                    onClick={() => setSelectedCapacity(cap)}
-                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition cursor-pointer ${
-                      selectedCapacity === cap
-                        ? "bg-[#1d1d1f] text-white"
-                        : "bg-white border border-[#e5e5e7] text-[#6e6e73] hover:bg-[#f5f5f7]"
-                    }`}
-                  >
-                    {cap === "all" ? "Todos GBs" : cap}
-                  </button>
-                ))}
-              </div>
-
-              {/* Toggle de Apenas Personalizados e Modo de Visualização */}
-              <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-1.5 text-xs font-medium text-[#1d1d1f] cursor-pointer select-none bg-white border border-[#e5e5e7] rounded-lg px-2.5 py-1">
-                  <input
-                    type="checkbox"
-                    checked={onlyCustomFilter}
-                    onChange={(e) => setOnlyCustomFilter(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
-                  />
-                  <span>Só editados {customPricesCount > 0 ? `(${customPricesCount})` : ""}</span>
-                </label>
-
-                {/* Alternância de Modo de Visualização */}
-                <div className="inline-flex rounded-lg border border-[#e5e5e7] bg-white p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setPricingViewMode("list")}
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
-                      pricingViewMode === "list"
-                        ? "bg-[#1d1d1f] text-white"
-                        : "text-[#6e6e73] hover:text-[#1d1d1f]"
-                    }`}
-                    title="Lista fixa: um preço por modelo e armazenamento"
-                  >
-                    <ListFilter className="h-3 w-3" />
-                    Lista fixa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPricingViewMode("models")}
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
-                      pricingViewMode === "models"
-                        ? "bg-[#1d1d1f] text-white"
-                        : "text-[#6e6e73] hover:text-[#1d1d1f]"
-                    }`}
-                    title="Agrupado por Modelo (com gavetas expansíveis de variações)"
-                  >
-                    <Layers className="h-3 w-3" />
-                    Modelos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPricingViewMode("all")}
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
-                      pricingViewMode === "all"
-                        ? "bg-[#1d1d1f] text-white"
-                        : "text-[#6e6e73] hover:text-[#1d1d1f]"
-                    }`}
-                    title="Matriz Completa (Tabela detalhada com todos os 98 itens)"
-                  >
-                    <ListFilter className="h-3 w-3" />
-                    Matriz Completa
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Sub-barra com ações e contagem */}
-            <div className="flex items-center justify-between text-xs text-[#86868b] px-1">
-              <span>
-                {pricingViewMode === "list"
-                  ? "Um preço por modelo e armazenamento. Deixe vazio para o motor calcular."
-                  : pricingViewMode === "models"
-                  ? `Exibindo ${filteredModels.length} modelos`
-                  : `Exibindo ${filteredVariations.length} de ${IPHONE_REFERENCE_PRICES.length} variações`}
-              </span>
-              {pricingViewMode === "models" && (
-                <button
-                  type="button"
-                  onClick={toggleExpandAll}
-                  className="text-xs font-semibold text-[#0071e3] hover:underline cursor-pointer"
-                >
-                  {Object.values(expandedModels).some(Boolean)
-                    ? "Recolher todas as gavetas"
-                    : "Expandir todas as gavetas"}
-                </button>
-              )}
-            </div>
+          <div className="mb-4">
+            <h4 className="font-display text-sm font-bold text-[#1d1d1f]">Tabela de preços por modelo, armazenamento e cor (iPhone)</h4>
+            <p className="mt-1 max-w-2xl text-xs text-[#86868b]">
+              Um preço por modelo e armazenamento, e, se quiser, um preço diferente por cor. Campo vazio = o motor calcula. Estes valores
+              ficam só no servidor: visitantes do site não conseguem ver a tabela.
+            </p>
           </div>
 
-          {pricingViewMode === "list" ? (
-            <FixedPriceList
-              config={valuationConfig}
-              onChange={setValuationConfig}
-              search={modelFilter}
-              capacity={selectedCapacity}
-              onlyEdited={onlyCustomFilter}
-            />
-          ) : pricingViewMode === "models" ? (
-            <div className="max-h-[500px] overflow-y-auto rounded-xl border border-[#e5e5e7] bg-white divide-y divide-[#f0f0f2]">
-              {filteredModels.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#86868b]">
-                  Nenhum modelo encontrado com os filtros aplicados.
-                </div>
-              ) : (
-                filteredModels.map((m) => {
-                  const modelNorm = normalizeKey(m.name);
-                  const variations = IPHONE_REFERENCE_PRICES.filter(
-                    (item) => normalizeKey(item.model) === modelNorm
-                  );
-                  const currentModelCustom = valuationConfig.customBasePrices?.[m.id];
-                  const hasModelCustom = typeof currentModelCustom === "number" && currentModelCustom > 0;
-
-                  // Quantas variações deste modelo têm preço personalizado
-                  const customInVariationsCount = variations.filter((v) => {
-                    const key = getReferenceVariationKey(v.model, v.capacity, v.color);
-                    return (valuationConfig.customBasePrices?.[key] ?? 0) > 0;
-                  }).length;
-
-                  const isExpanded = !!expandedModels[m.id];
-
-                  // Variações filtradas dentro deste modelo
-                  const visibleVariations = variations.filter((v) => {
-                    const q = modelFilter.toLowerCase().trim();
-                    if (q) {
-                      const match =
-                        m.name.toLowerCase().includes(q) ||
-                        v.capacity.toLowerCase().includes(q) ||
-                        v.color.toLowerCase().includes(q);
-                      if (!match) return false;
-                    }
-                    if (selectedCapacity !== "all") {
-                      if (v.capacity.toLowerCase() !== selectedCapacity.toLowerCase()) return false;
-                    }
-                    if (onlyCustomFilter) {
-                      const key = getReferenceVariationKey(v.model, v.capacity, v.color);
-                      if (!(valuationConfig.customBasePrices?.[key] ?? 0)) return false;
-                    }
-                    return true;
-                  });
-
-                  // Capacidades únicas deste modelo para exibir resumo
-                  const uniqueCaps = Array.from(new Set(variations.map((v) => v.capacity)));
-
-                  return (
-                    <div key={m.id} className="transition">
-                      {/* Linha Principal do Modelo */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 hover:bg-[#fbfbfd]">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold text-[#1d1d1f]">{m.name}</span>
-                            {variations.length > 0 && (
-                              <span className="rounded-full bg-[#f5f5f7] border border-[#e5e5e7] px-2 py-0.5 text-[10px] font-semibold text-[#6e6e73]">
-                                {variations.length} variações ({uniqueCaps.join(", ")})
-                              </span>
-                            )}
-                            {customInVariationsCount > 0 && (
-                              <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-                                {customInVariationsCount} personalizada{customInVariationsCount > 1 ? "s" : ""}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-[#86868b] mt-0.5 block">
-                            {m.defaultBasePrice > 0 ? (
-                              <>
-                                Padrão base (128GB Grau A): <strong>{formatBRL(m.defaultBasePrice)}</strong>
-                              </>
-                            ) : (
-                              <strong className="text-amber-700">Sem preço padrão: defina o valor ao lado (até lá fica “sob consulta”)</strong>
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-medium text-[#86868b] hidden sm:inline">
-                              Base:
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-semibold text-[#86868b]">R$</span>
-                              <input
-                                type="number"
-                                step="50"
-                                placeholder={m.defaultBasePrice > 0 ? String(m.defaultBasePrice) : "definir"}
-                                value={hasModelCustom ? currentModelCustom : ""}
-                                onChange={(e) => updateCustomPrice(m.id, e.target.value)}
-                                className={`w-24 sm:w-28 rounded-lg border px-2.5 py-1 text-xs font-semibold text-right outline-none transition ${
-                                  hasModelCustom
-                                    ? "border-[#0071e3] bg-blue-50/50 text-[#0071e3]"
-                                    : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] focus:border-[#0071e3] focus:bg-white"
-                                }`}
-                              />
-                            </div>
-                            {hasModelCustom && (
-                              <button
-                                type="button"
-                                onClick={() => resetCustomPrice(m.id)}
-                                title="Restaurar preço base padrão"
-                                className="rounded-lg border border-[#e5e5e7] bg-[#f5f5f7] hover:bg-[#e5e5e7] px-2 py-1 text-[10px] font-medium text-[#6e6e73] transition cursor-pointer"
-                              >
-                                Resetar
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Botão para abrir/fechar gaveta de variações */}
-                          {variations.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => toggleModelExpand(m.id)}
-                              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-                                isExpanded
-                                  ? "border-[#1d1d1f] bg-[#1d1d1f] text-white"
-                                  : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e5e5e7]"
-                              }`}
-                            >
-                              <span>GB & Cores ({variations.length})</span>
-                              {isExpanded ? (
-                                <ChevronUp className="h-3.5 w-3.5" />
-                              ) : (
-                                <ChevronDown className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Gaveta de Variações Detalhadas (GB & Cores) */}
-                      {isExpanded && variations.length > 0 && (
-                        <div className="border-t border-[#f0f0f2] bg-[#fbfbfd] px-4 py-3">
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
-                              Variações oficiais tabeladas para {m.name} ({visibleVariations.length}):
-                            </span>
-                            <span className="text-[10px] text-[#86868b]">
-                              Valores personalizados substituem o cálculo automático
-                            </span>
-                          </div>
-
-                          {visibleVariations.length === 0 ? (
-                            <p className="text-xs text-[#86868b] py-2 italic">
-                              Nenhuma variação corresponde aos filtros de GB / Cor ativos.
-                            </p>
-                          ) : (
-                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                              {visibleVariations.map((v) => {
-                                const varKey = getReferenceVariationKey(v.model, v.capacity, v.color);
-                                const currentVarCustom = valuationConfig.customBasePrices?.[varKey];
-                                const hasVarCustom =
-                                  typeof currentVarCustom === "number" && currentVarCustom > 0;
-                                const colorHex = getDeviceColorHex(v.color);
-
-                                return (
-                                  <div
-                                    key={varKey}
-                                    className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${
-                                      hasVarCustom
-                                        ? "border-[#0071e3] bg-blue-50/40"
-                                        : "border-[#e5e5e7] bg-white hover:border-[#d5d5d7]"
-                                    }`}
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5">
-                                        <span
-                                          className="h-3.5 w-3.5 rounded-full border border-black/15 shrink-0 shadow-2xs"
-                                          style={{ backgroundColor: colorHex }}
-                                          title={v.color}
-                                        />
-                                        <span className="text-xs font-bold text-[#1d1d1f] truncate">
-                                          {v.color}
-                                        </span>
-                                        <span className="rounded bg-[#f5f5f7] border border-[#e5e5e7] px-1.5 py-0.2 text-[10px] font-bold text-[#1d1d1f]">
-                                          {v.capacity}
-                                        </span>
-                                      </div>
-                                      <div className="mt-0.5 text-[10px] text-[#86868b]">
-                                        Tabela: <strong>{formatBRL(v.priceBrl)}</strong>{" "}
-                                        <span className="text-[9px] text-[#a1a1a6]">
-                                          (US$ {v.priceUsd.toFixed(0)})
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <span className="text-[11px] font-semibold text-[#86868b]">R$</span>
-                                      <input
-                                        type="number"
-                                        step="50"
-                                        placeholder={String(v.priceBrl)}
-                                        value={hasVarCustom ? currentVarCustom : ""}
-                                        onChange={(e) => updateCustomPrice(varKey, e.target.value)}
-                                        className={`w-20 rounded-lg border px-2 py-1 text-xs font-semibold text-right outline-none transition ${
-                                          hasVarCustom
-                                            ? "border-[#0071e3] bg-white text-[#0071e3]"
-                                            : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] focus:border-[#0071e3] focus:bg-white"
-                                        }`}
-                                      />
-                                      {hasVarCustom && (
-                                        <button
-                                          type="button"
-                                          onClick={() => resetCustomPrice(varKey)}
-                                          title="Restaurar valor padrão da matriz"
-                                          className="rounded border border-[#e5e5e7] bg-[#f5f5f7] hover:bg-[#e5e5e7] px-1.5 py-1 text-[9px] font-medium text-[#6e6e73] transition cursor-pointer"
-                                        >
-                                          Reset
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+          <div className="mb-3 flex flex-col gap-3 rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1">
+              <label htmlFor="price-search" className="sr-only">Buscar modelo</label>
+              <input
+                id="price-search"
+                value={modelFilter}
+                onChange={(e) => setModelFilter(e.target.value)}
+                placeholder="Buscar modelo (ex.: 16 Pro Max)"
+                className="w-full rounded-xl border border-[#e5e5e7] bg-white px-3 py-2 text-xs outline-none focus:border-[#0071e3]"
+              />
             </div>
-          ) : (
-            /* Visualização da Matriz Completa (Todos os 98 itens) */
-            <div className="max-h-[500px] overflow-y-auto rounded-xl border border-[#e5e5e7] bg-white divide-y divide-[#f0f0f2]">
-              {filteredVariations.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#86868b]">
-                  Nenhuma variação encontrada com os filtros aplicados.
-                </div>
-              ) : (
-                filteredVariations.map((v) => {
-                  const varKey = getReferenceVariationKey(v.model, v.capacity, v.color);
-                  const currentVarCustom = valuationConfig.customBasePrices?.[varKey];
-                  const hasVarCustom =
-                    typeof currentVarCustom === "number" && currentVarCustom > 0;
-                  const colorHex = getDeviceColorHex(v.color);
-
-                  return (
-                    <div
-                      key={varKey}
-                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 transition ${
-                        hasVarCustom ? "bg-blue-50/40" : "hover:bg-[#fbfbfd]"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1 flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold text-[#1d1d1f]">{v.model}</span>
-                        <span className="rounded bg-[#1d1d1f] px-2 py-0.5 text-[10px] font-bold text-white">
-                          {v.capacity}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-black/15 shrink-0 shadow-2xs"
-                            style={{ backgroundColor: colorHex }}
-                          />
-                          <span className="text-xs font-medium text-[#6e6e73]">{v.color}</span>
-                        </div>
-                        <span className="text-[11px] text-[#86868b] sm:ml-auto">
-                          US$ {v.priceUsd.toFixed(0)} • Tabela: <strong>{formatBRL(v.priceBrl)}</strong>
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                        <span className="text-xs font-semibold text-[#86868b]">R$</span>
-                        <input
-                          type="number"
-                          step="50"
-                          placeholder={String(v.priceBrl)}
-                          value={hasVarCustom ? currentVarCustom : ""}
-                          onChange={(e) => updateCustomPrice(varKey, e.target.value)}
-                          className={`w-24 sm:w-28 rounded-lg border px-2.5 py-1 text-xs font-semibold text-right outline-none transition ${
-                            hasVarCustom
-                              ? "border-[#0071e3] bg-white text-[#0071e3]"
-                              : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] focus:border-[#0071e3] focus:bg-white"
-                          }`}
-                        />
-                        {hasVarCustom && (
-                          <button
-                            type="button"
-                            onClick={() => resetCustomPrice(varKey)}
-                            title="Restaurar valor padrão da matriz"
-                            className="rounded-lg border border-[#e5e5e7] bg-[#f5f5f7] hover:bg-[#e5e5e7] px-2 py-1 text-[10px] font-medium text-[#6e6e73] transition cursor-pointer"
-                          >
-                            Resetar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {(["all", "128GB", "256GB", "512GB", "1TB", "2TB"] as const).map((cap) => (
+                <button
+                  key={cap}
+                  type="button"
+                  onClick={() => setSelectedCapacity(cap)}
+                  className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                    selectedCapacity === cap
+                      ? "bg-[#1d1d1f] text-white"
+                      : "border border-[#e5e5e7] bg-white text-[#6e6e73] hover:bg-[#f5f5f7]"
+                  }`}
+                >
+                  {cap === "all" ? "Todos" : cap}
+                </button>
+              ))}
             </div>
-          )}
+            <label className="inline-flex cursor-pointer select-none items-center gap-1.5 rounded-lg border border-[#e5e5e7] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f]">
+              <input type="checkbox" checked={onlyCustomFilter} onChange={(e) => setOnlyCustomFilter(e.target.checked)} />
+              Só editados
+            </label>
+          </div>
+
+          <FixedPriceList
+            models={priceList}
+            loading={priceListQuery.isLoading}
+            config={valuationConfig}
+            onChange={setValuationConfig}
+            search={modelFilter}
+            capacity={selectedCapacity}
+            onlyEdited={onlyCustomFilter}
+          />
         </div>
       </section>
 

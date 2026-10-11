@@ -1,6 +1,7 @@
+import { DEFAULT_VALUATION_CONFIG, resolveAdjustments } from "./valuation/config";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_VALUATION_CONFIG, resolveAdjustments, type ValuationConfig } from "@contracts/types";
-import { evaluateDevice, parseValuationConfig } from "../src/lib/valuationEngine";
+import { type ValuationConfig } from "@contracts/types";
+import { evaluateDevice, parseValuationConfig } from "./valuation/engine";
 
 const perfect = {
   model: "iPhone 13",

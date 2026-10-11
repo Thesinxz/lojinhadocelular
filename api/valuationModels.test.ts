@@ -7,7 +7,7 @@ import {
   getCustomBasePriceMatch,
   resolveIphoneModel,
   type ValuationInput,
-} from "../src/lib/valuationEngine";
+} from "./valuation/engine";
 
 const good: Partial<ValuationInput> = {
   visualCondition: "Parece novo, sem marcas",
