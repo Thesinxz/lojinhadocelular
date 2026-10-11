@@ -1,4 +1,5 @@
-import { Bot, Loader2, RotateCcw, Wifi, WifiOff } from "lucide-react";
+import { useState } from "react";
+import { Bot, Loader2, RotateCcw, Send, Wifi, WifiOff } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import {
   AUTO_MESSAGE_EVENTS,
@@ -24,6 +25,55 @@ const inputCls =
 interface AutoMessagesSectionProps {
   config: AutoMessagesConfig;
   onChange: (config: AutoMessagesConfig) => void;
+  /** Números/grupos da equipe que recebem o aviso de nova avaliação. */
+  teamNumbers: string;
+  onTeamNumbersChange: (value: string) => void;
+}
+
+/** Envia uma mensagem de teste para conferir a Evolution de ponta a ponta. */
+function TestSend() {
+  const [number, setNumber] = useState("");
+  const [result, setResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const test = trpc.admin.evolutionTest.useMutation({
+    onSuccess: (res) => setResult(res),
+    onError: (err) => setResult({ ok: false, error: err.message }),
+  });
+  return (
+    <div className="mt-4 rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-3">
+      <p className="text-sm font-semibold text-[#1d1d1f]">Testar o envio</p>
+      <p className="text-[11px] text-[#86868b]">Manda uma mensagem de teste. Use um número que NÃO seja o da própria instância.</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <input
+          value={number}
+          onChange={(e) => {
+            setNumber(e.target.value);
+            setResult(null);
+          }}
+          placeholder="(67) 99999-9999"
+          inputMode="tel"
+          aria-label="Número para o teste"
+          className={`${inputCls} max-w-xs`}
+        />
+        <button
+          type="button"
+          disabled={test.isPending || number.replace(/\D/g, "").length < 10}
+          onClick={() => {
+            setResult(null);
+            test.mutate({ number });
+          }}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#e5e5e7] bg-white px-4 text-sm font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] disabled:opacity-50"
+        >
+          {test.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          Enviar teste
+        </button>
+      </div>
+      {result && (
+        <p className={`mt-2 text-xs font-semibold ${result.ok ? "text-emerald-700" : "text-red-700"}`} role="status">
+          {result.ok ? "Mensagem enviada. Confira no WhatsApp desse número." : `Falhou: ${result.error}`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function EvolutionBadge() {
@@ -66,7 +116,7 @@ function EvolutionBadge() {
 }
 
 /** Mensagens automáticas via Evolution API: ao cliente em cada etapa e aviso à equipe. */
-export default function AutoMessagesSection({ config, onChange }: AutoMessagesSectionProps) {
+export default function AutoMessagesSection({ config, onChange, teamNumbers, onTeamNumbersChange }: AutoMessagesSectionProps) {
   const patchEvent = (event: AutoMessageEvent, change: Partial<AutoMessagesConfig["events"][AutoMessageEvent]>) =>
     onChange({ ...config, events: { ...config.events, [event]: { ...config.events[event], ...change } } });
 
@@ -110,6 +160,26 @@ export default function AutoMessagesSection({ config, onChange }: AutoMessagesSe
           </span>
         </label>
       </div>
+
+      <div className="mt-4">
+        <label htmlFor="team-numbers" className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">
+          Quem recebe o aviso de nova avaliação (WhatsApp da equipe)
+        </label>
+        <textarea
+          id="team-numbers"
+          value={teamNumbers}
+          onChange={(e) => onTeamNumbersChange(e.target.value)}
+          rows={2}
+          placeholder={"(67) 99999-0001\n(67) 99999-0002\nou o ID de um grupo: 120363...@g.us"}
+          className={`${inputCls} resize-y`}
+        />
+        <p className="mt-1 text-[11px] text-[#86868b]">
+          Um por linha (ou separados por vírgula). <b>Não use o número da própria instância da Evolution</b>: mandar para si mesmo não avisa ninguém.
+          Se ficar vazio, o aviso vai para o WhatsApp da unidade nas Configurações.
+        </p>
+      </div>
+
+      <TestSend />
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-[#1d1d1f]">Mensagem de cada etapa</p>

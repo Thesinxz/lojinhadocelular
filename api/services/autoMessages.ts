@@ -52,13 +52,26 @@ export async function renderCustomerMessage(
   return renderTemplate(config.events[event].body, vars).trim();
 }
 
+let lastNotConfiguredWarning = 0;
+function warnNotConfigured(evaluationId: number): void {
+  const now = Date.now();
+  if (now - lastNotConfiguredWarning < 60 * 60 * 1000) return;
+  lastNotConfiguredWarning = now;
+  console.warn(
+    `[AutoMessages] Evolution API não configurada (EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE): avaliação #${evaluationId} ficou sem mensagem automática.`,
+  );
+}
+
 export async function dispatchCustomerEvent(
   event: AutoMessageEvent,
   evaluationId: number,
   options: DispatchOptions = {},
 ): Promise<DispatchResult> {
   try {
-    if (!isEvolutionConfigured()) return "not_configured";
+    if (!isEvolutionConfigured()) {
+      warnNotConfigured(evaluationId);
+      return "not_configured";
+    }
     const evaluation = await findEvaluationById(evaluationId);
     if (!evaluation) return "skipped";
 

@@ -63,7 +63,7 @@ import { runLoyaltyCheck } from "./services/loyaltyCheck";
 import { LOYALTY_STATUS_LABELS } from "@contracts/loyalty";
 import { dispatchCustomerEvent, dispatchCustomerEventInBackground } from "./services/autoMessages";
 import { listEvaluationMessages } from "./services/evaluationMessages";
-import { getEvolutionStatus } from "./services/evolution";
+import { evolutionShortError, getEvolutionStatus, isEvolutionConfigured, normalizeBrazilNumber, sendEvolutionText } from "./services/evolution";
 import {
   deleteEvaluationPhotoObjects,
   getPhotoObjectKey,
@@ -810,6 +810,29 @@ export const evaluationProcedures = {
         summary: `Reenviou mensagem "${input.event}" ao cliente da avaliação #${input.id}: ${result}`,
       });
       return { ok: result === "sent", result };
+    }),
+
+  /** Envia uma mensagem de teste pela Evolution para conferir a configuração de ponta a ponta. */
+  evolutionTest: adminProcedure
+    .input(z.object({ number: z.string().min(8).max(60) }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "settings.manage");
+      if (!isEvolutionConfigured()) {
+        return { ok: false, error: "A Evolution API não está configurada no servidor (faltam EVOLUTION_API_URL, EVOLUTION_API_KEY ou EVOLUTION_INSTANCE)." };
+      }
+      const number = normalizeBrazilNumber(input.number);
+      if (!number) return { ok: false, error: "Número inválido. Use DDD + número (ou o ID de um grupo terminado em @g.us)." };
+      try {
+        await sendEvolutionText(number, `✅ Teste do painel da Lojinha do Celular. Se você recebeu esta mensagem, a Evolution está funcionando. (${ctx.user.name})`);
+        await logAction(ctx.user, {
+          action: "settings.evolutionTest",
+          entityType: "settings",
+          summary: `${ctx.user.name} enviou uma mensagem de teste pela Evolution`,
+        });
+        return { ok: true as const };
+      } catch (error) {
+        return { ok: false, error: evolutionShortError(error) };
+      }
     }),
 
   evolutionStatus: adminProcedure.query(async ({ ctx }) => {
