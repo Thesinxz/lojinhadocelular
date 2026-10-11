@@ -38,6 +38,8 @@ import { isValidCpf, onlyDigits } from "@contracts/brDocs";
 
 // Modelos alvo para troca
 const TARGET_IPHONE_MODELS = [
+  "iPhone 18 Pro Max",
+  "iPhone 18 Pro",
   "iPhone 17 Pro Max",
   "iPhone 17 Pro",
   "iPhone 17",

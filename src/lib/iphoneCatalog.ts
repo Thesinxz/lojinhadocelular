@@ -41,6 +41,31 @@ export function resolveIphoneImageUrl(pathOrUrl?: string): string {
 
 export const IPHONE_CATALOG: IphoneModelSpec[] = [
   // ===== 2026 =====
+  // Lançados em 09/2026. Sem fotos por cor ainda: a vitrine usa o ícone padrão até haver imagens.
+  {
+    name: "iPhone 18 Pro Max",
+    year: 2026,
+    screen: "6.9\"",
+    capacities: ["256GB", "512GB", "1TB", "2TB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Glacier", hex: "#b7c4cf" },
+      { name: "Burgundy", hex: "#6d1f2f" },
+    ],
+  },
+  {
+    name: "iPhone 18 Pro",
+    year: 2026,
+    screen: "6.3\"",
+    capacities: ["256GB", "512GB", "1TB", "2TB"],
+    colors: [
+      { name: "Black", hex: "#1d1d1f" },
+      { name: "Silver", hex: "#e2e4e1" },
+      { name: "Glacier", hex: "#b7c4cf" },
+      { name: "Burgundy", hex: "#6d1f2f" },
+    ],
+  },
   {
     name: "iPhone 17e",
     year: 2026,
@@ -818,6 +843,8 @@ export function resolveProductImage(
 }
 
 export const POPULAR_IPHONE_MODELS = [
+  "iPhone 18 Pro Max",
+  "iPhone 18 Pro",
   "iPhone 16 Pro Max",
   "iPhone 16 Pro",
   "iPhone 16",

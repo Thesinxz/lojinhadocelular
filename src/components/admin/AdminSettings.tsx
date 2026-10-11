@@ -706,7 +706,13 @@ export default function AdminSettings() {
                             )}
                           </div>
                           <span className="text-[11px] text-[#86868b] mt-0.5 block">
-                            Padrão base (128GB Grau A): <strong>{formatBRL(m.defaultBasePrice)}</strong>
+                            {m.defaultBasePrice > 0 ? (
+                              <>
+                                Padrão base (128GB Grau A): <strong>{formatBRL(m.defaultBasePrice)}</strong>
+                              </>
+                            ) : (
+                              <strong className="text-amber-700">Sem preço padrão: defina o valor ao lado (até lá fica “sob consulta”)</strong>
+                            )}
                           </span>
                         </div>
 
@@ -720,7 +726,7 @@ export default function AdminSettings() {
                               <input
                                 type="number"
                                 step="50"
-                                placeholder={String(m.defaultBasePrice)}
+                                placeholder={m.defaultBasePrice > 0 ? String(m.defaultBasePrice) : "definir"}
                                 value={hasModelCustom ? currentModelCustom : ""}
                                 onChange={(e) => updateCustomPrice(m.id, e.target.value)}
                                 className={`w-24 sm:w-28 rounded-lg border px-2.5 py-1 text-xs font-semibold text-right outline-none transition ${

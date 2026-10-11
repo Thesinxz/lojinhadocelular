@@ -290,7 +290,10 @@ const TARGET_STORE_VALUES: Record<string, number> = {
   "iphone 11": 1500,
 };
 
+/** `defaultBasePrice: 0` = sem preço padrão: o modelo fica "sob consulta" até o dono definir o valor no painel. */
 export const POPULAR_CONFIG_IPHONES: Array<{ id: string; name: string; defaultBasePrice: number }> = [
+  { id: "iphone 18 pro max", name: "iPhone 18 Pro Max", defaultBasePrice: 0 },
+  { id: "iphone 18 pro", name: "iPhone 18 Pro", defaultBasePrice: 0 },
   { id: "iphone 17 pro max", name: "iPhone 17 Pro Max", defaultBasePrice: 5800 },
   { id: "iphone 17 pro", name: "iPhone 17 Pro", defaultBasePrice: 5000 },
   { id: "iphone 17", name: "iPhone 17", defaultBasePrice: 3700 },

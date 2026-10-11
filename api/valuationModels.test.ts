@@ -147,3 +147,31 @@ describe("itens para conferir e impeditivos", () => {
     expect(evaluateDevice({ model: "iPhone 13", ...good, icloudFree: "Sim" }).blockers).toEqual([]);
   });
 });
+
+describe("iPhone 18 Pro e 18 Pro Max (lançados em 09/2026)", () => {
+  it("são reconhecidos como modelos distintos", async () => {
+    const { detectIphoneModel, IPHONE_CATALOG, POPULAR_IPHONE_MODELS } = await import("../src/lib/iphoneCatalog");
+    expect(resolveIphoneModel("iPhone 18 Pro Max")?.key).toBe("iphone 18 pro max");
+    expect(resolveIphoneModel("iphone18pro")?.key).toBe("iphone 18 pro");
+    expect(detectIphoneModel("iPhone 18 Pro Max 512GB")?.name).toBe("iPhone 18 Pro Max");
+    expect(detectIphoneModel("iPhone 18 Pro")?.name).toBe("iPhone 18 Pro");
+    expect(detectIphoneModel("iPhone 17 Pro")?.name).toBe("iPhone 17 Pro");
+    const spec = IPHONE_CATALOG.find((m) => m.name === "iPhone 18 Pro Max")!;
+    expect(spec.screen).toBe('6.9"');
+    expect(spec.colors.map((c) => c.name)).toEqual(["Black", "Silver", "Glacier", "Burgundy"]);
+    expect(POPULAR_IPHONE_MODELS.slice(0, 2)).toEqual(["iPhone 18 Pro Max", "iPhone 18 Pro"]);
+  });
+
+  it("sem preço cadastrado ficam 'sob consulta'; com preço personalizado são avaliados", () => {
+    const input = { model: "iPhone 18 Pro Max", storage: "256GB", ...good };
+    expect(evaluateDevice(input).priceable).toBe(false);
+    expect(findBasePrice("iPhone 18 Pro Max")).toBe(0);
+
+    const cfg = { globalMultiplier: 1, loyaltyBonusPercent: 5, boxBonusReais: 80, minBatteryThreshold: 80, batteryPenaltyUnder80: 18, customBasePrices: { "iphone 18 pro max": 6500 } };
+    const priced = evaluateDevice(input, cfg);
+    expect(priced.priceable).toBe(true);
+    expect(priced.basePrice).toBe(6500);
+    // o 18 Pro não herda o preço do 18 Pro Max
+    expect(evaluateDevice({ model: "iPhone 18 Pro", storage: "256GB", ...good }, cfg).priceable).toBe(false);
+  });
+});
