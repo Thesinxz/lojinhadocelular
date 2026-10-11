@@ -63,6 +63,13 @@ import { runLoyaltyCheck } from "./services/loyaltyCheck";
 import { LOYALTY_STATUS_LABELS } from "@contracts/loyalty";
 import { dispatchCustomerEvent, dispatchCustomerEventInBackground } from "./services/autoMessages";
 import { listEvaluationMessages, recordEvaluationMessage } from "./services/evaluationMessages";
+import {
+  eraseEvaluations,
+  findEvaluationsOfHolder,
+  findExpiredEvaluations,
+  getRetentionPolicy,
+  runRetention,
+} from "./services/retention";
 import { BATCH_MAX, enqueueBatchMessages, pendingBatchMessages, planBatchMessage } from "./services/batchMessages";
 import { evolutionShortError, getEvolutionStatus, isEvolutionConfigured, normalizeBrazilNumber, sendEvolutionText } from "./services/evolution";
 import {
@@ -666,6 +673,53 @@ export const evaluationProcedures = {
         }
       }
       return { ok: failed.length === 0, done, failed };
+    }),
+
+  /** LGPD: quantas avaliações já passaram do prazo de guarda (nada é apagado aqui). */
+  privacyRetentionPreview: adminProcedure.query(async ({ ctx }) => {
+    assertCan(ctx.user, "settings.manage");
+    const policy = await getRetentionPolicy();
+    const expired = await findExpiredEvaluations(policy);
+    return {
+      policy,
+      expired: expired.length,
+      expiredOpen: expired.filter((e) => e.status !== "concluido").length,
+      expiredClosed: expired.filter((e) => e.status === "concluido").length,
+    };
+  }),
+
+  /** LGPD: apaga agora as avaliações com prazo vencido (mesma regra da rotina automática). */
+  privacyRetentionRun: adminProcedure.mutation(async ({ ctx }) => {
+    assertCan(ctx.user, "settings.manage");
+    return runRetention(new Date(), ctx.user);
+  }),
+
+  /** LGPD: o que existe de um titular (por WhatsApp), antes de apagar. Só contagens, modelos e datas. */
+  privacyHolderPreview: adminProcedure
+    .input(z.object({ whatsapp: z.string().min(8).max(30) }))
+    .query(async ({ ctx, input }) => {
+      assertCan(ctx.user, "settings.manage");
+      const items = await findEvaluationsOfHolder(input.whatsapp);
+      return {
+        count: items.length,
+        oldest: items.length ? new Date(Math.min(...items.map((e) => e.createdAt.getTime()))) : null,
+        photos: items.reduce((n, e) => n + parseStoredEvaluationPhotos(e.photos).length, 0),
+      };
+    }),
+
+  /** LGPD: exclusão a pedido do titular. Apaga avaliações, anotações, mensagens e fotos do número. */
+  privacyHolderErase: adminProcedure
+    .input(z.object({ whatsapp: z.string().min(8).max(30), confirm: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      assertCan(ctx.user, "settings.manage");
+      const items = await findEvaluationsOfHolder(input.whatsapp);
+      const deleted = await eraseEvaluations(items);
+      await logAction(ctx.user, {
+        action: "privacy.erase",
+        entityType: "evaluation",
+        summary: `${ctx.user.name} atendeu pedido de exclusão de dados do titular: ${deleted} avaliação(ões) apagada(s)`,
+      });
+      return { deleted };
     }),
 
   /** Pré-visualização do envio em lote de "avaliação recebida": quem receberia, quem será pulado e um exemplo do texto. */

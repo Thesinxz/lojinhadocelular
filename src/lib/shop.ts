@@ -36,6 +36,11 @@ export function useShopSettings() {
       s[SETTING_KEYS.warrantyBadgeText] ||
       "Garantia e procedência verificada.",
     valuationConfig: s[SETTING_KEYS.valuationConfig],
+    retentionAuto: (s[SETTING_KEYS.retentionAuto] ?? "0") === "1",
+    retentionOpenMonths: Number(s[SETTING_KEYS.retentionOpenMonths] ?? "12"),
+    retentionClosedMonths: Number(s[SETTING_KEYS.retentionClosedMonths] ?? "60"),
+    privacyOfficerName: s[SETTING_KEYS.privacyOfficerName] ?? "",
+    privacyEmail: s[SETTING_KEYS.privacyEmail] ?? "",
   };
 }
 

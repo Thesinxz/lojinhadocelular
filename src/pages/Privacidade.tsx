@@ -22,6 +22,15 @@ import { WhatsAppIcon } from "@/components/WhatsAppModal";
 export default function Privacidade() {
   const s = useShopSettings();
   const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
+  const months = (n: number) => (n === 1 ? "1 mês" : `${n} meses`);
+  const retentionText =
+    !s.retentionAuto
+      ? "Guardamos as avaliações apenas pelo tempo necessário ao atendimento e as apagamos mediante pedido."
+      : s.retentionOpenMonths > 0 && s.retentionClosedMonths > 0
+      ? `Avaliações não concluídas são apagadas ${months(s.retentionOpenMonths)} após a última movimentação; as concluídas, ${months(s.retentionClosedMonths)} depois.`
+      : s.retentionOpenMonths > 0
+        ? `Avaliações não concluídas são apagadas ${months(s.retentionOpenMonths)} após a última movimentação.`
+        : "Guardamos as avaliações apenas pelo tempo necessário ao atendimento e as apagamos mediante pedido.";
   const [activeSection, setActiveSection] = useState<string>("controlador");
 
   useEffect(() => {
@@ -457,7 +466,7 @@ export default function Privacidade() {
                   <span className="text-2xl block mb-2">⏱️</span>
                   <b className="text-neutral-900 block">Descarte Seguro</b>
                   <p className="mt-1 text-neutral-600">
-                    Avaliações não concretizadas são arquivadas e expurgadas periodicamente sem reuso.
+                    {retentionText} Fotos, anotações e mensagens são apagadas junto, e você pode pedir a exclusão antes disso.
                   </p>
                 </div>
               </div>
@@ -553,9 +562,29 @@ export default function Privacidade() {
                   </div>
                 </div>
 
+                {(s.privacyOfficerName || s.privacyEmail) && (
+                  <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                    {s.privacyOfficerName && (
+                      <div className="rounded-xl border border-neutral-200/80 bg-neutral-50/70 p-3.5">
+                        <span className="text-neutral-600 block mb-1 font-medium">Encarregado:</span>
+                        <span className="text-neutral-900 font-semibold">{s.privacyOfficerName}</span>
+                      </div>
+                    )}
+                    {s.privacyEmail && (
+                      <div className="rounded-xl border border-neutral-200/80 bg-neutral-50/70 p-3.5">
+                        <span className="text-neutral-600 block mb-1 font-medium">E-mail:</span>
+                        <a href={`mailto:${s.privacyEmail}`} className="font-semibold text-emerald-700 hover:underline break-all">
+                          {s.privacyEmail}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <p className="text-[11px] leading-relaxed text-neutral-600 pt-2 border-t border-neutral-100">
-                  Todas as solicitações de titulares serão analisadas e respondidas com agilidade dentro dos
-                  prazos estipulados pela Autoridade Nacional de Proteção de Dados (ANPD).
+                  <b>Como pedir:</b> chame pelo WhatsApp acima, <b>a partir do número usado nas suas avaliações</b>, e diga o que
+                  deseja (acesso, correção, exclusão ou fim das mensagens). Para sua segurança, podemos confirmar sua identidade antes de agir.
+                  Respondemos em até <b>15 dias</b>, conforme o art. 19 da LGPD, e o apagamento dos dados do Troca Fácil costuma ser feito no mesmo atendimento.
                 </p>
               </div>
             </section>

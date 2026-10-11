@@ -499,4 +499,8 @@ if (env.isProduction) {
   serve({ fetch: app.fetch, port }, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  // LGPD: apaga avaliações com prazo de guarda vencido (a cada 12 h).
+  const { startRetentionJob } = await import("./services/retention");
+  startRetentionJob();
 }
