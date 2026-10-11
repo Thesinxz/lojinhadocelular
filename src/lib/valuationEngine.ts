@@ -14,7 +14,11 @@
 
 import {
   type ValuationConfig,
+  type VisualAdjustmentKey,
+  type DefectKey,
   DEFAULT_VALUATION_CONFIG,
+  DEFECT_LABELS,
+  resolveAdjustments,
 } from "@contracts/types";
 
 export type ValuationGrade = "A+" | "A" | "B" | "C";
@@ -350,6 +354,9 @@ export function parseValuationConfig(json?: string | Partial<ValuationConfig> | 
         typeof parsed.customBasePrices === "object" && parsed.customBasePrices
           ? parsed.customBasePrices
           : {},
+      adjustments: resolveAdjustments(
+        typeof parsed.adjustments === "object" ? parsed.adjustments : undefined,
+      ),
       disclaimerText:
         typeof parsed.disclaimerText === "string" && parsed.disclaimerText.trim()
           ? parsed.disclaimerText
@@ -656,24 +663,20 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     }
   }
 
-  // 2. Condição visual
+  // 2. Condição visual (ajustes configuráveis em %)
+  const adj = resolveAdjustments(cfg.adjustments);
   const visual = (input.visualCondition || input.condition || "").toLowerCase();
-  if (visual.includes("parece novo") || visual.includes("sem marcas")) {
-    multiplier *= 1.02;
-    score += 4;
-    highlights.push("Estado impecável sem marcas visíveis");
-  } else if (visual.includes("pouquissimas") || visual.includes("poucas")) {
-    multiplier *= 0.96;
-    score -= 3;
-  } else if (visual.includes("normais")) {
-    multiplier *= 0.88;
-    score -= 10;
-  } else if (visual.includes("riscos") || visual.includes("amassados")) {
-    multiplier *= 0.74;
-    score -= 25;
-  } else if (visual.includes("trinco") || visual.includes("trincada")) {
-    multiplier *= 0.5;
-    score -= 45;
+  let visualKey: VisualAdjustmentKey | null = null;
+  if (visual.includes("parece novo") || visual.includes("sem marcas")) visualKey = "novo";
+  else if (visual.includes("pouquissimas") || visual.includes("poucas")) visualKey = "poucas";
+  else if (visual.includes("normais")) visualKey = "normais";
+  else if (visual.includes("riscos") || visual.includes("amassados")) visualKey = "riscos";
+  else if (visual.includes("trinco") || visual.includes("trincada")) visualKey = "trinco";
+  if (visualKey) {
+    const pct = adj.visual[visualKey];
+    multiplier *= 1 + pct / 100;
+    score += visualKey === "novo" ? 4 : visualKey === "poucas" ? -3 : visualKey === "normais" ? -10 : visualKey === "riscos" ? -25 : -45;
+    if (visualKey === "novo") highlights.push("Estado impecável sem marcas visíveis");
   }
 
   // 3. Bateria
@@ -681,7 +684,7 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   const penalty = (cfg.batteryPenaltyUnder80 ?? 18) / 100;
 
   if (input.batteryUnknown) {
-    multiplier *= 0.94;
+    multiplier *= 1 - adj.batteryUnknownPercent / 100;
     score -= 5;
   } else if (typeof input.batteryPercent === "number") {
     const bat = input.batteryPercent;
@@ -699,34 +702,24 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
     }
   }
 
-  // 4. Diagnóstico Técnico
-  if (input.faceId === "Não") {
-    multiplier *= 0.85;
-    score -= 20;
-  }
-  if (input.screenOriginal === "Não") {
-    multiplier *= 0.86;
-    score -= 18;
-  }
-  if (input.batteryOriginal === "Não") {
-    multiplier *= 0.93;
-    score -= 6;
-  }
-  if (input.camerasOk === "Não") {
-    multiplier *= 0.82;
-    score -= 20;
-  }
-  if (input.audioOk === "Não") {
-    multiplier *= 0.92;
-    score -= 8;
-  }
-  if (input.chargingPortOk === "Não") {
-    multiplier *= 0.93;
-    score -= 8;
-  }
+  // 4. Diagnóstico Técnico (descontos configuráveis: % e/ou R$ fixo; "manual" pede conferência na loja)
+  let fixedDeduction = 0;
+  const manualChecks: string[] = [];
+  const applyDefect = (key: DefectKey, scorePenalty: number) => {
+    const rule = adj.defects[key];
+    multiplier *= 1 - rule.percent / 100;
+    fixedDeduction += rule.reais;
+    score -= scorePenalty;
+    if (rule.manual) manualChecks.push(`${DEFECT_LABELS[key]}: definir o desconto na loja`);
+  };
+  if (input.faceId === "Não") applyDefect("faceId", 20);
+  if (input.screenOriginal === "Não") applyDefect("screen", 18);
+  if (input.batteryOriginal === "Não") applyDefect("batteryOriginal", 6);
+  if (input.camerasOk === "Não") applyDefect("cameras", 20);
+  if (input.audioOk === "Não") applyDefect("audio", 8);
+  if (input.chargingPortOk === "Não") applyDefect("chargingPort", 8);
   if (input.openedBefore === "Sim") {
-    multiplier *= 0.96;
-    score -= 4;
+    applyDefect("opened", 4);
   } else if (input.openedBefore === "Não") {
     highlights.push("Aparelho nunca aberto");
   }
@@ -777,16 +770,17 @@ export function evaluateDevice(input: ValuationInput, config?: ValuationConfig):
   const priceable = base > 0;
 
   // Cálculo final com margem de segurança (mínimo e máximo)
-  const adjustedBase = (base + storageBonus) * multiplier;
+  const adjustedBase = Math.max(0, (base + storageBonus) * multiplier - fixedDeduction);
   const roundedEstimated = Math.round(adjustedBase / 50) * 50;
 
   // Faixa de -5% a +5% em torno da média estimada
-  const minEstimatedValue = priceable ? Math.max(200, Math.round((roundedEstimated * 0.95) / 50) * 50) : 0;
-  const maxEstimatedValue = priceable ? Math.max(minEstimatedValue + 100, Math.round((roundedEstimated * 1.05) / 50) * 50) : 0;
+  const minEstimatedValue = priceable ? Math.max(200, Math.round((roundedEstimated * (1 - adj.rangePercent / 100)) / 50) * 50) : 0;
+  const maxEstimatedValue = priceable ? Math.max(minEstimatedValue + 100, Math.round((roundedEstimated * (1 + adj.rangePercent / 100)) / 50) * 50) : 0;
 
   // "Não sei" não muda o preço, mas a equipe precisa conferir.
   const pendingChecks = PENDING_CHECK_LABELS.filter(([field]) => input[field] === "Não sei").map(([, label]) => label);
   if (input.batteryUnknown) pendingChecks.push("Saúde da bateria");
+  pendingChecks.push(...manualChecks);
   const blockers = input.icloudFree === "Não" ? ["iCloud bloqueado: não compramos aparelho com bloqueio de conta"] : [];
 
   // Cálculo de Volta para o modelo desejado (se houver)

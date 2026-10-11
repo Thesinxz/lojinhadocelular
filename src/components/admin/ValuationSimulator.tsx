@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Calculator } from "lucide-react";
-import type { ValuationConfig } from "@contracts/types";
+import { DEFECT_KEYS, DEFECT_LABELS, type DefectKey, type ValuationConfig } from "@contracts/types";
 import {
   evaluateDevice,
   formatBRL,
@@ -40,6 +40,14 @@ export default function ValuationSimulator({ config, savedConfig }: ValuationSim
   const [visual, setVisual] = useState(VISUAL_OPTIONS[1]);
   const [hasBox, setHasBox] = useState(false);
   const [loyal, setLoyal] = useState(false);
+  const [defects, setDefects] = useState<Set<DefectKey>>(new Set());
+  const toggleDefect = (key: DefectKey) =>
+    setDefects((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const storageOptions = useMemo(() => {
     const caps = Array.from(new Set(IPHONE_REFERENCE_PRICES.filter((p) => p.model === model).map((p) => p.capacity)));
@@ -52,19 +60,19 @@ export default function ValuationSimulator({ config, savedConfig }: ValuationSim
     storage: effectiveStorage,
     batteryPercent: battery,
     visualCondition: visual,
-    faceId: "Sim",
-    screenOriginal: "Sim",
-    batteryOriginal: "Sim",
-    camerasOk: "Sim",
-    audioOk: "Sim",
-    chargingPortOk: "Sim",
-    openedBefore: "Não",
+    faceId: defects.has("faceId") ? "Não" : "Sim",
+    screenOriginal: defects.has("screen") ? "Não" : "Sim",
+    batteryOriginal: defects.has("batteryOriginal") ? "Não" : "Sim",
+    camerasOk: defects.has("cameras") ? "Não" : "Sim",
+    audioOk: defects.has("audio") ? "Não" : "Sim",
+    chargingPortOk: defects.has("chargingPort") ? "Não" : "Sim",
+    openedBefore: defects.has("opened") ? "Sim" : "Não",
     icloudFree: "Sim",
     hasBox: hasBox ? "Sim" : "Não",
     purchaseLocation: loyal ? "Lojinha do Celular" : "",
   };
-  const now = useMemo(() => evaluateDevice(input, config), [input.model, effectiveStorage, battery, visual, hasBox, loyal, config]);
-  const before = useMemo(() => evaluateDevice(input, savedConfig), [input.model, effectiveStorage, battery, visual, hasBox, loyal, savedConfig]);
+  const now = useMemo(() => evaluateDevice(input, config), [input.model, effectiveStorage, battery, visual, hasBox, loyal, defects, config]);
+  const before = useMemo(() => evaluateDevice(input, savedConfig), [input.model, effectiveStorage, battery, visual, hasBox, loyal, defects, savedConfig]);
   const changed = now.priceable && before.priceable && (now.minEstimatedValue !== before.minEstimatedValue || now.maxEstimatedValue !== before.maxEstimatedValue);
   const delta = now.minEstimatedValue - before.minEstimatedValue;
 
@@ -74,7 +82,7 @@ export default function ValuationSimulator({ config, savedConfig }: ValuationSim
         <Calculator className="h-4 w-4 text-[#0071e3]" /> Simulador: quanto o motor oferece?
       </h4>
       <p className="mt-0.5 text-[11px] text-[#86868b]">
-        Usa os números desta tela, mesmo antes de salvar. Aparelho sem defeitos, só o que você escolher abaixo muda.
+        Usa os números desta tela, mesmo antes de salvar. Marque defeitos para ver o desconto de cada um.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
         <label className="block lg:col-span-2">
@@ -124,6 +132,14 @@ export default function ValuationSimulator({ config, savedConfig }: ValuationSim
         </label>
       </div>
 
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#1d1d1f]">
+        {DEFECT_KEYS.map((key) => (
+          <label key={key} className="inline-flex cursor-pointer items-center gap-1.5">
+            <input type="checkbox" checked={defects.has(key)} onChange={() => toggleDefect(key)} /> {DEFECT_LABELS[key]}
+          </label>
+        ))}
+      </div>
+
       <div className="mt-3 rounded-lg border border-[#e5e5e7] bg-white p-3">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6e6e73]">Oferta com estes números</p>
         <p className="font-display text-xl font-bold text-[#1d1d1f]">{rangeText(now)}</p>
@@ -135,6 +151,9 @@ export default function ValuationSimulator({ config, savedConfig }: ValuationSim
             Antes de alterar (salvo): {rangeText(before)} · {delta > 0 ? "+" : ""}
             {formatBRL(delta)} no valor mínimo
           </p>
+        )}
+        {now.pendingChecks.length > 0 && (
+          <p className="mt-1 text-xs text-amber-700">Conferir na loja: {now.pendingChecks.join("; ")}</p>
         )}
         {now.priceable && !changed && <p className="mt-1 text-[11px] text-[#86868b]">Sem diferença para o que está salvo.</p>}
         {now.priceable && now.highlights.length > 0 && (

@@ -38,6 +38,7 @@ import {
   normalizeKey,
 } from "@/lib/valuationEngine";
 import { parseTemplates, type WhatsappTemplate } from "@/lib/whatsappTemplates";
+import ValuationAdjustmentsEditor from "@/components/admin/ValuationAdjustmentsEditor";
 import ValuationSimulator from "@/components/admin/ValuationSimulator";
 import EvaluationSettingsSection from "@/components/admin/evaluations/EvaluationSettingsSection";
 import AutoMessagesSection from "@/components/admin/evaluations/AutoMessagesSection";
@@ -490,7 +491,7 @@ export default function AdminSettings() {
 
           {/* Desconto de Bateria Degradada */}
           <div className="rounded-xl border border-[#e5e5e7] bg-[#fbfbfd] p-4">
-            <span className="block text-xs font-semibold text-[#6e6e73]">Deságio Bateria &lt; 80%</span>
+            <span className="block text-xs font-semibold text-[#6e6e73]">Deságio máximo da bateria</span>
             <div className="mt-1.5 flex items-center gap-2">
               <input
                 type="number"
@@ -510,7 +511,7 @@ export default function AdminSettings() {
               <span className="font-bold text-sm text-[#1d1d1f]">%</span>
             </div>
             <p className="mt-1.5 text-[11px] text-[#86868b]">
-              Desconto proporcional pelo custo de troca técnica da bateria degradada.
+              Desconto máximo, aplicado quando a bateria está bem abaixo do limite (veja “Descontos do motor”).
             </p>
           </div>
         </div>
@@ -556,6 +557,8 @@ export default function AdminSettings() {
         </div>
 
         {/* Preços Base dos Modelos Mais Populares & Matriz Completa (GB e Cores) */}
+        <ValuationAdjustmentsEditor config={valuationConfig} onChange={setValuationConfig} />
+
         <ValuationSimulator config={valuationConfig} savedConfig={savedValuationConfig} />
 
         <div id="tabela-precos" className="mt-6 scroll-mt-24 border-t border-[#e5e5e7] pt-5">
