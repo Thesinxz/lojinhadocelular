@@ -3,10 +3,18 @@ import { useSearchParams } from "react-router";
 import { Search, ArrowUpDown, RefreshCw, AlertCircle, WifiOff, PackageOpen, MessageCircle } from "lucide-react";
 import { trpc, type ProductWithVariants } from "@/providers/trpc";
 import ProductCard from "@/components/ProductCard";
-import { useShopSettings, sortProducts, type SortOption, waLink } from "@/lib/shop";
+import { useShopSettings, sortProducts, minPrice, type SortOption, waLink } from "@/lib/shop";
 import { CATEGORIES, BRANDS } from "@contracts/types";
 
 import SEO from "@/components/SEO";
+
+const PRICE_RANGES = [
+  { key: "todos", label: "Qualquer preço", min: 0, max: Infinity },
+  { key: "ate2", label: "Até R$ 2.000", min: 0, max: 2000 },
+  { key: "2a4", label: "R$ 2.000 – 4.000", min: 2000, max: 4000 },
+  { key: "4a7", label: "R$ 4.000 – 7.000", min: 4000, max: 7000 },
+  { key: "7mais", label: "Acima de R$ 7.000", min: 7000, max: Infinity },
+] as const;
 
 type CategoryType = "iphone_lacrado" | "iphone_seminovo" | "android" | "acessorio";
 
@@ -24,6 +32,8 @@ export default function Catalogo() {
   const [selectedUnit, setSelectedUnit] = useState<"todas" | "jardim" | "guia_lopes">("todas");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("relevancia");
+  const [priceKey, setPriceKey] = useState<(typeof PRICE_RANGES)[number]["key"]>("todos");
+  const [storage, setStorage] = useState("");
 
   const catalogStatusQuery = trpc.shop.catalogStatus.useQuery(undefined, {
     staleTime: 1000 * 30,
@@ -54,6 +64,18 @@ export default function Catalogo() {
       );
     }
 
+    const range = PRICE_RANGES.find((r) => r.key === priceKey) ?? PRICE_RANGES[0];
+    if (range.key !== "todos") {
+      filtered = filtered.filter((p) => {
+        const price = minPrice(p);
+        return price != null && price >= range.min && price < range.max;
+      });
+    }
+
+    if (storage) {
+      filtered = filtered.filter((p) => p.variants.some((v) => v.storage === storage));
+    }
+
     if (search.trim()) {
       const term = search.toLowerCase();
       filtered = filtered.filter(
@@ -69,7 +91,26 @@ export default function Catalogo() {
       );
     }
     return sortProducts(filtered, sortBy);
-  }, [query.data, selectedUnit, search, sortBy]);
+  }, [query.data, selectedUnit, search, sortBy, priceKey, storage]);
+
+  const storageOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of (query.data ?? []) as ProductWithVariants[]) {
+      for (const v of p.variants) if (v.storage) set.add(v.storage);
+    }
+    return [...set].sort((a, b) => parseInt(a) - parseInt(b));
+  }, [query.data]);
+
+  const hasActiveFilters =
+    !!search || !!brand || !!categoria || selectedUnit !== "todas" || priceKey !== "todos" || !!storage;
+  const clearFilters = () => {
+    setSearch("");
+    setBrand("");
+    setSelectedUnit("todas");
+    setPriceKey("todos");
+    setStorage("");
+    setSearchParams({});
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -84,7 +125,7 @@ export default function Catalogo() {
 
       {/* Busca e Ordenação */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2 rounded-xl border-2 border-ink bg-white px-4 py-3 shadow-[3px_3px_0_0_#141414]">
+        <div className="flex flex-1 items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-[0_2px_14px_rgba(0,0,0,0.05)] transition focus-within:border-ink">
           <Search className="h-5 w-5 text-neutral-400 shrink-0" />
           <input
             value={search}
@@ -94,7 +135,7 @@ export default function Catalogo() {
           />
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-3 py-2.5 shadow-[3px_3px_0_0_#141414] shrink-0">
+        <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3 py-2.5 shadow-[0_2px_14px_rgba(0,0,0,0.05)] shrink-0">
           <ArrowUpDown className="h-4 w-4 text-ink" />
           <span className="text-xs font-bold text-neutral-500">Ordem:</span>
           <select
@@ -157,6 +198,36 @@ export default function Catalogo() {
         ))}
       </div>
 
+      {/* Faixa de preço */}
+      <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {PRICE_RANGES.map((r) => (
+          <FilterChip key={r.key} small active={priceKey === r.key} onClick={() => setPriceKey(r.key)} label={r.label} />
+        ))}
+      </div>
+
+      {/* Armazenamento */}
+      {storageOptions.length > 0 && (
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilterChip small active={storage === ""} onClick={() => setStorage("")} label="Qualquer capacidade" />
+          {storageOptions.map((st) => (
+            <FilterChip key={st} small active={storage === st} onClick={() => setStorage(st)} label={st} />
+          ))}
+        </div>
+      )}
+
+      {!query.isLoading && !query.isError && (
+        <div className="mt-4 flex items-center justify-between text-sm text-neutral-500">
+          <span>
+            {products.length} {products.length === 1 ? "aparelho encontrado" : "aparelhos encontrados"}
+          </span>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="font-semibold text-ink underline underline-offset-4">
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Estados do Grid: Loading, Erro, Vazio e Sucesso */}
       {query.isLoading ? (
         <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -165,8 +236,8 @@ export default function Catalogo() {
           ))}
         </div>
       ) : query.isError ? (
-        <div className="mt-12 rounded-3xl border-2 border-ink bg-white p-8 text-center shadow-[4px_4px_0_0_#141414]">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-brand">
+        <div className="mt-12 rounded-3xl border border-neutral-100 bg-white p-8 text-center shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand">
             <AlertCircle className="h-6 w-6 text-ink" />
           </div>
           <h2 className="mt-3 font-display text-lg font-bold text-ink">
@@ -177,7 +248,7 @@ export default function Catalogo() {
           </p>
           <button
             onClick={() => query.refetch()}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl border-2 border-ink bg-ink px-5 py-2.5 font-display text-sm font-bold text-brand shadow-[2px_2px_0_0_rgba(20,20,20,0.3)] hover:-translate-y-0.5 transition"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 font-display text-sm font-bold text-white hover:-translate-y-0.5 transition"
           >
             <RefreshCw className="h-4 w-4" /> Tentar novamente
           </button>
@@ -289,9 +360,9 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 inline-flex items-center justify-center rounded-full border-2 border-ink font-semibold transition active:scale-95 ${
+      className={`shrink-0 inline-flex items-center justify-center rounded-full border font-semibold transition active:scale-95 ${
         small ? "min-h-[36px] px-3 py-1 text-xs" : "min-h-[42px] px-4 py-2 text-sm"
-      } ${active ? "bg-ink text-brand" : "bg-white text-ink hover:bg-brand"}`}
+      } ${active ? "border-ink bg-ink text-white" : "border-neutral-200 bg-white text-ink hover:border-ink"}`}
     >
       {label}
     </button>
