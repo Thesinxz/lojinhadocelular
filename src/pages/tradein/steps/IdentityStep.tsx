@@ -51,7 +51,11 @@ export default function IdentityStep({ data, updateField, lgpdConsent, setLgpdCo
             />
           </Field>
 
-          <Field label="WhatsApp para receber a proposta" icon={<Phone className="h-4 w-4" />}>
+          <Field
+            label="WhatsApp para receber a proposta"
+            icon={<Phone className="h-4 w-4" />}
+            hint="Se colar com +55, o código do país é removido automaticamente. Celulares no formato antigo recebem o 9º dígito."
+          >
             <input
               value={data.whatsapp}
               onChange={e => updateField("whatsapp", e.target.value)}
@@ -60,9 +64,6 @@ export default function IdentityStep({ data, updateField, lgpdConsent, setLgpdCo
               autoComplete="tel"
               className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
             />
-            <p className="mt-1 text-[11px] leading-4 text-[#86868b]">
-              Se colar com +55, o código do país é removido automaticamente. Celulares no formato antigo recebem o 9º dígito.
-            </p>
           </Field>
         </div>
 

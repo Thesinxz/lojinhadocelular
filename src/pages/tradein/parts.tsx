@@ -164,10 +164,13 @@ export function SummaryRow({
 export function Field({
   label,
   icon,
+  hint,
   children,
 }: {
   label: string;
   icon: ReactNode;
+  /** Texto de ajuda mostrado abaixo da caixa do campo (fora dela). */
+  hint?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -179,6 +182,7 @@ export function Field({
         </span>
         <div className="flex-1 min-w-0">{children}</div>
       </div>
+      {hint && <p className="mt-1.5 text-[11px] leading-4 text-[#86868b]">{hint}</p>}
     </label>
   );
 }
