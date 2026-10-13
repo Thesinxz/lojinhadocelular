@@ -1,0 +1,22 @@
+{
+  "name": "Lojinha do Celular — Unidade Jardim",
+  "short_name": "Lojinha NFC",
+  "description": "Central de Atendimento, Wi-Fi Grátis, Catálogo, Troca Fácil e Contato — Lojinha do Celular (Unidade Jardim - MS).",
+  "start_url": "/nfc",
+  "display": "standalone",
+  "background_color": "#fbfbfd",
+  "theme_color": "#FEF201",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/images/logo-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/logo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

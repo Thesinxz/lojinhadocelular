@@ -258,7 +258,46 @@ app.use("/images/*", async (c, next) => {
   c.res.headers.set("Access-Control-Allow-Origin", "*");
 });
 
+// Central NFC & QR Code da Loja (/nfc)
+function serveNfcFile(c: Context, rawFileName: string) {
+  const safeName = path.basename(rawFileName || "index.html");
+  const possiblePaths = [
+    path.resolve(process.cwd(), "public/nfc", safeName),
+    path.resolve(process.cwd(), "dist/public/nfc", safeName),
+    path.resolve(import.meta.dirname, "public/nfc", safeName),
+    path.resolve(import.meta.dirname, "../public/nfc", safeName),
+    path.resolve(import.meta.dirname, "../dist/public/nfc", safeName),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+      const ext = path.extname(safeName).toLowerCase();
+      const contentType =
+        ext === ".html"
+          ? "text/html; charset=utf-8"
+          : ext === ".css"
+            ? "text/css; charset=utf-8"
+            : ext === ".js"
+              ? "application/javascript; charset=utf-8"
+              : ext === ".json"
+                ? "application/json; charset=utf-8"
+                : ext === ".png"
+                  ? "image/png"
+                  : ext === ".svg"
+                    ? "image/svg+xml"
+                    : "application/octet-stream";
+      const buffer = fs.readFileSync(p);
+      return c.body(buffer, 200, {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=300",
+      });
+    }
+  }
+  return c.text("Not Found", 404);
+}
 
+app.get("/nfc", c => serveNfcFile(c, "index.html"));
+app.get("/nfc/", c => serveNfcFile(c, "index.html"));
+app.get("/nfc/:file", c => serveNfcFile(c, c.req.param("file")));
 
 // Limite seguro de payload JSON para suportar fotos comprimidas de avaliação sem exaustão de memória
 app.use(bodyLimit({ maxSize: 10 * 1024 * 1024 }));
