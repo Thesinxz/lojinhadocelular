@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ValuationResult } from "@contracts/valuation";
 import { formatBRL, type getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import { StepActions, SummaryRow } from "../parts";
-import type { EvaluationData, PhotoSlot } from "../constants";
+import { STEP, type EvaluationData, type PhotoSlot } from "../constants";
 
 interface SummaryStepProps {
   data: EvaluationData;
@@ -65,7 +65,7 @@ export default function SummaryStep({ data, photoSlots, filledPhotosCount, unitL
             <button
               type="button"
               onClick={() => {
-                setStep(15);
+                setStep(STEP.photos);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               className="text-xs font-semibold text-[#0071e3] hover:underline cursor-pointer"

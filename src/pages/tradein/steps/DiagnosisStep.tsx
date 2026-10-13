@@ -1,7 +1,7 @@
-import { TriChoiceStep } from "../parts";
-import type { EvaluationData } from "../constants";
+import { StepActions } from "../parts";
+import { SIMPLE_TRI_OPTIONS, type EvaluationData } from "../constants";
 
-type DiagnosisField =
+export type DiagnosisField =
   | "faceId"
   | "screenOriginal"
   | "batteryOriginal"
@@ -11,39 +11,105 @@ type DiagnosisField =
   | "openedBefore"
   | "hasBox";
 
-/** Etapas 6 a 13 do wizard: perguntas Sim / Não / Não sei. */
-const DIAGNOSIS_STEPS: Record<number, { field: DiagnosisField; title: string }> = {
-  6: { field: "faceId", title: "Face ID funciona?" },
-  7: { field: "screenOriginal", title: "Tela original?" },
-  8: { field: "batteryOriginal", title: "Bateria original?" },
-  9: { field: "camerasOk", title: "Câmeras funcionando?" },
-  10: { field: "audioOk", title: "Áudio funcionando?" },
-  11: { field: "chargingPortOk", title: "Conector de carga funcionando?" },
-  12: { field: "openedBefore", title: "Aparelho já foi aberto?" },
-  13: { field: "hasBox", title: "Tem caixa?" },
-};
+interface DiagnosisQuestion {
+  field: DiagnosisField;
+  label: string;
+  hint: string;
+}
 
-export const DIAGNOSIS_FIRST_STEP = 6;
-export const DIAGNOSIS_LAST_STEP = 13;
+interface DiagnosisGroup {
+  title: string;
+  subtitle: string;
+  questions: DiagnosisQuestion[];
+}
+
+/** As perguntas Sim / Não / Não sei, reunidas em duas telas (antes eram oito, uma por tela). */
+export const DIAGNOSIS_GROUPS: DiagnosisGroup[] = [
+  {
+    title: "O aparelho funciona direitinho?",
+    subtitle: "Marque uma opção em cada item. Na dúvida, escolha “Não sei”.",
+    questions: [
+      { field: "faceId", label: "Face ID funciona?", hint: "Desbloqueia o aparelho com o rosto." },
+      { field: "camerasOk", label: "Câmeras funcionando?", hint: "Traseiras e frontal tiram foto normalmente." },
+      { field: "audioOk", label: "Áudio funcionando?", hint: "Alto-falante, microfone e áudio das chamadas." },
+      { field: "chargingPortOk", label: "Conector de carga funcionando?", hint: "Carrega e reconhece o cabo normalmente." },
+    ],
+  },
+  {
+    title: "Peças e histórico",
+    subtitle: "Última parte do diagnóstico. Na dúvida, escolha “Não sei”.",
+    questions: [
+      { field: "screenOriginal", label: "Tela original?", hint: "Nunca foi trocada." },
+      { field: "batteryOriginal", label: "Bateria original?", hint: "Nunca foi trocada." },
+      { field: "openedBefore", label: "Aparelho já foi aberto?", hint: "Por exemplo, em reparo ou assistência técnica." },
+      { field: "hasBox", label: "Tem caixa?", hint: "A caixa original do iPhone." },
+    ],
+  },
+];
+
+/** Campos de cada tela de diagnóstico (usado na validação: todas as perguntas são obrigatórias). */
+export function diagnosisFieldsOf(groupIndex: number): DiagnosisField[] {
+  return (DIAGNOSIS_GROUPS[groupIndex]?.questions ?? []).map(q => q.field);
+}
 
 interface DiagnosisStepProps {
-  step: number;
+  /** 0 = funcionamento, 1 = peças e histórico. */
+  group: number;
   data: EvaluationData;
-  autoAdvance: <K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) => void;
-  animatingSelection: string | null;
+  updateField: <K extends keyof EvaluationData>(field: K, value: EvaluationData[K]) => void;
+  error: string;
+  goNext: () => void;
   goBack: () => void;
 }
 
-export default function DiagnosisStep({ step, data, autoAdvance, animatingSelection, goBack }: DiagnosisStepProps) {
-  const { field, title } = DIAGNOSIS_STEPS[step];
+export default function DiagnosisStep({ group, data, updateField, error, goNext, goBack }: DiagnosisStepProps) {
+  const { title, subtitle, questions } = DIAGNOSIS_GROUPS[group];
+  const answered = questions.filter(q => data[q.field]).length;
+
   return (
-    <TriChoiceStep
-      title={title}
-      subtitle="Só marcar — Sim, Não ou Não sei."
-      value={data[field]}
-      animating={animatingSelection}
-      onSelect={val => autoAdvance(field, val)}
-      onBack={goBack}
-    />
+    <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
+      <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">{title}</h2>
+      <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">{subtitle}</p>
+
+      <div className="mt-5 space-y-4">
+        {questions.map(({ field, label, hint }) => (
+          <div key={field}>
+            <p className="text-sm font-semibold text-[#1d1d1f]">{label}</p>
+            <p className="text-[11px] text-[#86868b]">{hint}</p>
+            <div className="mt-2 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={label}>
+              {SIMPLE_TRI_OPTIONS.map(option => {
+                const isSelected = data[field] === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => updateField(field, option)}
+                    className={`h-11 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${
+                      isSelected
+                        ? "border-[#1d1d1f] bg-[#1d1d1f] text-white shadow-xs"
+                        : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-white"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-center text-[11px] text-[#86868b]">
+        {answered} de {questions.length} respondidas
+      </p>
+
+      {error && (
+        <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">{error}</p>
+      )}
+
+      <StepActions onBack={goBack} onNext={goNext} />
+    </div>
   );
 }

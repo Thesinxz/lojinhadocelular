@@ -199,3 +199,20 @@ export const MODEL_GROUPS: { title: string; models: string[] }[] = [
 export function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? "";
 }
+
+/** Etapas do wizard, na ordem em que aparecem. */
+export const STEP = {
+  identity: 0,
+  model: 1,
+  purchase: 2,
+  icloud: 3,
+  battery: 4,
+  target: 5,
+  functioning: 6,
+  history: 7,
+  visual: 8,
+  photos: 9,
+  unit: 10,
+  summary: 11,
+} as const;
+export const TOTAL_STEPS = 12;

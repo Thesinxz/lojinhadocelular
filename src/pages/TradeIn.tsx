@@ -23,6 +23,8 @@ import {
   formatCpfInput,
   formatPhoneInput,
   publicHighlights,
+  STEP,
+  TOTAL_STEPS,
   type EvaluationData,
   type PhotoSlot,
   type PhotoSlotKey,
@@ -34,7 +36,7 @@ import PurchaseStep from "@/pages/tradein/steps/PurchaseStep";
 import IcloudStep from "@/pages/tradein/steps/IcloudStep";
 import BatteryStep from "@/pages/tradein/steps/BatteryStep";
 import TargetModelStep from "@/pages/tradein/steps/TargetModelStep";
-import DiagnosisStep, { DIAGNOSIS_FIRST_STEP, DIAGNOSIS_LAST_STEP } from "@/pages/tradein/steps/DiagnosisStep";
+import DiagnosisStep, { diagnosisFieldsOf } from "@/pages/tradein/steps/DiagnosisStep";
 import VisualConditionStep from "@/pages/tradein/steps/VisualConditionStep";
 import PhotosStep from "@/pages/tradein/steps/PhotosStep";
 import UnitStep from "@/pages/tradein/steps/UnitStep";
@@ -317,7 +319,13 @@ export default function TradeIn() {
         setError("Selecione o modelo que deseja ou escolha apenas vender.");
         return false;
       }
-    } else if (step === 15) {
+    } else if (step === STEP.functioning || step === STEP.history) {
+      const fields = diagnosisFieldsOf(step - STEP.functioning);
+      if (fields.some(field => !data[field])) {
+        setError("Responda todas as perguntas para continuar. Na dúvida, escolha “Não sei”.");
+        return false;
+      }
+    } else if (step === STEP.photos) {
       const frontSlot = photoSlots.find(s => s.key === "front");
       const backSlot = photoSlots.find(s => s.key === "back");
       if (!frontSlot?.file || !backSlot?.file) {
@@ -546,7 +554,7 @@ export default function TradeIn() {
   }
 
   // Progresso relativo (etapas 0 a 16)
-  const totalSteps = 18;
+  const totalSteps = TOTAL_STEPS;
   const progressPercent = Math.min(100, Math.round(((step + 1) / totalSteps) * 100));
 
   return (
@@ -655,19 +663,20 @@ export default function TradeIn() {
             />
           )}
 
-          {/* ETAPAS 6 A 13: DIAGNÓSTICO SIM / NÃO / NÃO SEI */}
-          {step >= DIAGNOSIS_FIRST_STEP && step <= DIAGNOSIS_LAST_STEP && (
+          {/* ETAPAS 6 E 7: DIAGNÓSTICO SIM / NÃO / NÃO SEI (4 PERGUNTAS POR TELA) */}
+          {(step === STEP.functioning || step === STEP.history) && (
             <DiagnosisStep
-              step={step}
+              group={step - STEP.functioning}
               data={data}
-              autoAdvance={autoAdvance}
-              animatingSelection={animatingSelection}
+              updateField={updateField}
+              error={error}
+              goNext={goNext}
               goBack={goBack}
             />
           )}
 
-          {/* ETAPA 14: COMO ESTÁ O VISUAL DELE? */}
-          {step === 14 && (
+          {/* ETAPA 8: COMO ESTÁ O VISUAL DELE? */}
+          {step === STEP.visual && (
             <VisualConditionStep
               data={data}
               autoAdvance={autoAdvance}
@@ -676,8 +685,8 @@ export default function TradeIn() {
             />
           )}
 
-          {/* ETAPA 15: AGORA AS FOTOS (5 SLOTS DEDICADOS) */}
-          {step === 15 && (
+          {/* ETAPA 9: AGORA AS FOTOS (5 SLOTS DEDICADOS) */}
+          {step === STEP.photos && (
             <PhotosStep
               data={data}
               updateField={updateField}
@@ -690,8 +699,8 @@ export default function TradeIn() {
             />
           )}
 
-          {/* ETAPA 16: QUAL LOJA FICA MELHOR? */}
-          {step === 16 && (
+          {/* ETAPA 10: QUAL LOJA FICA MELHOR? */}
+          {step === STEP.unit && (
             <UnitStep
               data={data}
               autoAdvance={autoAdvance}
@@ -701,8 +710,8 @@ export default function TradeIn() {
             />
           )}
 
-          {/* ETAPA 17: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO) */}
-          {step === 17 && (
+          {/* ETAPA 11: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO) */}
+          {step === STEP.summary && (
             <SummaryStep
               data={data}
               photoSlots={photoSlots}
