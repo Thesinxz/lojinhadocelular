@@ -274,6 +274,21 @@ export async function ensureTables() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        endpoint_hash VARCHAR(64) NOT NULL,
+        endpoint TEXT NOT NULL,
+        p256dh VARCHAR(255) NOT NULL,
+        auth VARCHAR(255) NOT NULL,
+        user_agent VARCHAR(255) DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_push_subscriptions_endpoint (endpoint_hash),
+        INDEX idx_push_subscriptions_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS evaluation_erp_entries (
         evaluation_id INT UNSIGNED PRIMARY KEY,
         status VARCHAR(10) NOT NULL,

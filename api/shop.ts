@@ -20,6 +20,7 @@ import { getRecentBuyers } from "./services/socialProof";
 import { getSingleSetting } from "./services/settingsStore";
 import { clientIpFromRequest } from "./auth";
 import { sanitizeVisit } from "@contracts/visit";
+import { sendPushToEvaluationStaff } from "./services/pushNotifications";
 import { localDateKey } from "./dashboard";
 import {
   notifyEvaluationCreated,
@@ -698,6 +699,17 @@ export const shopRouter = createRouter({
       }
 
       dispatchCustomerEventInBackground("created", evaluationId);
+
+      // Notificação push para os atendentes (mesmo com o painel fechado); em segundo plano.
+      void sendPushToEvaluationStaff(
+        { unit: input.unit },
+        {
+          title: "Nova avaliação na Troca Fácil",
+          body: `${input.name.trim().split(/\s+/)[0]} quer avaliar um ${input.model.trim()}.`,
+          url: `/admin/avaliacoes/${evaluationId}`,
+          tag: `evaluation-${evaluationId}`,
+        },
+      );
 
       // Bônus de fidelidade: só confere quando a pessoa disse que comprou aqui e informou um CPF válido.
       if (input.cpf && isValidCpf(input.cpf) && declaredLojinhaPurchase(input.purchaseLocation)) {

@@ -235,6 +235,19 @@ export const productInterest = mysqlTable(
   }),
 );
 
+/** Inscrições de notificação push (um navegador/aparelho de um usuário do painel). */
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: int("user_id").notNull(),
+  // SHA-256 do endpoint: chave única (o endpoint é longo demais para um índice).
+  endpointHash: varchar("endpoint_hash", { length: 64 }).notNull().unique(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: varchar("p256dh", { length: 255 }).notNull(),
+  auth: varchar("auth", { length: 255 }).notNull(),
+  userAgent: varchar("user_agent", { length: 255 }).default(""),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 /** Entrada no estoque do ERP gerada a partir de uma troca concluída (um registro por avaliação). */
 export const evaluationErpEntries = mysqlTable("evaluation_erp_entries", {
   evaluationId: int("evaluation_id", { unsigned: true }).primaryKey(),
