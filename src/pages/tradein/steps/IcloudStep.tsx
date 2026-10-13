@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleCheck, CircleHelp, CircleX } from "lucide-react";
 import { TriChoiceStep } from "../parts";
 import type { EvaluationData } from "../constants";
 
@@ -43,9 +43,9 @@ export default function IcloudStep({ data, updateField, autoAdvance, animatingSe
         title="O iPhone está livre de bloqueio do iCloud?"
         subtitle="Precisa estar sem a conta Apple de outra pessoa e com o Buscar iPhone desativado (ou que você consiga desativar)."
         options={[
-          { value: "Sim", label: "Sim, está livre" },
-          { value: "Não", label: "Não, está bloqueado ou não tenho a senha" },
-          { value: "Não sei", label: "Não sei" },
+          { value: "Sim", label: "Sim, está livre", icon: <CircleCheck className="h-5 w-5 text-emerald-500" /> },
+          { value: "Não", label: "Não, está bloqueado ou não tenho a senha", icon: <CircleX className="h-5 w-5 text-rose-500" /> },
+          { value: "Não sei", label: "Não sei", icon: <CircleHelp className="h-5 w-5 text-neutral-400" /> },
         ]}
         value={data.icloudFree}
         animating={animatingSelection}

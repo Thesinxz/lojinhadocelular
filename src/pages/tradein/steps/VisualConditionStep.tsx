@@ -8,6 +8,15 @@ interface VisualConditionStepProps {
   goBack: () => void;
 }
 
+/** Explicação curta de cada estado (só exibição: o valor enviado continua sendo o texto da opção). */
+const VISUAL_CONDITION_HINTS: Record<string, string> = {
+  "Parece novo, sem marcas": "Sem riscos, batidas ou desgaste visível.",
+  "Pouquíssimas marcas de uso": "Só arranhões bem leves, vistos de perto.",
+  "Marcas normais do dia a dia": "Arranhões leves e desgaste de uso comum.",
+  "Riscos ou amassados visíveis": "Riscos marcados ou batidas nas bordas.",
+  "Tela ou tampa com trinco": "Vidro da tela ou da traseira trincado.",
+};
+
 export default function VisualConditionStep({ data, autoAdvance, animatingSelection, goBack }: VisualConditionStepProps) {
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
@@ -33,7 +42,18 @@ export default function VisualConditionStep({ data, autoAdvance, animatingSelect
                   : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
               }`}
             >
-              <span>{opt}</span>
+              <span>
+                {opt}
+                {VISUAL_CONDITION_HINTS[opt] && (
+                  <span
+                    className={`mt-0.5 block text-xs font-normal ${
+                      isSelected || isAnimating ? "text-neutral-300" : "text-[#86868b]"
+                    }`}
+                  >
+                    {VISUAL_CONDITION_HINTS[opt]}
+                  </span>
+                )}
+              </span>
               {(isSelected || isAnimating) && <Check className="h-4 w-4" />}
             </button>
           );

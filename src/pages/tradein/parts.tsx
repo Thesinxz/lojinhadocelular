@@ -19,7 +19,7 @@ export function TriChoiceStep({
   animating: string | null;
   onSelect: (val: string) => void;
   onBack: () => void;
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; icon?: ReactNode }[];
 }) {
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
@@ -29,7 +29,7 @@ export function TriChoiceStep({
       <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">{subtitle}</p>
 
       <div className="mt-6 space-y-2.5">
-        {options.map(({ value: opt, label }) => {
+        {options.map(({ value: opt, label, icon }) => {
           const isSelected = value === opt;
           const isAnimating = animating === opt;
           return (
@@ -43,6 +43,7 @@ export function TriChoiceStep({
                   : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
               }`}
             >
+              {icon && <span className="mr-2 inline-flex shrink-0">{icon}</span>}
               {label}
             </button>
           );
@@ -121,7 +122,7 @@ export function PhotoSlotCard({
             <Camera className="h-4 w-4 text-[#1d1d1f]" />
           </div>
           <span className="mt-2 text-[11px] font-semibold text-[#1d1d1f] leading-tight px-1">
-            {slot.label}
+            {slot.label.replace(/\s*\(opcional\)/i, "")}
           </span>
           {slot.required ? (
             <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded-md mt-1">

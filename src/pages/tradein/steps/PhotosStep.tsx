@@ -24,6 +24,9 @@ export default function PhotosStep({ data, updateField, photoSlots, fileInputRef
         <strong className="text-[#1d1d1f]">Traseira</strong> são obrigatórias para a
         avaliação. As fotos são otimizadas automaticamente no seu navegador.
       </p>
+      <p className="mt-2 rounded-xl bg-blue-50/60 px-3 py-2 text-[11px] leading-relaxed text-[#0066cc]">
+        Dica: tire as fotos sem capa e com boa iluminação, para a equipe avaliar mais rápido.
+      </p>
 
       <div className="mt-5 grid grid-cols-2 gap-2.5">
         {photoSlots.slice(0, 4).map(slot => (
