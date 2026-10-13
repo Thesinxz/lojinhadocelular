@@ -550,7 +550,7 @@ export default function TradeIn() {
   const progressPercent = Math.min(100, Math.round(((step + 1) / totalSteps) * 100));
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#fbfbfd] text-[#1d1d1f]">
+    <main className="min-h-[100dvh] overflow-x-hidden [overflow-x:clip] bg-[#fbfbfd] text-[#1d1d1f]">
       <SEO
         title="Troca Fácil | Avaliação de iPhone com Segurança — Lojinha do Celular"
         description="Receba uma pré-avaliação rápida e transparente para vender ou trocar seu iPhone na Lojinha do Celular."

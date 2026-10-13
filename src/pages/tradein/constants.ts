@@ -178,3 +178,24 @@ export function formatPhoneInput(value: string): string {
   if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
+
+/** Modelos oferecidos na escolha do aparelho atual, por série (mais novos primeiro). */
+export const MODEL_GROUPS: { title: string; models: string[] }[] = [
+  { title: "iPhone 18", models: ["iPhone 18 Pro Max", "iPhone 18 Pro"] },
+  { title: "iPhone 17", models: ["iPhone 17 Pro Max", "iPhone 17 Pro", "iPhone Air", "iPhone 17", "iPhone 17e"] },
+  { title: "iPhone 16", models: ["iPhone 16 Pro Max", "iPhone 16 Pro", "iPhone 16 Plus", "iPhone 16", "iPhone 16e"] },
+  { title: "iPhone 15", models: ["iPhone 15 Pro Max", "iPhone 15 Pro", "iPhone 15 Plus", "iPhone 15"] },
+  { title: "iPhone 14", models: ["iPhone 14 Pro Max", "iPhone 14 Pro", "iPhone 14 Plus", "iPhone 14"] },
+  { title: "iPhone 13", models: ["iPhone 13 Pro Max", "iPhone 13 Pro", "iPhone 13", "iPhone 13 mini"] },
+  { title: "iPhone 12", models: ["iPhone 12 Pro Max", "iPhone 12 Pro", "iPhone 12", "iPhone 12 mini"] },
+  { title: "iPhone 11", models: ["iPhone 11 Pro Max", "iPhone 11 Pro", "iPhone 11"] },
+  {
+    title: "Mais antigos",
+    models: ["iPhone XS Max", "iPhone XS", "iPhone XR", "iPhone X", "iPhone SE (3ª geração)", "iPhone SE (2ª geração)"],
+  },
+];
+
+/** Só o primeiro nome, para saudações (o campo aceita o nome completo). */
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? "";
+}

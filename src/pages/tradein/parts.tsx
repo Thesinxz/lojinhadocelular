@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, Camera, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, Loader2, X } from "lucide-react";
 import { formatFileSize } from "@/lib/imageCompressor";
 import { SIMPLE_TRI_OPTIONS, type PhotoSlot } from "./constants";
 
@@ -184,5 +184,56 @@ export function Field({
       </div>
       {hint && <p className="mt-1.5 text-[11px] leading-4 text-[#86868b]">{hint}</p>}
     </label>
+  );
+}
+
+/**
+ * Barra de ações fixa no rodapé do cartão: "Voltar" + botão principal sempre à vista, mesmo em etapas longas.
+ * Cola na borda de baixo da tela enquanto o cartão está visível e respeita a área segura do iPhone.
+ */
+export function StepActions({
+  onBack,
+  onNext,
+  nextLabel = "Continuar",
+  nextIcon,
+  loading = false,
+  loadingLabel,
+  disabled = false,
+}: {
+  onBack: () => void;
+  onNext: () => void;
+  nextLabel?: string;
+  nextIcon?: ReactNode;
+  loading?: boolean;
+  loadingLabel?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-6 flex items-center gap-2 rounded-b-3xl border-t border-neutral-100 bg-white/95 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-6 sm:-mb-6 sm:px-6">
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={loading}
+        className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7] disabled:opacity-50"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={disabled || loading}
+        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] font-semibold text-white shadow-sm transition-all hover:bg-black active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> {loadingLabel}
+          </>
+        ) : (
+          <>
+            {nextIcon} {nextLabel} {!nextIcon && <ArrowRight className="h-4 w-4" />}
+          </>
+        )}
+      </button>
+    </div>
   );
 }
