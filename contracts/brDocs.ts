@@ -48,9 +48,8 @@ export function brazilPhoneInputDigits(value: string): string {
   } else if (digits.startsWith("0") && (digits.length === 11 || digits.length === 12)) {
     digits = digits.replace(/^0+/, "");
   }
-  if (digits.length === 10) {
-    digits = normalizeBrazilNationalPhone(digits) ?? digits;
-  }
+  // Não completa o 9º dígito aqui: com 10 dígitos o cliente ainda pode estar digitando (ou apagando),
+  // e inserir o 9 no meio deslocaria o que ele digita. O 9 entra em normalizeBrazilPhone, no envio.
   return digits.slice(0, 11);
 }
 
