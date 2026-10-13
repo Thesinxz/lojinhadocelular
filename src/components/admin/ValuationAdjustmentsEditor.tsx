@@ -20,7 +20,9 @@ interface Props {
 
 /** Editor dos descontos do motor: estado visual, defeitos (% e R$), bateria e faixa de valores. */
 export default function ValuationAdjustmentsEditor({ config, onChange }: Props) {
-  // O servidor já devolve a configuração completa (padrões aplicados).
+  // O servidor devolve a configuração completa (padrões aplicados). Enquanto ela carrega, a tela de
+  // configurações usa um placeholder sem `adjustments`: não há o que editar ainda.
+  if (!config.adjustments) return null;
   const adj = config.adjustments as ValuationAdjustments;
   const setAdj = (patch: Partial<ValuationAdjustments>) =>
     onChange({ ...config, adjustments: { ...adj, ...patch } });
