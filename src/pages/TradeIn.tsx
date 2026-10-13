@@ -632,7 +632,7 @@ export default function TradeIn() {
         </header>
 
         {/* CORPO DO CARD PRINCIPAL */}
-        <div className="my-auto py-2">
+        <div className="mt-2 py-2">
           {/* ETAPA 0: VAMOS COMEÇAR (NOME E WHATSAPP) */}
           {step === 0 && (
             <IdentityStep

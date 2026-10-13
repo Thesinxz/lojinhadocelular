@@ -1,7 +1,8 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
 import { isValidCpf, onlyDigits } from "@contracts/brDocs";
+import { StepActions } from "../parts";
 import { PURCHASE_ORIGIN_OPTIONS, type EvaluationData } from "../constants";
 
 interface PurchaseStepProps {
@@ -16,6 +17,14 @@ interface PurchaseStepProps {
 }
 
 export default function PurchaseStep({ data, updateField, autoAdvance, animatingSelection, setStep, error, goNext, goBack }: PurchaseStepProps) {
+  const askCpf = declaredLojinhaPurchase(data.purchaseLocation);
+  const cpfRef = useRef<HTMLDivElement>(null);
+
+  // Ao marcar "Lojinha do Celular", leva o cliente até o campo do CPF (e à barra "Continuar").
+  useEffect(() => {
+    if (askCpf) cpfRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [askCpf]);
+
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
       <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
@@ -62,8 +71,8 @@ export default function PurchaseStep({ data, updateField, autoAdvance, animating
         })}
       </div>
 
-      {declaredLojinhaPurchase(data.purchaseLocation) && (
-        <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/60 p-4 animate-fadeIn">
+      {askCpf && (
+        <div ref={cpfRef} className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/60 p-4 animate-fadeIn">
           <label htmlFor="trocafacil-cpf" className="text-sm font-bold text-purple-950">
             🎁 Quer garantir o bônus de fidelidade?
           </label>
@@ -83,26 +92,17 @@ export default function PurchaseStep({ data, updateField, autoAdvance, animating
           {data.cpf && onlyDigits(data.cpf).length === 11 && !isValidCpf(data.cpf) && (
             <p className="mt-1.5 text-xs font-semibold text-red-600">CPF inválido. Confira os números.</p>
           )}
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={goNext}
-              className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-4 text-sm font-semibold text-white transition hover:bg-black"
-            >
-              Continuar <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                updateField("cpf", "");
-                setStep(curr => curr + 1);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className="flex min-h-[52px] flex-1 items-center justify-center rounded-2xl border border-[#e5e5e7] bg-white px-4 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7]"
-            >
-              Prefiro não informar
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              updateField("cpf", "");
+              setStep(curr => curr + 1);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="mt-3 w-full py-2 text-center text-xs font-semibold text-purple-900 underline underline-offset-4"
+          >
+            Prefiro não informar
+          </button>
         </div>
       )}
 
@@ -112,16 +112,20 @@ export default function PurchaseStep({ data, updateField, autoAdvance, animating
         </p>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={goBack}
-          className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-        </button>
-        <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
-      </div>
+      {askCpf ? (
+        <StepActions onBack={goBack} onNext={goNext} />
+      ) : (
+        <div className="mt-6 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={goBack}
+            className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+          </button>
+          <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
+        </div>
+      )}
     </div>
   );
 }
