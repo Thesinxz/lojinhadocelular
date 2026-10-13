@@ -8,7 +8,11 @@ interface BatteryStepProps {
   goBack: () => void;
 }
 
+const BATTERY_PRESETS = [100, 95, 90, 85, 80, 75, 70];
+
 export default function BatteryStep({ data, updateField, goNext, goBack }: BatteryStepProps) {
+  const setPercent = (value: number) => updateField("batteryPercent", Math.min(100, Math.max(50, value)));
+
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
       <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
@@ -42,7 +46,15 @@ export default function BatteryStep({ data, updateField, goNext, goBack }: Batte
               </span>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPercent(data.batteryPercent - 1)}
+                aria-label="Diminuir 1%"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#e5e5e7] bg-white text-xl font-semibold text-[#1d1d1f] transition active:scale-95"
+              >
+                −
+              </button>
               <input
                 type="range"
                 min={50}
@@ -52,10 +64,35 @@ export default function BatteryStep({ data, updateField, goNext, goBack }: Batte
                 onChange={e => updateField("batteryPercent", Number(e.target.value))}
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-neutral-200 accent-[#1d1d1f]"
               />
-              <div className="mt-2 flex justify-between text-[11px] font-semibold text-[#86868b]">
-                <span>50%</span>
-                <span>100%</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setPercent(data.batteryPercent + 1)}
+                aria-label="Aumentar 1%"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#e5e5e7] bg-white text-xl font-semibold text-[#1d1d1f] transition active:scale-95"
+              >
+                +
+              </button>
+            </div>
+            <div className="mt-1 flex justify-between px-14 text-[11px] font-semibold text-[#86868b]">
+              <span>50%</span>
+              <span>100%</span>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {BATTERY_PRESETS.map(value => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPercent(value)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${
+                    data.batteryPercent === value
+                      ? "border-[#1d1d1f] bg-[#1d1d1f] text-white"
+                      : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:bg-[#f5f5f7]"
+                  }`}
+                >
+                  {value}%
+                </button>
+              ))}
             </div>
           </div>
         ) : (
