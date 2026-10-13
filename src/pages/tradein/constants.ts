@@ -1,3 +1,4 @@
+import { encodeVisit, type VisitPeriod } from "@contracts/visit";
 import type { ValuationResult } from "@contracts/valuation";
 import type { StoreUnit } from "@contracts/permissions";
 import { brazilPhoneInputDigits } from "@contracts/brDocs";
@@ -138,6 +139,9 @@ export type EvaluationData = {
   visualCondition: string;
   notes: string;
   unit: StoreUnit | "";
+  /** Preferência de visita (opcional): dia "AAAA-MM-DD" e período. */
+  visitDate: string;
+  visitPeriod: VisitPeriod | "";
 };
 
 export const INITIAL_EVALUATION: EvaluationData = {
@@ -165,6 +169,8 @@ export const INITIAL_EVALUATION: EvaluationData = {
   visualCondition: "",
   notes: "",
   unit: "",
+  visitDate: "",
+  visitPeriod: "",
 };
 
 export function formatCpfInput(value: string): string {
@@ -228,4 +234,9 @@ export const SELL_ONLY_LABEL = "Quero apenas vender (sem troca)";
 export function targetDetailsText(data: Pick<EvaluationData, "targetModel" | "targetStorage" | "targetColor">): string {
   if (!data.targetModel || data.targetModel === SELL_ONLY_LABEL) return "";
   return [data.targetStorage, data.targetColor].filter(Boolean).join(" · ");
+}
+
+/** Valor enviado ao servidor ("AAAA-MM-DD manha"); vazio quando o cliente não escolheu dia e período. */
+export function visitPreferenceValue(data: Pick<EvaluationData, "visitDate" | "visitPeriod">): string {
+  return data.visitDate && data.visitPeriod ? encodeVisit(data.visitDate, data.visitPeriod) : "";
 }

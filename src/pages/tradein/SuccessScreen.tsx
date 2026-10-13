@@ -3,7 +3,8 @@ import SEO from "@/components/SEO";
 import { waLink } from "@/lib/shop";
 import { formatBRL, type getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import type { ValuationResult } from "@contracts/valuation";
-import { targetDetailsText, type EvaluationData } from "./constants";
+import { formatVisit } from "@contracts/visit";
+import { targetDetailsText, visitPreferenceValue, type EvaluationData } from "./constants";
 
 interface SuccessScreenProps {
   data: EvaluationData;
@@ -117,6 +118,19 @@ export default function SuccessScreen({
                     {targetDetailsText(data) && (
                       <span className="block text-xs font-medium text-purple-800">{targetDetailsText(data)}</span>
                     )}
+                  </span>
+                </div>
+              )}
+              {visitPreferenceValue(data) && (
+                <div className="mt-3 rounded-xl border border-blue-200/80 bg-white p-3">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#0071e3]">
+                    🗓️ Visita preferida
+                  </span>
+                  <span className="mt-0.5 block font-display text-base font-bold text-[#1d1d1f]">
+                    {formatVisit(visitPreferenceValue(data))}
+                  </span>
+                  <span className="block text-[11px] text-[#6e6e73]">
+                    A equipe confirma o horário com você pelo WhatsApp.
                   </span>
                 </div>
               )}

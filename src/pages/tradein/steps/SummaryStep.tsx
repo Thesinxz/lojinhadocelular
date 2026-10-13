@@ -3,7 +3,8 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ValuationResult } from "@contracts/valuation";
 import { formatBRL, type getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import { StepActions, SummaryRow } from "../parts";
-import { STEP, targetDetailsText, type EvaluationData, type PhotoSlot } from "../constants";
+import { formatVisit } from "@contracts/visit";
+import { STEP, targetDetailsText, visitPreferenceValue, type EvaluationData, type PhotoSlot } from "../constants";
 
 interface SummaryStepProps {
   data: EvaluationData;
@@ -48,6 +49,9 @@ export default function SummaryStep({ data, photoSlots, filledPhotosCount, unitL
           value={[data.targetModel || "Apenas vender", targetDetailsText(data)].filter(Boolean).join(" — ")}
           highlight
         />
+        {visitPreferenceValue(data) && (
+          <SummaryRow label="Visita preferida" value={formatVisit(visitPreferenceValue(data))} />
+        )}
         <SummaryRow label="iCloud livre" value={data.icloudFree || "Não informado"} />
         <SummaryRow label="Estado" value={data.visualCondition || "Em análise"} />
         <SummaryRow label="Loja" value={unitLabel || "Não informada"} />

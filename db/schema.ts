@@ -117,6 +117,8 @@ export const evaluations = mysqlTable(
     targetModel: varchar("target_model", { length: 120 }).default(""),
     // Capacidade e cor do aparelho desejado na troca (ex.: "256 GB · Cosmic Orange").
     targetDetails: varchar("target_details", { length: 160 }).default(""),
+    // Preferência de visita do cliente: "AAAA-MM-DD manha|tarde" (vazio = combinar pelo WhatsApp).
+    visitPreference: varchar("visit_preference", { length: 20 }).default(""),
     faceId: varchar("face_id", { length: 30 }).default(""),
     screenOriginal: varchar("screen_original", { length: 30 }).default(""),
     batteryOriginal: varchar("battery_original", { length: 30 }).default(""),

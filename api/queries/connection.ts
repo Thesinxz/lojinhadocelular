@@ -145,6 +145,7 @@ export async function ensureTables() {
         purchase_location VARCHAR(100) DEFAULT '',
         target_model VARCHAR(120) DEFAULT '',
         target_details VARCHAR(160) DEFAULT '',
+        visit_preference VARCHAR(20) DEFAULT '',
         face_id VARCHAR(30) DEFAULT '',
         screen_original VARCHAR(30) DEFAULT '',
         battery_original VARCHAR(30) DEFAULT '',
@@ -185,6 +186,7 @@ export async function ensureTables() {
     await ensureColumnExists(pool, "evaluations", "purchase_location", "VARCHAR(100) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "target_model", "VARCHAR(120) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "target_details", "VARCHAR(160) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "visit_preference", "VARCHAR(20) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "face_id", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "screen_original", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "battery_original", "VARCHAR(30) DEFAULT ''");

@@ -27,10 +27,12 @@ import {
   STEP,
   TOTAL_STEPS,
   targetDetailsText,
+  visitPreferenceValue,
   type EvaluationData,
   type PhotoSlot,
   type PhotoSlotKey,
 } from "@/pages/tradein/constants";
+import { formatVisit } from "@contracts/visit";
 import SuccessScreen from "@/pages/tradein/SuccessScreen";
 import IdentityStep from "@/pages/tradein/steps/IdentityStep";
 import ModelStep from "@/pages/tradein/steps/ModelStep";
@@ -359,6 +361,15 @@ export default function TradeIn() {
         setError("Responda todas as perguntas para continuar. Na dúvida, escolha “Não sei”.");
         return false;
       }
+    } else if (step === STEP.unit) {
+      if (!data.unit) {
+        setError("Escolha a loja onde você quer fazer a conferência.");
+        return false;
+      }
+      if (data.visitDate && !data.visitPeriod) {
+        setError("Escolha o período da visita ou toque em “Prefiro combinar pelo WhatsApp”.");
+        return false;
+      }
     } else if (step === STEP.photos) {
       const frontSlot = photoSlots.find(s => s.key === "front");
       const backSlot = photoSlots.find(s => s.key === "back");
@@ -459,6 +470,7 @@ export default function TradeIn() {
       `🔋 *Saúde da bateria:* ${batteryText}`,
       `🎯 *Interesse de troca:* ${[data.targetModel || "Apenas vender", targetDetailsText(data)].filter(Boolean).join(" — ")}`,
       `📍 *Loja:* ${unitLabel || "Não informada"}`,
+      formatVisit(visitPreferenceValue(data)) ? `🗓️ *Visita preferida:* ${formatVisit(visitPreferenceValue(data))} (a confirmar)` : "",
       "",
       ...(showPrices ? [`✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`] : []),
       ...(!showPrices
@@ -504,6 +516,7 @@ export default function TradeIn() {
         purchaseLocation: data.purchaseLocation,
         targetModel: data.targetModel,
         targetDetails: targetDetailsText(data),
+        visitPreference: visitPreferenceValue(data),
         faceId: data.faceId,
         screenOriginal: data.screenOriginal,
         batteryOriginal: data.batteryOriginal,
@@ -743,9 +756,10 @@ export default function TradeIn() {
           {step === STEP.unit && (
             <UnitStep
               data={data}
-              autoAdvance={autoAdvance}
-              animatingSelection={animatingSelection}
+              updateField={updateField}
               settings={settings}
+              error={error}
+              goNext={goNext}
               goBack={goBack}
             />
           )}

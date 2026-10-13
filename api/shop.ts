@@ -19,6 +19,8 @@ import { allowInterestClick, recordProductInterest } from "./services/productInt
 import { getRecentBuyers } from "./services/socialProof";
 import { getSingleSetting } from "./services/settingsStore";
 import { clientIpFromRequest } from "./auth";
+import { sanitizeVisit } from "@contracts/visit";
+import { localDateKey } from "./dashboard";
 import {
   notifyEvaluationCreated,
   persistEvaluationNotificationStatus,
@@ -212,6 +214,7 @@ export const submitEvaluationInput = z.object({
   purchaseLocation: z.string().max(100).optional().default(""),
   targetModel: z.string().max(120).optional().default(""),
   targetDetails: z.string().max(160).optional().default(""),
+  visitPreference: z.string().max(20).optional().default(""),
   faceId: z.string().max(30).optional().default(""),
   screenOriginal: z.string().max(30).optional().default(""),
   batteryOriginal: z.string().max(30).optional().default(""),
@@ -573,6 +576,8 @@ export const shopRouter = createRouter({
         }
       }
       const photosJson = storedPhotos.length > 0 ? JSON.stringify(storedPhotos) : null;
+      // Preferência de visita: só vale com dia/período em que a loja abre; senão segue sem visita marcada.
+      const visitPreference = sanitizeVisit(input.visitPreference, localDateKey(new Date()));
       let evaluationId = 0;
 
       try {
@@ -588,6 +593,7 @@ export const shopRouter = createRouter({
           purchaseLocation: (input.purchaseLocation || "").trim(),
           targetModel: (input.targetModel || "").trim(),
           targetDetails: (input.targetDetails || "").trim(),
+          visitPreference,
           faceId: (input.faceId || "").trim(),
           screenOriginal: (input.screenOriginal || "").trim(),
           batteryOriginal: (input.batteryOriginal || "").trim(),
@@ -618,11 +624,11 @@ export const shopRouter = createRouter({
           if (pool) {
             const [res]: any = await pool.query(
               `INSERT INTO evaluations (
-                name, whatsapp, model, storage, color, purchase_location, target_model, target_details,
+                name, whatsapp, model, storage, color, purchase_location, target_model, target_details, visit_preference,
                 face_id, screen_original, battery_original, cameras_ok, audio_ok,
                 charging_port_ok, opened_before, has_box, visual_condition, \`condition\`,
                 battery, notes, photos_count, photos, status, unit
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`,
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`,
               [
                 input.name.trim(),
                 input.whatsapp.trim(),
@@ -632,6 +638,7 @@ export const shopRouter = createRouter({
                 (input.purchaseLocation || "").trim(),
                 (input.targetModel || "").trim(),
                 (input.targetDetails || "").trim(),
+                visitPreference,
                 (input.faceId || "").trim(),
                 (input.screenOriginal || "").trim(),
                 (input.batteryOriginal || "").trim(),
@@ -675,6 +682,7 @@ export const shopRouter = createRouter({
         storage: (input.storage || "").trim(),
         targetModel: (input.targetModel || "").trim(),
         targetDetails: (input.targetDetails || "").trim(),
+        visitPreference,
         photosCount,
         unit: input.unit,
       });

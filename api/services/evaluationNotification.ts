@@ -5,6 +5,7 @@ import { parseAutoMessages, SETTING_KEYS } from "@contracts/types";
 import { getAllSettings } from "./settingsStore";
 import { isEvolutionConfigured, normalizeBrazilNumber, parseDestinations, sendEvolutionText } from "./evolution";
 import { recordEvaluationMessage } from "./evaluationMessages";
+import { formatVisit } from "@contracts/visit";
 
 export type EvaluationNotificationStatus = "not_configured" | "sent" | "failed";
 
@@ -16,6 +17,7 @@ export interface EvaluationNotificationInput {
   storage?: string | null;
   targetModel?: string | null;
   targetDetails?: string | null;
+  visitPreference?: string | null;
   photosCount?: number | null;
   /** Loja escolhida pelo cliente (vai só no webhook; o template do Cloud tem parâmetros fixos). */
   unit?: StoreUnit | "" | null;
@@ -46,6 +48,8 @@ function notificationPayload(input: EvaluationNotificationInput) {
       storage: input.storage || "",
       targetModel: input.targetModel || "",
       targetDetails: input.targetDetails || "",
+      visitPreference: input.visitPreference || "",
+      visitLabel: formatVisit(input.visitPreference),
       photosCount: input.photosCount || 0,
       unit: input.unit || "",
       unitLabel: STORE_UNITS.find((u) => u.value === input.unit)?.label ?? "",
@@ -144,6 +148,7 @@ async function sendEvolutionTeamMessage(input: EvaluationNotificationInput): Pro
     `${input.name} — ${[input.model, input.storage].filter(Boolean).join(" ")}`,
     input.targetModel ? `Quer: ${[input.targetModel, input.targetDetails].filter(Boolean).join(" — ")}` : "",
     unitLabel ? `Loja: ${unitLabel}` : "",
+    formatVisit(input.visitPreference) ? `Visita: ${formatVisit(input.visitPreference)}` : "",
     `WhatsApp: ${input.whatsapp}`,
     `Fotos: ${input.photosCount || 0}`,
   ].filter(Boolean);
