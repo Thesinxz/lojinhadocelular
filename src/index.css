@@ -164,3 +164,15 @@
     animation: none;
   }
 }
+
+/*
+ * iOS/Safari dá zoom automático ao focar um campo com fonte menor que 16px (e não volta sozinho).
+ * Em telas de toque, campos de texto usam no mínimo 16px; o resto do visual não muda.
+ */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
