@@ -170,14 +170,9 @@ export default function TargetModelStep({ data, updateField, autoAdvance, animat
         </div>
       )}
 
-      {error && (
-        <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
 
       {targetSpec ? (
-        <StepActions onBack={goBack} onNext={goNext} />
+        <StepActions onBack={goBack} onNext={goNext} error={error} />
       ) : (
         <div className="mt-6">
           <button

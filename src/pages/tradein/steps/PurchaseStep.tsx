@@ -106,14 +106,9 @@ export default function PurchaseStep({ data, updateField, autoAdvance, animating
         </div>
       )}
 
-      {error && (
-        <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
 
       {askCpf ? (
-        <StepActions onBack={goBack} onNext={goNext} />
+        <StepActions onBack={goBack} onNext={goNext} error={error} />
       ) : (
         <div className="mt-6 flex items-center justify-between">
           <button

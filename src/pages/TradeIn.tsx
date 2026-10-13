@@ -398,6 +398,7 @@ export default function TradeIn() {
 
   async function submitEvaluation() {
     if (isSubmitting) return;
+    setError("");
     setIsSubmitting(true);
 
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
@@ -747,6 +748,7 @@ export default function TradeIn() {
               fileInputRefs={fileInputRefs}
               handlePhotoUpload={handlePhotoUpload}
               removePhoto={removePhoto}
+              error={error}
               goNext={goNext}
               goBack={goBack}
             />
@@ -777,6 +779,7 @@ export default function TradeIn() {
               valuation={valuation}
               isSubmitting={isSubmitting}
               setStep={setStep}
+              error={error}
               goBack={goBack}
               submitEvaluation={submitEvaluation}
             />

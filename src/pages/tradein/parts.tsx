@@ -200,6 +200,7 @@ export function StepActions({
   loading = false,
   loadingLabel,
   disabled = false,
+  error,
 }: {
   onBack: () => void;
   onNext: () => void;
@@ -208,33 +209,42 @@ export function StepActions({
   loading?: boolean;
   loadingLabel?: string;
   disabled?: boolean;
+  /** Erro de validação/envio: aparece dentro da barra, sempre visível junto dos botões. */
+  error?: string;
 }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-6 flex items-center gap-2 rounded-b-3xl border-t border-neutral-100 bg-white/95 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-6 sm:-mb-6 sm:px-6">
-      <button
-        type="button"
-        onClick={onBack}
-        disabled={loading}
-        className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7] disabled:opacity-50"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-      </button>
-      <button
-        type="button"
-        onClick={onNext}
-        disabled={disabled || loading}
-        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] font-semibold text-white shadow-sm transition-all hover:bg-black active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" /> {loadingLabel}
-          </>
-        ) : (
-          <>
-            {nextIcon} {nextLabel} {!nextIcon && <ArrowRight className="h-4 w-4" />}
-          </>
-        )}
-      </button>
+    <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-6 rounded-b-3xl border-t border-neutral-100 bg-white/95 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-6 sm:-mb-6 sm:px-6">
+      {error && (
+        <p role="alert" className="mb-2.5 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={loading}
+          className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7] disabled:opacity-50"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={disabled || loading}
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] font-semibold text-white shadow-sm transition-all hover:bg-black active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> {loadingLabel}
+            </>
+          ) : (
+            <>
+              {nextIcon} {nextLabel} {!nextIcon && <ArrowRight className="h-4 w-4" />}
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

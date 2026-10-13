@@ -209,14 +209,9 @@ export default function ModelStep({ data, updateField, selectPopularModel, detec
         )}
       </div>
 
-      {error && (
-        <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-          {error}
-        </p>
-      )}
 
       {showDetails ? (
-        <StepActions onBack={goBack} onNext={goNext} />
+        <StepActions onBack={goBack} onNext={goNext} error={error} />
       ) : (
         <div className="mt-6">
           <button

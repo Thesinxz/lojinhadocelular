@@ -9,11 +9,12 @@ interface PhotosStepProps {
   fileInputRefs: MutableRefObject<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>;
   handlePhotoUpload: (key: PhotoSlotKey, e: ChangeEvent<HTMLInputElement>) => void;
   removePhoto: (key: PhotoSlotKey) => void;
+  error: string;
   goNext: () => void;
   goBack: () => void;
 }
 
-export default function PhotosStep({ data, updateField, photoSlots, fileInputRefs, handlePhotoUpload, removePhoto, goNext, goBack }: PhotosStepProps) {
+export default function PhotosStep({ data, updateField, photoSlots, fileInputRefs, handlePhotoUpload, removePhoto, error, goNext, goBack }: PhotosStepProps) {
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
       <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
@@ -76,7 +77,7 @@ export default function PhotosStep({ data, updateField, photoSlots, fileInputRef
         />
       </div>
 
-      <StepActions onBack={goBack} onNext={goNext} />
+      <StepActions onBack={goBack} onNext={goNext} error={error} />
     </div>
   );
 }

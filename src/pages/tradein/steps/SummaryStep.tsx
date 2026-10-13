@@ -17,11 +17,12 @@ interface SummaryStepProps {
   valuation: ValuationResult;
   isSubmitting: boolean;
   setStep: Dispatch<SetStateAction<number>>;
+  error: string;
   goBack: () => void;
   submitEvaluation: () => void;
 }
 
-export default function SummaryStep({ data, photoSlots, filledPhotosCount, unitLabel, showPrices, loyaltyDeclared, gradeConfig, valuation, isSubmitting, setStep, goBack, submitEvaluation }: SummaryStepProps) {
+export default function SummaryStep({ data, photoSlots, filledPhotosCount, unitLabel, showPrices, loyaltyDeclared, gradeConfig, valuation, isSubmitting, setStep, error, goBack, submitEvaluation }: SummaryStepProps) {
   return (
     <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
       <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
@@ -171,6 +172,7 @@ export default function SummaryStep({ data, photoSlots, filledPhotosCount, unitL
       <StepActions
         onBack={goBack}
         onNext={submitEvaluation}
+        error={error}
         loading={isSubmitting}
         loadingLabel="Enviando proposta..."
         nextIcon={<CheckCircle2 className="h-4 w-4" />}

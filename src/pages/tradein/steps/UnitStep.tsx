@@ -163,11 +163,8 @@ export default function UnitStep({ data, updateField, settings, error, goNext, g
         </div>
       )}
 
-      {error && (
-        <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">{error}</p>
-      )}
 
-      <StepActions onBack={goBack} onNext={goNext} disabled={!unitChosen} />
+      <StepActions onBack={goBack} onNext={goNext} disabled={!unitChosen} error={error} />
     </div>
   );
 }
