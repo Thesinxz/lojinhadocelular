@@ -6,6 +6,8 @@ import WelcomePopup from "./components/WelcomePopup";
 import CookieBanner from "./components/CookieBanner";
 import CartDrawer from "./components/CartDrawer";
 import { CartProvider } from "./lib/cart";
+import { CompareProvider } from "./lib/compare";
+import CompareBar from "./components/CompareBar";
 import Home from "./pages/Home";
 import Produto from "./pages/Produto";
 import TradeIn from "./pages/TradeIn";
@@ -15,6 +17,7 @@ import TvMode from "./pages/TvMode";
 
 // Carregados sob demanda (não pesam no primeiro carregamento)
 const AdminApp = lazy(() => import("./pages/admin/AdminApp"));
+const Comparar = lazy(() => import("./pages/Comparar"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -38,7 +41,8 @@ function ScrollToHash() {
 export default function App() {
   const location = useLocation();
   const isTv = location.pathname.startsWith("/tv");
-  const isAdmin = location.pathname === "/admin" || location.pathname.startsWith("/admin/");
+  const isAdmin =
+    location.pathname === "/admin" || location.pathname.startsWith("/admin/");
   const isPrivacyPath =
     location.pathname === "/privacidade" ||
     location.pathname === "/termos" ||
@@ -46,7 +50,8 @@ export default function App() {
     location.pathname === "/lgpd" ||
     location.pathname === "/cookies";
   const isTrocaFacilDomain =
-    typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
+    typeof window !== "undefined" &&
+    window.location.hostname.includes("trocafacil");
 
   // Se estiver no subdomínio do Troca Fácil e tentar acessar vitrine, catálogo ou produto, redireciona para a loja principal
   useEffect(() => {
@@ -61,7 +66,9 @@ export default function App() {
 
     if (isVitrineIntent) {
       const targetPath =
-        location.pathname === "/catalogo" || location.pathname === "/vitrine" || location.pathname === "/loja"
+        location.pathname === "/catalogo" ||
+        location.pathname === "/vitrine" ||
+        location.pathname === "/loja"
           ? "/#vitrine"
           : `${location.pathname}${location.search}${location.hash}`;
       window.location.href = getMainStoreUrl(targetPath);
@@ -115,35 +122,42 @@ export default function App() {
 
   return (
     <CartProvider>
-      <div className="flex min-h-[100dvh] flex-col bg-[#fbfbfd] font-sans text-[#1d1d1f] antialiased">
-        <ScrollToHash />
-        <Header />
-        <main className="flex-1">
-          <Suspense
-            fallback={
-              <div className="mx-auto max-w-6xl px-4 py-16">
-                <div className="h-64 animate-pulse rounded-2xl bg-neutral-100" />
-              </div>
-            }
-          >
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/catalogo" element={<Navigate to="/#vitrine" replace />} />
-              <Route path="/produto/:id" element={<Produto />} />
-              <Route path="/privacidade" element={<Privacidade />} />
-              <Route path="/termos" element={<Privacidade />} />
-              <Route path="/termos-e-privacidade" element={<Privacidade />} />
-              <Route path="/lgpd" element={<Privacidade />} />
-              <Route path="/cookies" element={<Privacidade />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </main>
-        <Footer />
-        <WelcomePopup />
-        <CookieBanner />
-        <CartDrawer />
-      </div>
+      <CompareProvider>
+        <div className="flex min-h-[100dvh] flex-col bg-[#fbfbfd] font-sans text-[#1d1d1f] antialiased">
+          <ScrollToHash />
+          <Header />
+          <main className="flex-1">
+            <Suspense
+              fallback={
+                <div className="mx-auto max-w-6xl px-4 py-16">
+                  <div className="h-64 animate-pulse rounded-2xl bg-neutral-100" />
+                </div>
+              }
+            >
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route
+                  path="/catalogo"
+                  element={<Navigate to="/#vitrine" replace />}
+                />
+                <Route path="/produto/:id" element={<Produto />} />
+                <Route path="/comparar" element={<Comparar />} />
+                <Route path="/privacidade" element={<Privacidade />} />
+                <Route path="/termos" element={<Privacidade />} />
+                <Route path="/termos-e-privacidade" element={<Privacidade />} />
+                <Route path="/lgpd" element={<Privacidade />} />
+                <Route path="/cookies" element={<Privacidade />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </main>
+          <Footer />
+          <WelcomePopup />
+          <CookieBanner />
+          <CartDrawer />
+          <CompareBar />
+        </div>
+      </CompareProvider>
     </CartProvider>
   );
 }
