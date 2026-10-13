@@ -26,6 +26,7 @@ import {
   formatCommercialSku,
 } from "@/lib/commercialFormatting";
 import SEO from "@/components/SEO";
+import SpecSheet from "@/components/SpecSheet";
 
 type Variant = ProductWithVariants["variants"][number];
 
@@ -894,6 +895,8 @@ export default function Produto() {
                   </div>
                 )}
               </div>
+
+              <SpecSheet productName={product.name} />
 
               {/* Selo de Procedência & Confiança */}
               <div className="mt-5 flex items-center gap-2.5 rounded-2xl bg-neutral-50 border border-neutral-100 p-3.5 text-xs text-neutral-600">

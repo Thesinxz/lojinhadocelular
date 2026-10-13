@@ -10,11 +10,8 @@ import {
   optimizeImageUrl,
 } from "@/lib/shop";
 import { resolveProductImage, detectIphoneModel } from "@/lib/iphoneCatalog";
-import {
-  getIphoneSpecs,
-  PERFORMANCE_LABELS,
-  type IphoneSpecSheet,
-} from "@/lib/iphoneSpecs";
+import { getIphoneSpecs, type IphoneSpecSheet } from "@/lib/iphoneSpecs";
+import { PerformanceBar } from "@/components/SpecSheet";
 import { formatBRL } from "@contracts/types";
 import SEO from "@/components/SEO";
 
@@ -34,24 +31,6 @@ function specsOf(p: ProductWithVariants): IphoneSpecSheet | null {
   return getIphoneSpecs(detectIphoneModel(p.name)?.name);
 }
 
-function PerformanceBar({ level }: { level: IphoneSpecSheet["performance"] }) {
-  return (
-    <div>
-      <div className="flex gap-1" aria-hidden>
-        {[1, 2, 3, 4, 5, 6].map(i => (
-          <span
-            key={i}
-            className={`h-1.5 flex-1 rounded-full ${i <= level ? "bg-[#0071e3]" : "bg-neutral-200"}`}
-          />
-        ))}
-      </div>
-      <span className="mt-1 block text-xs text-neutral-500">
-        {PERFORMANCE_LABELS[level]}
-      </span>
-    </div>
-  );
-}
-
 export default function Comparar() {
   const s = useShopSettings();
   const { ids, remove, clear } = useCompare();
@@ -64,42 +43,61 @@ export default function Comparar() {
     .map(id => all.find(p => String(p.id) === id))
     .filter((p): p is ProductWithVariants => !!p);
 
-  const rows: { label: string; render: (p: ProductWithVariants) => string }[] =
-    [
-      {
-        label: "Preço no Pix",
-        render: p => {
-          const price = minPrice(p);
-          return price != null
-            ? `a partir de ${formatBRL(price)}`
-            : "Indisponível";
-        },
+  const prices = products.map(p => minPrice(p));
+  const lowestPrice = Math.min(...prices.filter((x): x is number => x != null));
+  const perfs = products.map(p => specsOf(p)?.performance ?? 0);
+  const bestPerf = Math.max(...perfs);
+
+  const Tag = ({ children }: { children: React.ReactNode }) => (
+    <span className="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+      {children}
+    </span>
+  );
+
+  const rows: {
+    label: string;
+    render: (p: ProductWithVariants) => React.ReactNode;
+  }[] = [
+    {
+      label: "Preço no Pix",
+      render: p => {
+        const price = minPrice(p);
+        if (price == null) return "Indisponível";
+        return (
+          <>
+            <span className="block">a partir de {formatBRL(price)}</span>
+            {products.length > 1 && price === lowestPrice && (
+              <Tag>Menor preço</Tag>
+            )}
+          </>
+        );
       },
-      {
-        label: "Condição",
-        render: p => (p.condition === "lacrado" ? "Lacrado" : "Seminovo"),
-      },
-      {
-        label: "Capacidades",
-        render: p =>
-          [...new Set(p.variants.filter(v => v.available).map(v => v.storage))]
-            .filter(Boolean)
-            .join(", ") || "—",
-      },
-      {
-        label: "Cores",
-        render: p =>
-          availableColors(p)
-            .map(c => c.color)
-            .join(", ") || "—",
-      },
-      { label: "Bateria", render: batteryOf },
-      { label: "Garantia", render: p => p.warranty || "—" },
-      {
-        label: "Loja",
-        render: p => UNIT_LABEL[p.unitAvailability ?? ""] ?? "—",
-      },
-    ];
+    },
+    {
+      label: "Condição",
+      render: p => (p.condition === "lacrado" ? "Lacrado" : "Seminovo"),
+    },
+    {
+      label: "Capacidades",
+      render: p =>
+        [...new Set(p.variants.filter(v => v.available).map(v => v.storage))]
+          .filter(Boolean)
+          .join(", ") || "—",
+    },
+    {
+      label: "Cores",
+      render: p =>
+        availableColors(p)
+          .map(c => c.color)
+          .join(", ") || "—",
+    },
+    { label: "Bateria", render: batteryOf },
+    { label: "Garantia", render: p => p.warranty || "—" },
+    {
+      label: "Loja",
+      render: p => UNIT_LABEL[p.unitAvailability ?? ""] ?? "—",
+    },
+  ];
 
   const specRows: {
     label: string;
@@ -108,7 +106,15 @@ export default function Comparar() {
     { label: "Processador", render: sp => sp.chip },
     {
       label: "Desempenho",
-      render: sp => <PerformanceBar level={sp.performance} />,
+      render: sp => (
+        <>
+          <PerformanceBar level={sp.performance} />
+          {products.length > 1 &&
+            bestPerf > 0 &&
+            sp.performance === bestPerf &&
+            new Set(perfs).size > 1 && <Tag>Mais potente</Tag>}
+        </>
+      ),
     },
     { label: "Memória RAM", render: sp => sp.ram },
     { label: "Tela", render: sp => sp.screen },
