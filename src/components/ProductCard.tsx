@@ -5,7 +5,7 @@ import {
   Flame,
   BatteryCharging,
   Smartphone,
-  Scale,
+  Check,
   MessageCircle,
 } from "lucide-react";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -155,27 +155,6 @@ export default function ProductCard({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            compare.toggle(product.id);
-          }}
-          disabled={!inCompare && compare.isFull}
-          aria-pressed={inCompare}
-          title={
-            !inCompare && compare.isFull ? "Máximo de 3 aparelhos" : "Comparar"
-          }
-          className={`absolute right-2.5 top-2.5 z-20 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
-            inCompare
-              ? "border-[#0071e3] bg-[#0071e3] text-white"
-              : "border-neutral-200 bg-white/95 text-neutral-500 hover:text-neutral-900"
-          }`}
-        >
-          <Scale className="h-4 w-4" />
-        </button>
-
         {/* Badges superiores exatamente como na BLK Store */}
         <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-col items-start gap-1 pointer-events-none">
           {/* Badge de Promoção Vermelha quando produto está marcado como destaque/promoção */}
@@ -297,6 +276,34 @@ export default function ProductCard({
                 <span>Adicionar</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                compare.toggle(product.id);
+              }}
+              disabled={!inCompare && compare.isFull}
+              aria-pressed={inCompare}
+              className={`mt-2 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                inCompare
+                  ? "border-[#0071e3] bg-[#eef5ff] text-[#0066cc]"
+                  : "border-neutral-200 text-neutral-600 hover:border-neutral-400 hover:text-neutral-900"
+              }`}
+            >
+              {inCompare ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              <span>
+                {inCompare
+                  ? "Na comparação"
+                  : compare.isFull
+                    ? "Máx. 3 aparelhos"
+                    : "Comparar"}
+              </span>
+            </button>
           </div>
         </div>
       </div>
