@@ -290,7 +290,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   address_gll: "Rua Macias Barbosa, 2185 - Guia Lopes da Laguna/MS",
   maps_jardim: "https://www.google.com/maps/search/?api=1&query=Av.+Duque+de+Caxias+486+Jardim+MS",
   maps_gll: "https://www.google.com/maps/search/?api=1&query=Rua+Macias+Barbosa+2185+Guia+Lopes+da+Laguna+MS",
-  installments_max: "12",
+  installments_max: "21",
   installment_fees: JSON.stringify(DEFAULT_FEES),
   debit_pix_fee: "2.39",
   popup_enabled: "1",

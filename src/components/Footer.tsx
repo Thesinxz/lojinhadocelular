@@ -62,7 +62,7 @@ export default function Footer() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-neutral-900 tracking-tight">
-                  Até 12x no Cartão
+                  Até {s.installmentsMax}x no Cartão
                 </h4>
                 <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
                   Ou desconto especial para pagamento à vista no Pix.

@@ -296,7 +296,7 @@ function Slide({
     [product.variants],
   );
 
-  const fee12 = fees["12"] ?? fees[String(installmentsMax)] ?? 0;
+  const feeMax = fees[String(installmentsMax)] ?? 0;
 
   const categoryLabel =
     CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category;
@@ -341,7 +341,7 @@ function Slide({
   const prices = shownVariants.map((v) => v.priceCash);
   const priceCents = prices.length > 0 ? Math.min(...prices) : 0;
   const priceIsFrom = new Set(prices).size > 1;
-  const installment12 = installmentFromFees(priceCents, 12, fee12);
+  const installment12 = installmentFromFees(priceCents, installmentsMax, feeMax);
   const storages = useMemo(() => [...new Set(shownVariants.map((v) => v.storage))], [shownVariants]);
 
   const [qr, setQr] = useState("");
@@ -472,7 +472,7 @@ function Slide({
             Condição especial no cartão{priceIsFrom ? " · a partir de" : ""}
           </p>
           <p className="mt-1 font-display text-5xl font-extrabold leading-none text-white md:text-6xl lg:text-7xl tracking-tight">
-            12x de <span className="text-white">{formatBRL(installment12)}</span>
+            {installmentsMax}x de <span className="text-white">{formatBRL(installment12)}</span>
           </p>
           <div className="mt-3 flex items-center gap-2">
             <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-400">

@@ -199,8 +199,8 @@ export default function Produto() {
   const isAvailable = !!selected?.available && (selected?.quantity ?? 1) > 0;
   const price = selected?.priceCash ?? null;
   const maxFee = s.fees[String(s.installmentsMax)] ?? 0;
-  const fee12 = s.fees["12"] ?? maxFee;
-  const installment12 = price != null ? installmentFromFees(price, 12, fee12) : null;
+  const installment12 =
+    price != null ? installmentFromFees(price, s.installmentsMax, maxFee) : null;
 
   const isLacrado =
     selected?.condition === "lacrado" || product?.condition === "lacrado";
@@ -252,7 +252,7 @@ export default function Produto() {
     product && price != null
       ? `*Olá, Lojinha do Celular!* 📱\nQuero fechar este pedido pelo site:\n\n1. *${cleanTitle}* (${conditionLabel}) — cód. ${displaySku}\nPix: ${formattedPrice}\n\n*Total no Pix: ${formattedPrice}*\n${
           installment12
-            ? `ou até 12x de ${formatBRL(installment12)} no cartão\n\n`
+            ? `ou até ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão\n\n`
             : "\n"
         }📍 Unidade: ${unitLocationText}\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
@@ -658,7 +658,7 @@ export default function Produto() {
                     className="text-xs sm:text-sm text-neutral-600 mt-2 cursor-pointer hover:text-black transition"
                   >
                     ou em até{" "}
-                    <span className="font-bold text-neutral-900">12x de {formatBRL(installment12 ?? 0)}</span> no cartão —{" "}
+                    <span className="font-bold text-neutral-900">{s.installmentsMax}x de {formatBRL(installment12 ?? 0)}</span> no cartão —{" "}
                     <span className="underline decoration-neutral-300">
                       {showAllInstallments ? "ocultar parcelas" : "ver todas as parcelas"}
                     </span>
@@ -667,7 +667,7 @@ export default function Produto() {
                   {showAllInstallments && (
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3.5 text-xs animate-in fade-in-50">
                       {Array.from(
-                        { length: Math.min(s.installmentsMax, 12) },
+                        { length: s.installmentsMax },
                         (_, i) => i + 1,
                       ).map((n) => {
                         const fee = s.fees[String(n)] ?? 0;

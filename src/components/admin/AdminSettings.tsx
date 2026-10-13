@@ -527,7 +527,7 @@ export default function AdminSettings() {
               type="number"
               min={1}
               max={21}
-              value={values[SETTING_KEYS.installmentsMax] ?? "12"}
+              value={values[SETTING_KEYS.installmentsMax] ?? "21"}
               onChange={set(SETTING_KEYS.installmentsMax)}
               className={inputCls}
             />

@@ -56,7 +56,7 @@ const FAQ_ITEMS = [
   {
     question: "Quais são as opções de pagamento e parcelamento?",
     answer:
-      "Aceitamos pagamento via Pix à vista com desconto especial, além de parcelamento no cartão de crédito em até 12x (ou em prazos maiores conforme simulação) com taxas justas e transparentes. Você também pode dar uma entrada no Pix e parcelar o valor restante no cartão.",
+      "Aceitamos pagamento via Pix à vista com desconto especial, além de parcelamento no cartão de crédito em até 21x com taxas justas e transparentes. Você também pode dar uma entrada no Pix e parcelar o valor restante no cartão.",
   },
 ];
 

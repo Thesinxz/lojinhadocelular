@@ -39,9 +39,9 @@ export default function ProductCard({
 }) {
   const price = minPrice(product);
   const colors = availableColors(product);
-  const fee12 = fees["12"] ?? fees[String(installmentsMax)] ?? 0;
+  const feeMax = fees[String(installmentsMax)] ?? 0;
   const installment12 =
-    price != null ? installmentFromFees(price, 12, fee12) : null;
+    price != null ? installmentFromFees(price, installmentsMax, feeMax) : null;
 
   const rawBattery =
     product.variants.find(v => v.batteryHealth)?.batteryHealth ||
@@ -237,7 +237,7 @@ export default function ProductCard({
                 </span>
               </div>
               <p className="mt-0.5 text-[11px] text-neutral-500">
-                no Pix · ou 12x de{" "}
+                no Pix · ou {installmentsMax}x de{" "}
                 <span className="font-semibold text-neutral-800">
                   {formatBRL(installment12 ?? 0)}
                 </span>{" "}
