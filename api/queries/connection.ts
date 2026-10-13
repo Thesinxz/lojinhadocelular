@@ -144,6 +144,8 @@ export async function ensureTables() {
         color VARCHAR(60) DEFAULT '',
         purchase_location VARCHAR(100) DEFAULT '',
         target_model VARCHAR(120) DEFAULT '',
+        target_details VARCHAR(160) DEFAULT '',
+        visit_preference VARCHAR(20) DEFAULT '',
         face_id VARCHAR(30) DEFAULT '',
         screen_original VARCHAR(30) DEFAULT '',
         battery_original VARCHAR(30) DEFAULT '',
@@ -183,6 +185,8 @@ export async function ensureTables() {
     await ensureColumnExists(pool, "evaluations", "notified_at", "TIMESTAMP NULL");
     await ensureColumnExists(pool, "evaluations", "purchase_location", "VARCHAR(100) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "target_model", "VARCHAR(120) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "target_details", "VARCHAR(160) DEFAULT ''");
+    await ensureColumnExists(pool, "evaluations", "visit_preference", "VARCHAR(20) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "face_id", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "screen_original", "VARCHAR(30) DEFAULT ''");
     await ensureColumnExists(pool, "evaluations", "battery_original", "VARCHAR(30) DEFAULT ''");
@@ -266,6 +270,21 @@ export async function ensureTables() {
         product_name VARCHAR(255) NOT NULL,
         clicks INT NOT NULL DEFAULT 0,
         PRIMARY KEY (day, product_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        endpoint_hash VARCHAR(64) NOT NULL,
+        endpoint TEXT NOT NULL,
+        p256dh VARCHAR(255) NOT NULL,
+        auth VARCHAR(255) NOT NULL,
+        user_agent VARCHAR(255) DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_push_subscriptions_endpoint (endpoint_hash),
+        INDEX idx_push_subscriptions_user (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 

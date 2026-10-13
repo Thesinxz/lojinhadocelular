@@ -126,7 +126,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const maxInstallments = options?.installmentsMax || 12;
       const fees = options?.fees || {};
 
-      const fee12 = fees[String(maxInstallments)] ?? fees["12"] ?? 0;
+      const fee12 = fees[String(maxInstallments)] ?? 0;
       const installment12 =
         totalPix > 0
           ? installmentFromFees(totalPix, maxInstallments, fee12)

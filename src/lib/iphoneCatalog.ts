@@ -25,8 +25,8 @@ export function resolveIphoneImageUrl(pathOrUrl?: string): string {
 
   // 1. Suporte a Cloudflare R2 / S3 custom endpoint via variável de ambiente (Vite e Node)
   const r2BaseUrl =
-    (typeof import.meta !== "undefined" &&
-      (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_CLOUDFLARE_R2_URL) ||
+    // Acesso estático: o module runner do Vite 7 recusa `import.meta.env` lido de forma dinâmica.
+    import.meta.env?.VITE_CLOUDFLARE_R2_URL ||
     (typeof process !== "undefined" && process.env?.CLOUDFLARE_R2_URL) ||
     (typeof process !== "undefined" && process.env?.VITE_CLOUDFLARE_R2_URL) ||
     "";

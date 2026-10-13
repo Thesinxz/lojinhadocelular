@@ -34,8 +34,8 @@ export default function CartDrawer() {
       ? "Jardim - MS"
       : "Guia Lopes da Laguna";
 
-  const installmentsMax = Math.min(s.installmentsMax || 12, 12);
-  const fee12 = s.fees[String(installmentsMax)] ?? s.fees["12"] ?? 0;
+  const installmentsMax = s.installmentsMax || 12;
+  const fee12 = s.fees[String(installmentsMax)] ?? 0;
   const installment12 =
     totalPix > 0 ? installmentFromFees(totalPix, installmentsMax, fee12) : 0;
 

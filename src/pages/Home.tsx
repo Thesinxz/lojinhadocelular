@@ -23,7 +23,7 @@ import ProductCard from "@/components/ProductCard";
 import SEO from "@/components/SEO";
 import { trpc, type ProductWithVariants } from "@/providers/trpc";
 import SocialProofStrip from "@/components/SocialProofStrip";
-import { useShopSettings, sortProducts, type SortOption, waLink } from "@/lib/shop";
+import { useShopSettings, sortProducts, minPrice, type SortOption, waLink } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import type { CategoryValue } from "@contracts/types";
 
@@ -56,9 +56,17 @@ const FAQ_ITEMS = [
   {
     question: "Quais são as opções de pagamento e parcelamento?",
     answer:
-      "Aceitamos pagamento via Pix à vista com desconto especial, além de parcelamento no cartão de crédito em até 12x (ou em prazos maiores conforme simulação) com taxas justas e transparentes. Você também pode dar uma entrada no Pix e parcelar o valor restante no cartão.",
+      "Aceitamos pagamento via Pix à vista com desconto especial, além de parcelamento no cartão de crédito em até 21x com taxas justas e transparentes. Você também pode dar uma entrada no Pix e parcelar o valor restante no cartão.",
   },
 ];
+
+const PRICE_RANGES = [
+  { key: "todos", label: "Qualquer preço", min: 0, max: Infinity },
+  { key: "ate2", label: "Até R$ 2.000", min: 0, max: 2000 },
+  { key: "2a4", label: "R$ 2.000 – 4.000", min: 2000, max: 4000 },
+  { key: "4a7", label: "R$ 4.000 – 7.000", min: 4000, max: 7000 },
+  { key: "7mais", label: "Acima de R$ 7.000", min: 7000, max: Infinity },
+] as const;
 
 const CATEGORY_PILLS: { label: string; value: CategoryValue | undefined }[] = [
   { label: "Todos", value: undefined },
@@ -91,6 +99,8 @@ export default function Home() {
   );
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("relevancia");
+  const [priceKey, setPriceKey] = useState<(typeof PRICE_RANGES)[number]["key"]>("todos");
+  const [storage, setStorage] = useState("");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   const faqJsonLd = useMemo(
@@ -151,6 +161,18 @@ export default function Home() {
       list = list.filter((p) => p.category === selectedCategory);
     }
 
+    const range = PRICE_RANGES.find((r) => r.key === priceKey) ?? PRICE_RANGES[0];
+    if (range.key !== "todos") {
+      list = list.filter((p) => {
+        const price = minPrice(p);
+        return price != null && price >= range.min && price < range.max;
+      });
+    }
+
+    if (storage) {
+      list = list.filter((p) => p.variants.some((v) => v.storage === storage));
+    }
+
     if (search.trim()) {
       const term = search.toLowerCase().trim();
       list = list.filter(
@@ -167,7 +189,21 @@ export default function Home() {
     }
 
     return sortProducts(list, sortBy);
-  }, [allProducts, selectedCategory, search, sortBy]);
+  }, [allProducts, selectedCategory, search, sortBy, priceKey, storage]);
+
+  const storageOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of allProducts) for (const v of p.variants) if (v.storage) set.add(v.storage);
+    return [...set].sort((a, b) => parseInt(a) - parseInt(b));
+  }, [allProducts]);
+
+  const hasActiveFilters = !!search || !!selectedCategory || priceKey !== "todos" || !!storage;
+  const clearFilters = () => {
+    setSearch("");
+    setSelectedCategory(undefined);
+    setPriceKey("todos");
+    setStorage("");
+  };
 
   return (
     <div className="min-h-screen bg-[#fbfbfd] text-[#1d1d1f]">
@@ -254,6 +290,48 @@ export default function Home() {
             })}
           </div>
 
+          {/* Faixa de preço e capacidade */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {PRICE_RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => setPriceKey(r.key)}
+                className={`shrink-0 cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                  priceKey === r.key
+                    ? "bg-[#0071e3] text-white shadow-sm"
+                    : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+            {storageOptions.length > 0 && <span className="mx-1 h-4 w-px shrink-0 bg-neutral-200" />}
+            {storageOptions.map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setStorage(storage === st ? "" : st)}
+                className={`shrink-0 cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                  storage === st
+                    ? "bg-[#0071e3] text-white shadow-sm"
+                    : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="shrink-0 cursor-pointer px-2 text-xs font-semibold text-[#0066cc] underline underline-offset-4"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+
           {/* Grid de Produtos ou Estado Vazio */}
           {catalogStatusQuery.isLoading || productsQuery.isLoading ? (
             <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center text-sm text-neutral-500 shadow-sm">
@@ -337,12 +415,11 @@ export default function Home() {
                   Não encontramos aparelhos com esses critérios. Fale conosco no WhatsApp para consultar novas entradas ou encomendar o seu!
                 </p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                  {(search || selectedCategory) && (
+                  {hasActiveFilters && (
                     <button
                       type="button"
                       onClick={() => {
-                        setSearch("");
-                        setSelectedCategory(undefined);
+                        clearFilters();
                       }}
                       className="cursor-pointer rounded-full border border-neutral-200 bg-neutral-100 px-5 py-2.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-200"
                     >

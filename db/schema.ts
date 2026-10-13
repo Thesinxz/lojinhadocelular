@@ -115,6 +115,10 @@ export const evaluations = mysqlTable(
     color: varchar("color", { length: 60 }).default(""),
     purchaseLocation: varchar("purchase_location", { length: 100 }).default(""),
     targetModel: varchar("target_model", { length: 120 }).default(""),
+    // Capacidade e cor do aparelho desejado na troca (ex.: "256 GB · Cosmic Orange").
+    targetDetails: varchar("target_details", { length: 160 }).default(""),
+    // Preferência de visita do cliente: "AAAA-MM-DD manha|tarde" (vazio = combinar pelo WhatsApp).
+    visitPreference: varchar("visit_preference", { length: 20 }).default(""),
     faceId: varchar("face_id", { length: 30 }).default(""),
     screenOriginal: varchar("screen_original", { length: 30 }).default(""),
     batteryOriginal: varchar("battery_original", { length: 30 }).default(""),
@@ -230,6 +234,19 @@ export const productInterest = mysqlTable(
     pk: primaryKey({ columns: [table.day, table.productId] }),
   }),
 );
+
+/** Inscrições de notificação push (um navegador/aparelho de um usuário do painel). */
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: int("user_id").notNull(),
+  // SHA-256 do endpoint: chave única (o endpoint é longo demais para um índice).
+  endpointHash: varchar("endpoint_hash", { length: 64 }).notNull().unique(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: varchar("p256dh", { length: 255 }).notNull(),
+  auth: varchar("auth", { length: 255 }).notNull(),
+  userAgent: varchar("user_agent", { length: 255 }).default(""),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 /** Entrada no estoque do ERP gerada a partir de uma troca concluída (um registro por avaliação). */
 export const evaluationErpEntries = mysqlTable("evaluation_erp_entries", {

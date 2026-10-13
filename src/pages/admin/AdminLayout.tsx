@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import {
   History,
   BarChart3,
   Bell,
   BellOff,
+  BellRing,
   Home,
   LogOut,
   Plug,
@@ -22,6 +23,7 @@ import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import AdminCommandPalette from "@/components/admin/AdminCommandPalette";
 import { useNewEvaluationAlert } from "@/hooks/useNewEvaluationAlert";
+import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 import { useAdminSession, useAdminUnit } from "@/lib/adminSession";
 import type { UnitFilter } from "@/lib/adminSession";
 import { ADMIN_ROLES, STORE_UNITS } from "@contracts/permissions";
@@ -126,9 +128,23 @@ export default function AdminLayout() {
     refetchInterval: 1000 * 60,
   });
   const pending = summary.data?.pending ?? 0;
-  const { soundOn, toggleSound } = useNewEvaluationAlert(summary.data?.pending, (added) =>
-    toast.info(added === 1 ? "Chegou uma nova avaliação!" : `Chegaram ${added} novas avaliações!`),
-  );
+  const navigate = useNavigate();
+  const browserNotifications = useBrowserNotifications(() => navigate("/admin/avaliacoes"));
+  const { soundOn, toggleSound } = useNewEvaluationAlert(summary.data?.pending, (added) => {
+    toast.info(added === 1 ? "Chegou uma nova avaliação!" : `Chegaram ${added} novas avaliações!`);
+    browserNotifications.notifyNewEvaluations(added);
+  });
+
+  async function toggleBrowserNotifications() {
+    const result = await browserNotifications.toggle();
+    if (result === "denied") {
+      toast.error("Avisos bloqueados neste navegador. Libere as notificações do site nas configurações (cadeado ao lado do endereço).");
+    } else if (result === "on") {
+      toast.success("Avisos do navegador ligados.");
+    } else if (result === "off") {
+      toast.info("Avisos do navegador desligados.");
+    }
+  }
 
   const items = NAV_ITEMS.filter((item) => !item.cap || can(item.cap));
   const roleLabel = ADMIN_ROLES.find((r) => r.value === user?.role)?.label ?? "";
@@ -206,6 +222,30 @@ export default function AdminLayout() {
               <span className="hidden sm:inline">Buscar</span>
               <kbd className="hidden rounded border border-[#e5e5e7] bg-[#f5f5f7] px-1.5 text-[10px] font-semibold lg:inline">⌘K</kbd>
             </button>
+            {browserNotifications.supported && (
+              <button
+                type="button"
+                onClick={toggleBrowserNotifications}
+                aria-pressed={browserNotifications.active}
+                title={
+                  browserNotifications.permission === "denied"
+                    ? "Avisos bloqueados no navegador"
+                    : browserNotifications.active
+                      ? "Avisos do navegador ligados"
+                      : "Ativar avisos do navegador"
+                }
+                className={`flex h-11 w-11 items-center justify-center rounded-xl border hover:bg-[#f5f5f7] ${
+                  browserNotifications.active
+                    ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3]"
+                    : "border-[#e5e5e7] text-[#6e6e73]"
+                }`}
+              >
+                <BellRing className="h-4 w-4" />
+                <span className="sr-only">
+                  {browserNotifications.active ? "Desligar avisos do navegador" : "Ativar avisos do navegador"}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleSound}

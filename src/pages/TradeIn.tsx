@@ -1,212 +1,66 @@
-import { useEffect, useState, useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  Check,
-  Phone,
-  ShieldCheck,
-  Smartphone,
-  Sparkles,
-  UserRound,
-  X,
-  RotateCcw,
-  CheckCircle2,
-  Loader2,
-} from "lucide-react";
+import { useEffect, useState, useMemo, useRef, type ChangeEvent } from "react";
+import { ArrowLeft } from "lucide-react";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink, getMainStoreUrl } from "@/lib/shop";
 import { trpc } from "@/providers/trpc";
-import { safeStorage } from "@/lib/storage";
+import { safeStorage, safeSessionStorage } from "@/lib/storage";
 import {
   detectIphoneModel,
   getIphoneModelColorImage,
-  POPULAR_IPHONE_MODELS,
   FALLBACK_STORAGE_OPTIONS,
   FALLBACK_COLOR_OPTIONS,
 } from "@/lib/iphoneCatalog";
 import { formatBRL, getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import type { ValuationResult } from "@contracts/valuation";
-import { compressImage, formatFileSize } from "@/lib/imageCompressor";
-import { STORE_UNITS, type StoreUnit } from "@contracts/permissions";
+import { compressImage } from "@/lib/imageCompressor";
+import { STORE_UNITS } from "@contracts/permissions";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
-import { brazilPhoneInputDigits, isValidCpf, normalizeBrazilPhone, onlyDigits } from "@contracts/brDocs";
+import { isValidCpf, normalizeBrazilPhone } from "@contracts/brDocs";
+import {
+  EMPTY_VALUATION,
+  INITIAL_EVALUATION,
+  INITIAL_PHOTO_SLOTS,
+  formatCpfInput,
+  formatPhoneInput,
+  publicHighlights,
+  SELL_ONLY_LABEL,
+  STEP,
+  TOTAL_STEPS,
+  targetDetailsText,
+  visitPreferenceValue,
+  type EvaluationData,
+  type PhotoSlot,
+  type PhotoSlotKey,
+} from "@/pages/tradein/constants";
+import { formatVisit } from "@contracts/visit";
+import SuccessScreen from "@/pages/tradein/SuccessScreen";
+import IdentityStep from "@/pages/tradein/steps/IdentityStep";
+import ModelStep from "@/pages/tradein/steps/ModelStep";
+import PurchaseStep from "@/pages/tradein/steps/PurchaseStep";
+import IcloudStep from "@/pages/tradein/steps/IcloudStep";
+import BatteryStep from "@/pages/tradein/steps/BatteryStep";
+import TargetModelStep from "@/pages/tradein/steps/TargetModelStep";
+import DiagnosisStep, { diagnosisFieldsOf } from "@/pages/tradein/steps/DiagnosisStep";
+import VisualConditionStep from "@/pages/tradein/steps/VisualConditionStep";
+import PhotosStep from "@/pages/tradein/steps/PhotosStep";
+import UnitStep from "@/pages/tradein/steps/UnitStep";
+import SummaryStep from "@/pages/tradein/steps/SummaryStep";
 
-/** Cotação vazia: usada enquanto o valor não vem do servidor (ou quando a loja oculta valores). */
-const EMPTY_VALUATION: ValuationResult = {
-  modelName: "",
-  basePrice: 0,
-  minEstimatedValue: 0,
-  maxEstimatedValue: 0,
-  grade: "A",
-  gradeLabel: "",
-  score: 0,
-  loyaltyBonusApplied: false,
-  highlights: [],
-  disclaimer: "",
-  priceable: false,
-  pendingChecks: [],
-  blockers: [],
-};
+/** Progresso do cliente na aba (sem CPF e sem fotos): sobrevive a recarregar a página ou a um corte de conexão. */
+const PROGRESS_KEY = "lojinha_tradein_progress_v1";
 
-/** Pontos positivos mostrados ao cliente SEM valores nem regras de preço: só o que ele mesmo respondeu. */
-function publicHighlights(answers: {
-  batteryPercent?: number | null;
-  batteryUnknown?: boolean;
-  openedBefore?: string;
-  visualCondition?: string;
-}): string[] {
-  const list: string[] = [];
-  const battery = answers.batteryPercent;
-  if (!answers.batteryUnknown && typeof battery === "number") {
-    if (battery >= 90) list.push(`Bateria saudável (${battery}%)`);
-    else if (battery >= 85) list.push(`Bateria boa (${battery}%)`);
+function readSavedProgress(): { step: number; data: EvaluationData; lgpdConsent: boolean } | null {
+  try {
+    const raw = safeSessionStorage.getItem(PROGRESS_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { step?: unknown; data?: Partial<EvaluationData>; lgpdConsent?: unknown };
+    if (typeof saved.step !== "number" || !saved.data || typeof saved.data !== "object") return null;
+    // As fotos não são guardadas: se o cliente já tinha passado delas, volta para a etapa das fotos.
+    const step = Math.min(Math.max(0, Math.floor(saved.step)), STEP.photos);
+    return { step, data: { ...INITIAL_EVALUATION, ...saved.data, cpf: "" }, lgpdConsent: saved.lgpdConsent === true };
+  } catch {
+    return null;
   }
-  if (answers.openedBefore === "Não") list.push("Aparelho nunca aberto");
-  if (/parece novo|sem marcas/i.test(answers.visualCondition ?? "")) list.push("Estado impecável sem marcas visíveis");
-  return list;
-}
-
-// Modelos alvo para troca
-const TARGET_IPHONE_MODELS = [
-  "iPhone 18 Pro Max",
-  "iPhone 18 Pro",
-  "iPhone 17 Pro Max",
-  "iPhone 17 Pro",
-  "iPhone 17",
-  "iPhone Air",
-  "iPhone 17e",
-  "iPhone 16 Pro Max",
-  "iPhone 16 Pro",
-  "iPhone 16 Plus",
-  "iPhone 16",
-  "iPhone 16e",
-  "iPhone 15 Pro Max",
-  "iPhone 15 Pro",
-  "iPhone 15 Plus",
-  "iPhone 15",
-  "iPhone 14 Pro Max",
-  "iPhone 14 Pro",
-  "iPhone 14 Plus",
-  "iPhone 14",
-  "iPhone 13 Pro Max",
-  "iPhone 13 Pro",
-  "iPhone 13",
-  "iPhone 12 Pro Max",
-  "iPhone 12",
-  "iPhone 11",
-];
-
-const PURCHASE_ORIGIN_OPTIONS = [
-  { id: "Lojinha do Celular", label: "Lojinha do Celular", desc: "Comprado com a nossa equipe" },
-  { id: "Outra loja física da cidade", label: "Outra loja física da cidade", desc: "" },
-  {
-    id: "Loja de departamento / Marketplace",
-    label: "Loja de departamento / Marketplace",
-    desc: "Ex.: Mercado Livre, Amazon, Shopee, Magazine Luiza, etc.",
-  },
-  { id: "Outro", label: "Outro", desc: "" },
-];
-
-const SIMPLE_TRI_OPTIONS = ["Sim", "Não", "Não sei"];
-
-const VISUAL_CONDITION_OPTIONS = [
-  "Parece novo, sem marcas",
-  "Pouquíssimas marcas de uso",
-  "Marcas normais do dia a dia",
-  "Riscos ou amassados visíveis",
-  "Tela ou tampa com trinco",
-];
-
-type PhotoSlotKey = "front" | "back" | "sides" | "battery" | "screen";
-
-interface PhotoSlot {
-  key: PhotoSlotKey;
-  label: string;
-  required: boolean;
-  file?: File;
-  previewUrl?: string;
-  dataUrl?: string;
-  originalSize?: number;
-  compressedSize?: number;
-  savingsPercent?: number;
-  isCompressing?: boolean;
-}
-
-const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
-  { key: "front", label: "Foto da frente", required: true },
-  { key: "back", label: "Foto da traseira", required: true },
-  { key: "sides", label: "Foto das laterais (opcional)", required: false },
-  { key: "battery", label: "Foto da saúde da bateria (opcional)", required: false },
-  { key: "screen", label: "Foto da tela ligada (opcional)", required: false },
-];
-
-type EvaluationData = {
-  name: string;
-  whatsapp: string;
-  model: string;
-  storage: string;
-  color: string;
-  purchaseLocation: string;
-  batteryPercent: number;
-  batteryUnknown: boolean;
-  targetModel: string;
-  faceId: string;
-  screenOriginal: string;
-  batteryOriginal: string;
-  camerasOk: string;
-  audioOk: string;
-  chargingPortOk: string;
-  openedBefore: string;
-  hasBox: string;
-  icloudFree: string;
-  /** Só para conferir o bônus de fidelidade no ERP. Nunca vai para o histórico local nem para o WhatsApp. */
-  cpf: string;
-  visualCondition: string;
-  notes: string;
-  unit: StoreUnit | "";
-};
-
-const INITIAL_EVALUATION: EvaluationData = {
-  name: "",
-  whatsapp: "",
-  model: "",
-  storage: "",
-  color: "",
-  purchaseLocation: "",
-  batteryPercent: 90,
-  batteryUnknown: false,
-  targetModel: "",
-  faceId: "",
-  screenOriginal: "",
-  batteryOriginal: "",
-  camerasOk: "",
-  audioOk: "",
-  chargingPortOk: "",
-  openedBefore: "",
-  hasBox: "",
-  icloudFree: "",
-  cpf: "",
-  visualCondition: "",
-  notes: "",
-  unit: "",
-};
-
-function formatCpfInput(value: string): string {
-  const d = value.replace(/\D/g, "").slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
-}
-
-function formatPhoneInput(value: string): string {
-  const digits = brazilPhoneInputDigits(value);
-  if (!digits) return "";
-  if (digits.length <= 2) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
 export default function TradeIn() {
@@ -214,8 +68,9 @@ export default function TradeIn() {
   const fallbackDestination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
   const submitMutation = trpc.shop.submitEvaluation.useMutation();
   const preparePhotoUploadMutation = trpc.shop.prepareEvaluationPhotoUpload.useMutation();
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<EvaluationData>(INITIAL_EVALUATION);
+  const [savedProgress] = useState(readSavedProgress);
+  const [step, setStep] = useState(savedProgress?.step ?? 0);
+  const [data, setData] = useState<EvaluationData>(savedProgress?.data ?? INITIAL_EVALUATION);
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
@@ -223,8 +78,14 @@ export default function TradeIn() {
   const [photoWarning, setPhotoWarning] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Consentimento precisa de ato afirmativo: começa desmarcado.
-  const [lgpdConsent, setLgpdConsent] = useState(false);
+  const [lgpdConsent, setLgpdConsent] = useState(savedProgress?.lgpdConsent ?? false);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sent) return;
+    const { cpf: _cpf, ...dataWithoutCpf } = data;
+    safeSessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ step, data: dataWithoutCpf, lgpdConsent }));
+  }, [sent, step, data, lgpdConsent]);
 
   const fileInputRefs = useRef<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>({});
 
@@ -467,6 +328,10 @@ export default function TradeIn() {
         setError("Selecione ou digite o modelo do seu iPhone.");
         return false;
       }
+      if (!data.storage || !data.color) {
+        setError("Escolha a capacidade e a cor do aparelho para continuar.");
+        return false;
+      }
     } else if (step === 2) {
       if (!data.purchaseLocation) {
         setError("Selecione onde comprou o aparelho.");
@@ -486,7 +351,26 @@ export default function TradeIn() {
         setError("Selecione o modelo que deseja ou escolha apenas vender.");
         return false;
       }
-    } else if (step === 15) {
+      if (data.targetModel !== SELL_ONLY_LABEL && (!data.targetStorage || !data.targetColor)) {
+        setError("Escolha a capacidade e a cor do iPhone que você quer.");
+        return false;
+      }
+    } else if (step === STEP.functioning || step === STEP.history) {
+      const fields = diagnosisFieldsOf(step - STEP.functioning);
+      if (fields.some(field => !data[field])) {
+        setError("Responda todas as perguntas para continuar. Na dúvida, escolha “Não sei”.");
+        return false;
+      }
+    } else if (step === STEP.unit) {
+      if (!data.unit) {
+        setError("Escolha a loja onde você quer fazer a conferência.");
+        return false;
+      }
+      if (data.visitDate && !data.visitPeriod) {
+        setError("Escolha o período da visita ou toque em “Prefiro combinar pelo WhatsApp”.");
+        return false;
+      }
+    } else if (step === STEP.photos) {
       const frontSlot = photoSlots.find(s => s.key === "front");
       const backSlot = photoSlots.find(s => s.key === "back");
       if (!frontSlot?.file || !backSlot?.file) {
@@ -514,6 +398,7 @@ export default function TradeIn() {
 
   async function submitEvaluation() {
     if (isSubmitting) return;
+    setError("");
     setIsSubmitting(true);
 
     const batteryText = data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`;
@@ -584,8 +469,9 @@ export default function TradeIn() {
       `🎨 *Cor:* ${data.color || "Não informada"}`,
       `🏬 *Onde comprou:* ${data.purchaseLocation || "Não informado"}`,
       `🔋 *Saúde da bateria:* ${batteryText}`,
-      `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
+      `🎯 *Interesse de troca:* ${[data.targetModel || "Apenas vender", targetDetailsText(data)].filter(Boolean).join(" — ")}`,
       `📍 *Loja:* ${unitLabel || "Não informada"}`,
+      formatVisit(visitPreferenceValue(data)) ? `🗓️ *Visita preferida:* ${formatVisit(visitPreferenceValue(data))} (a confirmar)` : "",
       "",
       ...(showPrices ? [`✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`] : []),
       ...(!showPrices
@@ -630,6 +516,8 @@ export default function TradeIn() {
         color: data.color.trim(),
         purchaseLocation: data.purchaseLocation,
         targetModel: data.targetModel,
+        targetDetails: targetDetailsText(data),
+        visitPreference: visitPreferenceValue(data),
         faceId: data.faceId,
         screenOriginal: data.screenOriginal,
         batteryOriginal: data.batteryOriginal,
@@ -688,186 +576,41 @@ export default function TradeIn() {
     // aberto quando o navegador bloqueava a navegação após uma operação assíncrona.
     const whatsappUrl = waLink(destination, summaryText);
     setWhatsappUrl(whatsappUrl);
+    safeSessionStorage.removeItem(PROGRESS_KEY);
     setSent(true);
   }
 
   // TELA DE SUCESSO APÓS ENVIO
   if (sent) {
     return (
-      <main className="min-h-[100dvh] bg-[#fbfbfd] px-4 py-8 text-[#1d1d1f] sm:py-16">
-        <SEO
-          title="Resultado da Avaliação | Troca Fácil Lojinha do Celular"
-          description="Confira a pré-avaliação do seu iPhone na Lojinha do Celular e combine os detalhes no WhatsApp."
-        />
-        <div className="mx-auto flex min-h-[75dvh] w-full max-w-[540px] flex-col items-center justify-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 animate-scaleIn">
-            <Check className="h-8 w-8 stroke-[2.5]" />
-          </div>
-          <p className="mt-4 text-xs font-bold uppercase tracking-[0.25em] text-[#86868b]">
-            TROCA FÁCIL LOJINHA DO CELULAR
-          </p>
-          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f]">
-            Pré-Avaliação Concluída!
-          </h1>
-          <p className="mt-2 max-w-sm text-xs sm:text-sm text-[#6e6e73]">
-            Sua proposta foi registrada no sistema. Confirme o envio da mensagem no WhatsApp para concluir o contato com a equipe.
-          </p>
-
-          {/* CARD DE RESULTADO DA PRÉ-AVALIAÇÃO */}
-          <div className="mt-6 w-full rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 text-left shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)]">
-            <div className="flex items-start gap-4">
-              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#fbfbfd] p-2 border border-[#e5e5e7]">
-                {previewImage ? (
-                  <img
-                    src={previewImage}
-                    alt={data.model}
-                    className="h-full w-full object-contain drop-shadow-xs"
-                  />
-                ) : (
-                  <Smartphone className="h-9 w-9 text-[#86868b]" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-display text-base sm:text-lg font-bold text-[#1d1d1f]">
-                    {data.model}
-                  </h3>
-                  {showPrices && (
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
-                    >
-                      <span>{gradeConfig.iconText}</span>
-                      <span>{gradeConfig.label}</span>
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-[#6e6e73]">
-                  {data.storage || "Capacidade padrão"} • Cor: {data.color || "Padrão"}
-                </p>
-                {data.purchaseLocation && (
-                  <p className="mt-1 text-[11px] text-neutral-500">
-                    Comprado em: {data.purchaseLocation}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* FAIXA DE VALOR OU CONFIRMAÇÃO DE ENVIO */}
-            {!showPrices ? (
-              <div className="mt-5 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
-                    ✨ Diagnóstico Registrado
-                  </span>
-                  <span className="text-[10px] font-semibold text-blue-800 bg-white border border-blue-200 px-2 py-0.5 rounded-md">
-                    Cotação em andamento
-                  </span>
-                </div>
-                <p className="mt-2 text-xs sm:text-sm text-[#1d1d1f] font-medium leading-relaxed">
-                  {photoWarning
-                    ? `Sua avaliação foi registrada com sucesso. ${photoWarning}`
-                    : "As informações e fotos do seu aparelho foram enviadas com sucesso! Nossa equipe técnica está analisando os dados e passará a proposta oficial e o valor da volta diretamente no seu WhatsApp em instantes."}
-                </p>
-                {data.targetModel && (
-                  <div className="mt-3 rounded-xl border border-purple-200/80 bg-purple-50/70 p-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 block">
-                      🎯 Aparelho de interesse para troca
-                    </span>
-                    <span className="mt-0.5 font-display text-base font-bold text-purple-950 block">
-                      {data.targetModel}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="mt-5 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                    💰 Faixa Estimada de Pré-Avaliação
-                  </span>
-                  <div className="mt-1 font-display text-2xl sm:text-3xl font-bold text-emerald-950">
-                    {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
-                  </div>
-                  <p className="mt-1 text-[11px] text-emerald-900/80">
-                    {valuation.disclaimer}
-                  </p>
-                </div>
-
-                {/* SE HOUVER APARELHO DESEJADO PARA TROCA */}
-                {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
-                  <div className="mt-3 rounded-2xl border border-purple-200/80 bg-purple-50/70 p-4">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
-                      🎯 Troca pelo {valuation.targetModelName}
-                    </span>
-                    <div className="mt-1 font-display text-xl sm:text-2xl font-bold text-purple-950">
-                      Volta estimada de {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
-                    </div>
-                    <p className="mt-1 text-[11px] text-purple-900/80">
-                      Entregando seu {data.model}, essa é a estimativa da diferença a pagar.
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* PONTOS FORTES E BÔNUS */}
-            {customerHighlights.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1.5 border-t border-neutral-100 pt-3 text-[11px]">
-                {customerHighlights.map((hl, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center rounded-lg bg-[#f5f5f7] px-2.5 py-1 font-medium text-[#1d1d1f]"
-                  >
-                    {hl}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* BOTÕES DE AÇÃO */}
-          <div className="mt-6 flex flex-col gap-3 w-full sm:flex-row">
-            <a
-              href={whatsappUrl || waLink(destination, `Olá! Acabei de fazer a pré-avaliação do meu ${data.model} no site Troca Fácil da Lojinha do Celular. Gostaria de confirmar a proposta!`)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]"
-            >
-              <Phone className="h-4 w-4" /> Abrir WhatsApp novamente
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                setSent(false);
-                setStep(0);
-                setData(INITIAL_EVALUATION);
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-300 bg-white px-5 py-3.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-neutral-50 shadow-xs cursor-pointer"
-            >
-              <RotateCcw className="h-4 w-4" /> Nova avaliação
-            </button>
-            <a
-              href={mainStoreUrl}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-black shadow-sm"
-            >
-              Vitrine da Loja <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-
-          <p className="mt-4 text-[11px] text-[#86868b]">
-            Unidade Jardim/MS: Av. Duque de Caxias, 486 • Unidade Guia Lopes/MS: Rua Macias Barbosa, 2185
-          </p>
-        </div>
-      </main>
+      <SuccessScreen
+        data={data}
+        previewImage={previewImage}
+        showPrices={showPrices}
+        gradeConfig={gradeConfig}
+        valuation={valuation}
+        photoWarning={photoWarning}
+        customerHighlights={customerHighlights}
+        whatsappUrl={whatsappUrl}
+        destination={destination}
+        mainStoreUrl={mainStoreUrl}
+        onReset={() => {
+          safeSessionStorage.removeItem(PROGRESS_KEY);
+          setSent(false);
+          setStep(0);
+          setData(INITIAL_EVALUATION);
+          setLgpdConsent(false);
+        }}
+      />
     );
   }
 
   // Progresso relativo (etapas 0 a 16)
-  const totalSteps = 18;
+  const totalSteps = TOTAL_STEPS;
   const progressPercent = Math.min(100, Math.round(((step + 1) / totalSteps) * 100));
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#fbfbfd] text-[#1d1d1f]">
+    <main className="min-h-[100dvh] overflow-x-hidden [overflow-x:clip] bg-[#fbfbfd] text-[#1d1d1f]">
       <SEO
         title="Troca Fácil | Avaliação de iPhone com Segurança — Lojinha do Celular"
         description="Receba uma pré-avaliação rápida e transparente para vender ou trocar seu iPhone na Lojinha do Celular."
@@ -903,1056 +646,143 @@ export default function TradeIn() {
         </header>
 
         {/* CORPO DO CARD PRINCIPAL */}
-        <div className="my-auto py-2">
-          {/* ========================================================================= */}
-          {/* ETAPA 0: VAMOS COMEÇAR (NOME E WHATSAPP)                                */}
-          {/* ========================================================================= */}
+        <div className="mt-2 py-2">
+          {/* ETAPA 0: VAMOS COMEÇAR (NOME E WHATSAPP) */}
           {step === 0 && (
-            <div className="space-y-5 animate-fadeIn">
-              <div className="text-center">
-                <h1 className="font-display text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-[#1d1d1f]">
-                  Venda ou troque seu iPhone <span className="text-[#0071e3]">com segurança</span>
-                </h1>
-                <p className="mt-2 text-sm leading-relaxed text-[#6e6e73]">
-                  Receba uma pré-avaliação rápida da equipe Lojinha do Celular e descubra quanto o seu aparelho
-                  pode valer hoje.
-                </p>
-              </div>
-
-              {/* Box de segurança */}
-              <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-5 text-neutral-700">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0071e3]" />
-                <span>
-                  Esta é uma <b className="text-[#1d1d1f]">pré-avaliação online</b>. O valor final será
-                  confirmado após a conferência presencial do aparelho na loja.
-                </span>
-              </div>
-
-              {/* Card de formulário */}
-              <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)]">
-                <h2 className="font-display text-lg font-bold text-[#1d1d1f]">Vamos começar</h2>
-                <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                  Primeiro, conta pra gente quem é você — é por aqui que enviamos sua pré-proposta.
-                </p>
-
-                <div className="mt-5 space-y-4">
-                  <Field label="Primeiro nome" icon={<UserRound className="h-4 w-4" />}>
-                    <input
-                      value={data.name}
-                      onChange={e => updateField("name", e.target.value)}
-                      placeholder="Seu nome"
-                      autoComplete="name"
-                      className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
-                    />
-                  </Field>
-
-                  <Field label="WhatsApp para receber a proposta" icon={<Phone className="h-4 w-4" />}>
-                    <input
-                      value={data.whatsapp}
-                      onChange={e => updateField("whatsapp", e.target.value)}
-                      placeholder="(67) 99999-9999"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
-                    />
-                    <p className="mt-1 text-[11px] leading-4 text-[#86868b]">
-                      Se colar com +55, o código do país é removido automaticamente. Celulares no formato antigo recebem o 9º dígito.
-                    </p>
-                  </Field>
-                </div>
-
-                {/* Termos de Privacidade e LGPD */}
-                <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs text-neutral-700">
-                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={lgpdConsent}
-                      onChange={e => setLgpdConsent(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-[#0071e3] focus:ring-[#0071e3] accent-[#0071e3] cursor-pointer"
-                    />
-                    <span className="leading-snug text-neutral-700">
-                      Declaro que li e concordo com os{" "}
-                      <a
-                        href="/privacidade"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-semibold text-[#0071e3] hover:underline"
-                      >
-                        Termos de Privacidade & LGPD
-                      </a>{" "}
-                      para envio da pré-avaliação do meu aparelho.
-                    </span>
-                  </label>
-                  <p className="mt-2 text-[11px] leading-relaxed text-neutral-500 flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                    Seus dados são confidenciais e protegidos pela LGPD (Lei 13.709/2018).
-                  </p>
-                </div>
-
-                {error && (
-                  <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="mt-5 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99]"
-                >
-                  Receber minha pré-avaliação <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <IdentityStep
+              data={data}
+              updateField={updateField}
+              lgpdConsent={lgpdConsent}
+              setLgpdConsent={setLgpdConsent}
+              error={error}
+              goNext={goNext}
+            />
           )}
 
-          {/* ========================================================================= */}
-          {/* ETAPA 1: MODELO ATUAL (NOSSO SELETOR SUPERIOR MANTIDO & ENRIQUECIDO)      */}
-          {/* ========================================================================= */}
+          {/* ETAPA 1: MODELO ATUAL */}
           {step === 1 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Prazer, {data.name.trim() || "amigo"}! Qual é o seu iPhone?
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                Toque no modelo ou digite o nome do aparelho que você tem hoje.
-              </p>
-
-              <div className="mt-5 space-y-4">
-                {/* Campo de busca do modelo */}
-                <Field label="Modelo do aparelho" icon={<Smartphone className="h-4 w-4" />}>
-                  <input
-                    value={data.model}
-                    onChange={e => updateField("model", e.target.value)}
-                    placeholder="Ex.: iPhone 15 Pro, iPhone 13..."
-                    autoComplete="off"
-                    className="w-full bg-transparent text-[15px] sm:text-[16px] text-[#1d1d1f] placeholder:text-[#86868b] outline-none"
-                  />
-                </Field>
-
-                {/* Chips de modelos populares */}
-                <div>
-                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
-                    Modelos mais comuns
-                  </span>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                    {POPULAR_IPHONE_MODELS.map(popName => {
-                      const isSelected =
-                        detectedModel?.name.toLowerCase() === popName.toLowerCase() ||
-                        data.model.toLowerCase().trim() === popName.toLowerCase();
-                      return (
-                        <button
-                          key={popName}
-                          type="button"
-                          onClick={() => selectPopularModel(popName)}
-                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                            isSelected
-                              ? "bg-[#1d1d1f] text-white shadow-xs scale-102"
-                              : "border border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-400 hover:bg-white"
-                          }`}
-                        >
-                          {popName}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Card de visualização do aparelho em tempo real */}
-                {detectedModel && (
-                  <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-neutral-50 p-4 shadow-xs animate-fadeIn">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
-                      {previewImage ? (
-                        <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-white p-2 shadow-xs border border-neutral-100">
-                          <img
-                            key={previewImage}
-                            src={previewImage}
-                            alt={detectedModel.name}
-                            className="h-full w-full object-contain drop-shadow-sm"
-                            onError={e => {
-                              (e.currentTarget as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-white p-3 shadow-xs border border-neutral-100">
-                          <Smartphone className="h-10 w-10 text-[#0071e3]" />
-                        </div>
-                      )}
-                      <div className="flex-1 text-center sm:text-left min-w-0">
-                        <div className="inline-flex items-center gap-1 rounded-full bg-blue-100/80 px-2 py-0.5 text-[10.5px] font-semibold text-[#0071e3]">
-                          <Sparkles className="h-3 w-3" /> Modelo reconhecido
-                        </div>
-                        <h3 className="font-display text-base font-bold text-[#1d1d1f] mt-0.5">
-                          {detectedModel.name}
-                        </h3>
-                        <div className="mt-1 flex flex-wrap items-center justify-center sm:justify-start gap-1 text-[11px] text-[#6e6e73]">
-                          <span className="rounded bg-white border border-neutral-200 px-1.5 py-0.5 font-medium">
-                            Ano {detectedModel.year}
-                          </span>
-                          <span className="rounded bg-white border border-neutral-200 px-1.5 py-0.5 font-medium">
-                            Tela {detectedModel.screen}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Armazenamento */}
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[#6e6e73]">Capacidade</span>
-                    {data.storage && (
-                      <span className="text-xs font-bold text-[#0071e3]">{data.storage}</span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {storageOptions.map(option => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => updateField("storage", option)}
-                        className={`h-11 rounded-xl border text-xs font-semibold transition-all ${
-                          data.storage === option
-                            ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] ring-1 ring-[#0071e3]"
-                            : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-white"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Cores Oficiais */}
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[#6e6e73]">Cor do aparelho</span>
-                    {data.color && (
-                      <span className="text-xs font-bold text-[#0071e3]">{data.color}</span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {colorOptions.map(c => {
-                      const isSelected = data.color === c.name;
-                      return (
-                        <button
-                          key={c.name}
-                          type="button"
-                          onClick={() => updateField("color", c.name)}
-                          className={`flex h-11 items-center gap-2 rounded-xl border px-3 text-left text-xs font-semibold transition-all ${
-                            isSelected
-                              ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] ring-1 ring-[#0071e3]"
-                              : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:bg-white"
-                          }`}
-                        >
-                          <span
-                            className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/15"
-                            style={{ backgroundColor: c.hex }}
-                          />
-                          <span className="truncate flex-1">{c.name}</span>
-                          {isSelected && <Check className="h-3 w-3 text-[#0071e3]" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {error && (
-                <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-                  {error}
-                </p>
-              )}
-
-              <div className="mt-6 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-sm"
-                >
-                  Continuar <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <ModelStep
+              data={data}
+              updateField={updateField}
+              selectPopularModel={selectPopularModel}
+              detectedModel={detectedModel}
+              previewImage={previewImage}
+              storageOptions={storageOptions}
+              colorOptions={colorOptions}
+              error={error}
+              goNext={goNext}
+              goBack={goBack}
+            />
           )}
 
-          {/* ========================================================================= */}
-          {/* ETAPA 2: ONDE VOCÊ COMPROU ESSE IPHONE?                                 */}
-          {/* ========================================================================= */}
+          {/* ETAPA 2: ONDE VOCÊ COMPROU ESSE IPHONE? */}
           {step === 2 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Onde você comprou esse {data.model || "iPhone"}?
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                Se foi com a gente, sua troca já começa com uma condição melhor.
-              </p>
-
-              <div className="mt-5 space-y-2.5">
-                {PURCHASE_ORIGIN_OPTIONS.map(opt => {
-                  const isSelected = data.purchaseLocation === opt.id;
-                  const isAnimating = animatingSelection === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        if (declaredLojinhaPurchase(opt.id)) {
-                          updateField("purchaseLocation", opt.id);
-                        } else {
-                          updateField("cpf", "");
-                          autoAdvance("purchaseLocation", opt.id);
-                        }
-                      }}
-                      className={`flex w-full flex-col justify-center rounded-2xl border p-4 text-left transition-all ${
-                        isSelected || isAnimating
-                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-sm"
-                          : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
-                      }`}
-                    >
-                      <span className="text-sm font-semibold">{opt.label}</span>
-                      {opt.desc && (
-                        <span
-                          className={`mt-1 text-xs ${
-                            isSelected || isAnimating ? "text-neutral-300" : "text-[#86868b]"
-                          }`}
-                        >
-                          {opt.desc}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {declaredLojinhaPurchase(data.purchaseLocation) && (
-                <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50/60 p-4 animate-fadeIn">
-                  <label htmlFor="trocafacil-cpf" className="text-sm font-bold text-purple-950">
-                    🎁 Quer garantir o bônus de fidelidade?
-                  </label>
-                  <p className="mt-1 text-xs leading-relaxed text-purple-900/80">
-                    Informe seu CPF para a gente localizar sua compra. Usamos só para conferir o cadastro: <b>não guardamos</b> o seu CPF.
-                    É opcional.
-                  </p>
-                  <input
-                    id="trocafacil-cpf"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    placeholder="000.000.000-00"
-                    value={data.cpf}
-                    onChange={e => updateField("cpf", e.target.value)}
-                    className="mt-3 min-h-[52px] w-full rounded-2xl border border-purple-200 bg-white px-4 text-base font-medium text-[#1d1d1f] outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-200/60"
-                  />
-                  {data.cpf && onlyDigits(data.cpf).length === 11 && !isValidCpf(data.cpf) && (
-                    <p className="mt-1.5 text-xs font-semibold text-red-600">CPF inválido. Confira os números.</p>
-                  )}
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={goNext}
-                      className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-4 text-sm font-semibold text-white transition hover:bg-black"
-                    >
-                      Continuar <ArrowRight className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        updateField("cpf", "");
-                        setStep(curr => curr + 1);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="flex min-h-[52px] flex-1 items-center justify-center rounded-2xl border border-[#e5e5e7] bg-white px-4 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7]"
-                    >
-                      Prefiro não informar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {error && (
-                <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-                  {error}
-                </p>
-              )}
-
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
-              </div>
-            </div>
+            <PurchaseStep
+              data={data}
+              updateField={updateField}
+              autoAdvance={autoAdvance}
+              animatingSelection={animatingSelection}
+              setStep={setStep}
+              error={error}
+              goNext={goNext}
+              goBack={goBack}
+            />
           )}
 
-          {/* ========================================================================= */}
-          {/* ETAPA 3: ICLOUD / BUSCAR IPHONE (ELIMINATÓRIA)                            */}
-          {/* ========================================================================= */}
+          {/* ETAPA 3: ICLOUD / BUSCAR IPHONE (ELIMINATÓRIA) */}
           {step === 3 && (
-            data.icloudFree === "Não" ? (
-              <div className="rounded-3xl border border-red-200 bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-                <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                  Ainda não conseguimos avaliar esse iPhone
-                </h2>
-                <p className="mt-2 text-sm text-[#6e6e73] leading-relaxed">
-                  Não compramos nem recebemos em troca aparelhos com bloqueio de iCloud. Quando você conseguir sair da conta Apple e
-                  desativar o <b>Buscar iPhone</b> (Ajustes &gt; seu nome &gt; Buscar), é só fazer uma nova avaliação.
-                </p>
-                <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => updateField("icloudFree", "")}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-1 rounded-2xl border border-[#e5e5e7] px-4 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7]"
-                  >
-                    <ArrowLeft className="h-4 w-4" /> Mudei a resposta
-                  </button>
-                  <a
-                    href={mainStoreUrl}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1d1d1f] px-4 text-sm font-semibold text-white transition hover:bg-black"
-                  >
-                    Vitrine da Loja <ArrowRight className="h-4 w-4" />
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <TriChoiceStep
-                title="O iPhone está livre de bloqueio do iCloud?"
-                subtitle="Precisa estar sem a conta Apple de outra pessoa e com o Buscar iPhone desativado (ou que você consiga desativar)."
-                options={[
-                  { value: "Sim", label: "Sim, está livre" },
-                  { value: "Não", label: "Não, está bloqueado ou não tenho a senha" },
-                  { value: "Não sei", label: "Não sei" },
-                ]}
-                value={data.icloudFree}
-                animating={animatingSelection}
-                onSelect={val => (val === "Não" ? updateField("icloudFree", val) : autoAdvance("icloudFree", val))}
-                onBack={goBack}
-              />
-            )
+            <IcloudStep
+              data={data}
+              updateField={updateField}
+              autoAdvance={autoAdvance}
+              animatingSelection={animatingSelection}
+              mainStoreUrl={mainStoreUrl}
+              goBack={goBack}
+            />
           )}
 
-          {/* ========================================================================= */}
-          {/* ETAPA 4: COMO ESTÁ A SAÚDE DA BATERIA? (SLIDER VISUAL)                  */}
-          {/* ========================================================================= */}
-          {step === 4 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Como está a saúde da bateria?
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                Veja em Ajustes › Bateria › Saúde da bateria.
-              </p>
+          {/* ETAPA 4: SAÚDE DA BATERIA (SLIDER VISUAL) */}
+          {step === 4 && <BatteryStep data={data} updateField={updateField} goNext={goNext} goBack={goBack} />}
 
-              <div className="mt-8 space-y-6">
-                {!data.batteryUnknown ? (
-                  <div className="rounded-2xl border border-neutral-100 bg-[#fbfbfd] p-5">
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-display text-5xl font-extrabold tracking-tight text-[#1d1d1f]">
-                        {data.batteryPercent}%
-                      </span>
-                      <span
-                        className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                          data.batteryPercent >= 90
-                            ? "bg-emerald-100 text-emerald-700"
-                            : data.batteryPercent >= 80
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {data.batteryPercent >= 90
-                          ? "Bateria ótima"
-                          : data.batteryPercent >= 80
-                          ? "Bateria boa"
-                          : "Manutenção recomendada"}
-                      </span>
-                    </div>
-
-                    <div className="mt-6">
-                      <input
-                        type="range"
-                        min={50}
-                        max={100}
-                        step={1}
-                        value={data.batteryPercent}
-                        onChange={e => updateField("batteryPercent", Number(e.target.value))}
-                        className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-neutral-200 accent-[#1d1d1f]"
-                      />
-                      <div className="mt-2 flex justify-between text-[11px] font-semibold text-[#86868b]">
-                        <span>50%</span>
-                        <span>100%</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-center">
-                    <p className="text-xs font-semibold text-[#0071e3]">
-                      Opção "Não sei informar" selecionada. Nossa equipe fará a checagem no atendimento.
-                    </p>
-                  </div>
-                )}
-
-                {/* Alternar Não sei */}
-                <button
-                  type="button"
-                  onClick={() => updateField("batteryUnknown", !data.batteryUnknown)}
-                  className={`w-full rounded-xl border py-2.5 text-xs font-semibold transition ${
-                    data.batteryUnknown
-                      ? "border-[#1d1d1f] bg-[#1d1d1f] text-white"
-                      : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
-                  }`}
-                >
-                  {data.batteryUnknown ? "Quero informar a porcentagem" : "Não sei informar a porcentagem"}
-                </button>
-              </div>
-
-              <div className="mt-8 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition shadow-sm"
-                >
-                  Continuar <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 5: E PRA QUAL IPHONE VOCÊ QUER TROCAR?                            */}
-          {/* ========================================================================= */}
+          {/* ETAPA 5: PRA QUAL IPHONE VOCÊ QUER TROCAR? */}
           {step === 5 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                E pra qual iPhone você quer trocar?
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                Pode ser um modelo mais novo ou mais antigo — aceitamos os dois.
-              </p>
-
-              {/* Botão de apenas venda em destaque */}
-              <button
-                type="button"
-                onClick={() => autoAdvance("targetModel", "Quero apenas vender (sem troca)")}
-                className={`mt-4 flex w-full items-center justify-between rounded-2xl border p-3.5 text-left text-xs font-bold transition-all ${
-                  data.targetModel === "Quero apenas vender (sem troca)"
-                    ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3]"
-                    : "border-blue-100 bg-blue-50/50 text-[#0071e3] hover:bg-blue-50"
-                }`}
-              >
-                <span>💰 Quero apenas vender meu aparelho (sem troca)</span>
-                <Check className="h-4 w-4" />
-              </button>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-                {TARGET_IPHONE_MODELS.map(targetName => {
-                  const isSelected = data.targetModel === targetName;
-                  const isAnimating = animatingSelection === targetName;
-                  return (
-                    <button
-                      key={targetName}
-                      type="button"
-                      onClick={() => autoAdvance("targetModel", targetName)}
-                      className={`flex h-12 items-center justify-center rounded-xl border px-3 text-center text-xs font-semibold transition-all ${
-                        isSelected || isAnimating
-                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.98] shadow-xs"
-                          : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
-                      }`}
-                    >
-                      <span className="truncate">{targetName}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {error && (
-                <p className="mt-3 rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600">
-                  {error}
-                </p>
-              )}
-
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPAS 5 A 12: DIAGNÓSTICO SIM / NÃO / NÃO SEI                           */}
-          {/* ========================================================================= */}
-          {step === 6 && (
-            <TriChoiceStep
-              title="Face ID funciona?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.faceId}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("faceId", val)}
-              onBack={goBack}
+            <TargetModelStep
+              data={data}
+              updateField={updateField}
+              autoAdvance={autoAdvance}
+              animatingSelection={animatingSelection}
+              error={error}
+              goNext={goNext}
+              goBack={goBack}
             />
           )}
 
-          {step === 7 && (
-            <TriChoiceStep
-              title="Tela original?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.screenOriginal}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("screenOriginal", val)}
-              onBack={goBack}
+          {/* ETAPAS 6 E 7: DIAGNÓSTICO SIM / NÃO / NÃO SEI (4 PERGUNTAS POR TELA) */}
+          {(step === STEP.functioning || step === STEP.history) && (
+            <DiagnosisStep
+              group={step - STEP.functioning}
+              data={data}
+              updateField={updateField}
+              error={error}
+              goNext={goNext}
+              goBack={goBack}
             />
           )}
 
-          {step === 8 && (
-            <TriChoiceStep
-              title="Bateria original?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.batteryOriginal}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("batteryOriginal", val)}
-              onBack={goBack}
+          {/* ETAPA 8: COMO ESTÁ O VISUAL DELE? */}
+          {step === STEP.visual && (
+            <VisualConditionStep
+              data={data}
+              autoAdvance={autoAdvance}
+              animatingSelection={animatingSelection}
+              goBack={goBack}
             />
           )}
 
-          {step === 9 && (
-            <TriChoiceStep
-              title="Câmeras funcionando?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.camerasOk}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("camerasOk", val)}
-              onBack={goBack}
+          {/* ETAPA 9: AGORA AS FOTOS (5 SLOTS DEDICADOS) */}
+          {step === STEP.photos && (
+            <PhotosStep
+              data={data}
+              updateField={updateField}
+              photoSlots={photoSlots}
+              fileInputRefs={fileInputRefs}
+              handlePhotoUpload={handlePhotoUpload}
+              removePhoto={removePhoto}
+              error={error}
+              goNext={goNext}
+              goBack={goBack}
             />
           )}
 
-          {step === 10 && (
-            <TriChoiceStep
-              title="Áudio funcionando?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.audioOk}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("audioOk", val)}
-              onBack={goBack}
+          {/* ETAPA 10: QUAL LOJA FICA MELHOR? */}
+          {step === STEP.unit && (
+            <UnitStep
+              data={data}
+              updateField={updateField}
+              settings={settings}
+              error={error}
+              goNext={goNext}
+              goBack={goBack}
             />
           )}
 
-          {step === 11 && (
-            <TriChoiceStep
-              title="Conector de carga funcionando?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.chargingPortOk}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("chargingPortOk", val)}
-              onBack={goBack}
+          {/* ETAPA 11: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO) */}
+          {step === STEP.summary && (
+            <SummaryStep
+              data={data}
+              photoSlots={photoSlots}
+              filledPhotosCount={filledPhotosCount}
+              unitLabel={unitLabel}
+              showPrices={showPrices}
+              loyaltyDeclared={loyaltyDeclared}
+              gradeConfig={gradeConfig}
+              valuation={valuation}
+              isSubmitting={isSubmitting}
+              setStep={setStep}
+              error={error}
+              goBack={goBack}
+              submitEvaluation={submitEvaluation}
             />
-          )}
-
-          {step === 12 && (
-            <TriChoiceStep
-              title="Aparelho já foi aberto?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.openedBefore}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("openedBefore", val)}
-              onBack={goBack}
-            />
-          )}
-
-          {step === 13 && (
-            <TriChoiceStep
-              title="Tem caixa?"
-              subtitle="Só marcar — Sim, Não ou Não sei."
-              value={data.hasBox}
-              animating={animatingSelection}
-              onSelect={val => autoAdvance("hasBox", val)}
-              onBack={goBack}
-            />
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 14: COMO ESTÁ O VISUAL DELE?                                       */}
-          {/* ========================================================================= */}
-          {step === 14 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Como está o visual dele?
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                Seja sincero — a conferência é presencial.
-              </p>
-
-              <div className="mt-5 space-y-2.5">
-                {VISUAL_CONDITION_OPTIONS.map(opt => {
-                  const isSelected = data.visualCondition === opt;
-                  const isAnimating = animatingSelection === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => autoAdvance("visualCondition", opt)}
-                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left text-sm font-semibold transition-all ${
-                        isSelected || isAnimating
-                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
-                          : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
-                      }`}
-                    >
-                      <span>{opt}</span>
-                      {(isSelected || isAnimating) && <Check className="h-4 w-4" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 15: AGORA AS FOTOS (5 SLOTS DEDICADOS)                             */}
-          {/* ========================================================================= */}
-          {step === 15 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Fotos do seu aparelho
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                As fotos da <strong className="text-[#1d1d1f]">Frente</strong> e da{" "}
-                <strong className="text-[#1d1d1f]">Traseira</strong> são obrigatórias para a
-                avaliação. As fotos são otimizadas automaticamente no seu navegador.
-              </p>
-
-              <div className="mt-5 grid grid-cols-2 gap-2.5">
-                {photoSlots.slice(0, 4).map(slot => (
-                  <PhotoSlotCard
-                    key={slot.key}
-                    slot={slot}
-                    onTrigger={() => fileInputRefs.current[slot.key]?.click()}
-                    onRemove={() => removePhoto(slot.key)}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-2.5">
-                <PhotoSlotCard
-                  slot={photoSlots[4]}
-                  onTrigger={() => fileInputRefs.current[photoSlots[4].key]?.click()}
-                  onRemove={() => removePhoto(photoSlots[4].key)}
-                  fullWidth
-                />
-              </div>
-
-              {/* Inputs de arquivo ocultos */}
-              {photoSlots.map(slot => (
-                <input
-                  key={slot.key}
-                  ref={el => {
-                    fileInputRefs.current[slot.key] = el;
-                  }}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => handlePhotoUpload(slot.key, e)}
-                />
-              ))}
-
-              {/* Observação opcional */}
-              <div className="mt-4">
-                <label className="block text-xs font-semibold text-[#6e6e73] mb-1">
-                  Alguma observação? (opcional)
-                </label>
-                <textarea
-                  value={data.notes}
-                  onChange={e => updateField("notes", e.target.value)}
-                  placeholder="Ex.: tenho carregador original, pequeno trinco na película..."
-                  rows={2}
-                  className="w-full rounded-xl border border-[#e5e5e7] bg-[#f5f5f7] p-3 text-xs text-[#1d1d1f] placeholder:text-[#86868b] outline-none focus:border-[#0071e3] focus:bg-white resize-none"
-                />
-              </div>
-
-              <div className="mt-6 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition shadow-sm"
-                >
-                  Continuar <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 16: QUAL LOJA FICA MELHOR?                                          */}
-          {/* ========================================================================= */}
-          {step === 16 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Qual loja fica melhor pra você?
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">
-                É lá que vamos conferir o aparelho e fechar a troca.
-              </p>
-
-              <div className="mt-5 space-y-2.5">
-                {STORE_UNITS.map(opt => {
-                  const isSelected = data.unit === opt.value;
-                  const isAnimating = animatingSelection === opt.value;
-                  const address = opt.value === "jardim" ? settings.addressJardim : settings.addressGll;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => autoAdvance("unit", opt.value)}
-                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left text-sm font-semibold transition-all ${
-                        isSelected || isAnimating
-                          ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
-                          : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
-                      }`}
-                    >
-                      <span className="flex flex-col">
-                        <span>{opt.label}</span>
-                        {address && (
-                          <span
-                            className={`mt-0.5 text-[11px] font-normal ${
-                              isSelected || isAnimating ? "text-white/75" : "text-[#86868b]"
-                            }`}
-                          >
-                            {address}
-                          </span>
-                        )}
-                      </span>
-                      {(isSelected || isAnimating) && <Check className="h-4 w-4 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 17: ÚLTIMA OLHADA ANTES DE ENVIAR (RESUMO & ENVIO)                  */}
-          {/* ========================================================================= */}
-          {step === 17 && (
-            <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-                Última olhada antes de enviar
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">Confere se está tudo certinho.</p>
-
-              {/* Tabela de conferência */}
-              <div className="mt-5 divide-y divide-neutral-100 rounded-2xl border border-[#e5e5e7] bg-white text-xs">
-                <SummaryRow label="Nome" value={data.name} />
-                <SummaryRow label="WhatsApp" value={data.whatsapp} />
-                <SummaryRow
-                  label="Modelo"
-                  value={`${data.model} ${data.storage ? data.storage : ""}`}
-                  highlight
-                />
-                <SummaryRow label="Comprou" value={data.purchaseLocation || "Não informado"} />
-                <SummaryRow label="Cor" value={data.color || "Não informada"} />
-                <SummaryRow
-                  label="Bateria"
-                  value={data.batteryUnknown ? "Não sei informar" : `${data.batteryPercent}%`}
-                />
-                <SummaryRow
-                  label="Quer trocar por"
-                  value={data.targetModel || "Apenas vender"}
-                  highlight
-                />
-                <SummaryRow label="iCloud livre" value={data.icloudFree || "Não informado"} />
-                <SummaryRow label="Estado" value={data.visualCondition || "Em análise"} />
-                <SummaryRow label="Loja" value={unitLabel || "Não informada"} />
-                <SummaryRow label="Fotos" value={`${filledPhotosCount} de 5`} />
-              </div>
-
-              {/* Fotos anexadas para conferência visual do aparelho */}
-              {filledPhotosCount > 0 && (
-                <div className="mt-4 rounded-2xl border border-neutral-200/80 bg-[#fbfbfd] p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#1d1d1f]">
-                      <Camera className="h-4 w-4 text-[#0071e3]" />
-                      Fotos do aparelho para conferência ({filledPhotosCount} de 5)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(15);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="text-xs font-semibold text-[#0071e3] hover:underline cursor-pointer"
-                    >
-                      Alterar fotos
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                    {photoSlots
-                      .filter((s) => s.previewUrl || s.file || s.dataUrl)
-                      .map((slot) => (
-                        <div
-                          key={slot.key}
-                          className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-2xs"
-                        >
-                          <img
-                            src={slot.previewUrl || slot.dataUrl}
-                            alt={slot.label}
-                            className="h-full w-full object-cover"
-                          />
-                          <span className="absolute bottom-1 inset-x-1 truncate rounded bg-black/65 px-1 py-0.5 text-[9px] font-medium text-white text-center backdrop-blur-xs">
-                            {slot.label}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Destaque da Pré-Avaliação */}
-              {!showPrices ? (
-                <div className="mt-4 rounded-2xl border border-blue-500/25 bg-blue-50/60 p-4">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#0071e3] flex items-center gap-1.5">
-                    ✨ Quase lá
-                  </span>
-                  <div className="mt-2 text-xs sm:text-sm font-medium text-[#1d1d1f] leading-relaxed">
-                    Ao enviar, nossa equipe técnica{unitLabel ? ` de ${unitLabel}` : ""} analisa suas fotos e o diagnóstico e passa a proposta direto no seu WhatsApp. O valor é confirmado na conferência presencial.
-                  </div>
-                  {loyaltyDeclared && (
-                    <p className="mt-2 text-xs font-semibold text-purple-900 flex items-center gap-1">
-                      🎁 Você disse que comprou com a gente: vamos conferir seu cadastro para aplicar o bônus de fidelidade.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                      💰 Pré-avaliação estimada
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${gradeConfig.badgeBg} ${gradeConfig.badgeText} ${gradeConfig.badgeBorder}`}
-                    >
-                      <span>{gradeConfig.iconText}</span>
-                      <span>{gradeConfig.label}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 font-display text-2xl font-bold text-emerald-950">
-                    {formatBRL(valuation.minEstimatedValue)} a {formatBRL(valuation.maxEstimatedValue)}
-                  </div>
-                  {valuation.targetModelName && valuation.minTradeDelta !== undefined && (
-                    <p className="mt-1.5 text-xs font-medium text-purple-900">
-                      🎯 Volta estimada no {valuation.targetModelName}:{" "}
-                      <b>
-                        {formatBRL(valuation.minTradeDelta)} a {formatBRL(valuation.maxTradeDelta ?? valuation.minTradeDelta)}
-                      </b>
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Mini resumo do diagnóstico técnico */}
-              <div className="mt-3 rounded-xl bg-[#f5f5f7] p-3 text-[11px] leading-relaxed text-[#6e6e73]">
-                <span className="font-bold text-[#1d1d1f]">Diagnóstico: </span>
-                iCloud ({data.icloudFree || "–"}), Face ID ({data.faceId || "–"}), Tela ({data.screenOriginal || "–"}), Bateria (
-                {data.batteryOriginal || "–"}), Câmeras ({data.camerasOk || "–"}), Áudio (
-                {data.audioOk || "–"}), Conector ({data.chargingPortOk || "–"}), Aberto (
-                {data.openedBefore || "–"}), Caixa ({data.hasBox || "–"}).
-              </div>
-
-              {/* Box de Confidencialidade e LGPD */}
-              <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-50/50 p-3 text-xs text-emerald-950 flex items-start gap-2.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span className="text-[11px] leading-relaxed text-emerald-900">
-                  <b>Avaliação 100% segura e confidencial:</b> Seus dados e fotos são tratados com sigilo
-                  conforme a <b>LGPD (Lei nº 13.709/2018)</b> exclusivamente para análise técnica e contato
-                  via WhatsApp. Consulte nossa{" "}
-                  <a
-                    href="/privacidade"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold underline text-emerald-800 hover:text-emerald-950"
-                  >
-                    Política de Privacidade
-                  </a>.
-                </span>
-              </div>
-
-              <div className="mt-6 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  disabled={isSubmitting}
-                  className="flex h-12 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7] disabled:opacity-50"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={submitEvaluation}
-                  disabled={isSubmitting}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] hover:bg-black font-semibold text-white transition-all shadow-md shadow-black/10 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Enviando proposta...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" /> Enviar para avaliação
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
           )}
         </div>
 
@@ -1990,185 +820,5 @@ export default function TradeIn() {
         </footer>
       </div>
     </main>
-  );
-}
-
-// COMPONENTE PARA TELAS DE 3 OPÇÕES (SIM, NÃO, NÃO SEI)
-function TriChoiceStep({
-  title,
-  subtitle,
-  value,
-  animating,
-  onSelect,
-  onBack,
-  options = SIMPLE_TRI_OPTIONS.map(opt => ({ value: opt, label: opt })),
-}: {
-  title: string;
-  subtitle: string;
-  value: string;
-  animating: string | null;
-  onSelect: (val: string) => void;
-  onBack: () => void;
-  options?: { value: string; label: string }[];
-}) {
-  return (
-    <div className="rounded-3xl border border-[#e5e5e7] bg-white p-5 sm:p-6 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] animate-fadeIn">
-      <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f]">
-        {title}
-      </h2>
-      <p className="mt-1 text-xs sm:text-sm text-[#6e6e73]">{subtitle}</p>
-
-      <div className="mt-6 space-y-2.5">
-        {options.map(({ value: opt, label }) => {
-          const isSelected = value === opt;
-          const isAnimating = animating === opt;
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onSelect(opt)}
-              className={`flex min-h-[52px] w-full items-center justify-center rounded-2xl border px-4 text-center text-sm font-semibold transition-all ${
-                isSelected || isAnimating
-                  ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.99] shadow-xs"
-                  : "border-[#e5e5e7] bg-white text-[#1d1d1f] hover:border-neutral-300 hover:bg-[#fbfbfd]"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-11 items-center justify-center gap-1 rounded-xl border border-[#e5e5e7] px-4 text-xs font-semibold text-neutral-700 transition hover:bg-[#f5f5f7]"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-        </button>
-        <span className="text-xs text-[#86868b]">Toque numa opção pra continuar →</span>
-      </div>
-    </div>
-  );
-}
-
-// CARD DE SLOT DE FOTO INDIVIDUAL
-function PhotoSlotCard({
-  slot,
-  onTrigger,
-  onRemove,
-  fullWidth = false,
-}: {
-  slot: PhotoSlot;
-  onTrigger: () => void;
-  onRemove: () => void;
-  fullWidth?: boolean;
-}) {
-  return (
-    <div
-      className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all ${
-        slot.previewUrl
-          ? "border-emerald-500/50 bg-emerald-50/20"
-          : slot.required
-          ? "border-neutral-300 bg-[#fbfbfd] hover:border-[#1d1d1f] hover:bg-white"
-          : "border-[#d5d5d7] bg-[#f5f5f7] hover:border-[#1d1d1f] hover:bg-white"
-      } ${fullWidth ? "min-h-[116px]" : "min-h-[136px]"} p-2 text-center cursor-pointer`}
-      onClick={onTrigger}
-    >
-      {slot.isCompressing ? (
-        <div className="flex flex-col items-center justify-center p-3 text-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0071e3] border-t-transparent mb-2" />
-          <span className="text-[11px] font-semibold text-[#1d1d1f]">Otimizando foto...</span>
-          <span className="text-[10px] text-[#86868b]">Reduzindo tamanho</span>
-        </div>
-      ) : slot.previewUrl ? (
-        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl group">
-          <img
-            src={slot.previewUrl}
-            alt={slot.label}
-            className="h-full w-full object-cover rounded-xl"
-          />
-          {slot.compressedSize && slot.originalSize && slot.originalSize > slot.compressedSize && (
-            <div className="absolute bottom-1 left-1 right-1 bg-black/75 backdrop-blur-xs rounded-md px-1.5 py-0.5 text-[9px] font-medium text-emerald-400 text-center">
-              ✓ Otimizada ({formatFileSize(slot.compressedSize)})
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white shadow-xs hover:bg-black"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-200/60">
-            <Camera className="h-4 w-4 text-[#1d1d1f]" />
-          </div>
-          <span className="mt-2 text-[11px] font-semibold text-[#1d1d1f] leading-tight px-1">
-            {slot.label}
-          </span>
-          {slot.required ? (
-            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded-md mt-1">
-              Obrigatória
-            </span>
-          ) : (
-            <span className="text-[10px] font-medium text-[#86868b] mt-1">Opcional</span>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// LINHA DE RESUMO FINAL
-function SummaryRow({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between px-3.5 py-2.5">
-      <span className="text-[#86868b] font-medium">{label}</span>
-      <span
-        className={`font-semibold text-right ${
-          highlight ? "text-[#1d1d1f] font-bold" : "text-neutral-700"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-// CAMPO GENÉRICO DE INPUT
-function Field({
-  label,
-  icon,
-  children,
-}: {
-  label: string;
-  icon: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">{label}</span>
-      <div className="group flex h-12 items-center gap-2.5 rounded-2xl border border-[#e5e5e7] bg-[#f5f5f7] px-3.5 transition-all focus-within:border-[#1d1d1f] focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5">
-        <span className="shrink-0 text-[#86868b] transition-colors group-focus-within:text-[#1d1d1f]">
-          {icon}
-        </span>
-        <div className="flex-1 min-w-0">{children}</div>
-      </div>
-    </label>
   );
 }

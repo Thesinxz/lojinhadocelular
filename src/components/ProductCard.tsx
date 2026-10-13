@@ -1,11 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
-import { Plus, Flame, BatteryCharging, Smartphone } from "lucide-react";
+import {
+  Plus,
+  Flame,
+  BatteryCharging,
+  Smartphone,
+  Check,
+  MessageCircle,
+} from "lucide-react";
 import type { ProductWithVariants } from "@/providers/trpc";
-import { formatBRL, installmentFromFees, type FeeTable } from "@contracts/types";
-import { minPrice, availableColors, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
+import {
+  formatBRL,
+  installmentFromFees,
+  type FeeTable,
+} from "@contracts/types";
+import {
+  minPrice,
+  availableColors,
+  optimizeImageUrl,
+  getImageSrcSet,
+} from "@/lib/shop";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
 import { useCart } from "@/lib/cart";
+import { useCompare } from "@/lib/compare";
+import { useShopSettings, waLink } from "@/lib/shop";
 import { formatCommercialSku } from "@/lib/commercialFormatting";
 
 export default function ProductCard({
@@ -21,14 +39,12 @@ export default function ProductCard({
 }) {
   const price = minPrice(product);
   const colors = availableColors(product);
-  const fee12 = fees["12"] ?? fees[String(installmentsMax)] ?? 0;
+  const feeMax = fees[String(installmentsMax)] ?? 0;
   const installment12 =
-    price != null
-      ? installmentFromFees(price, 12, fee12)
-      : null;
+    price != null ? installmentFromFees(price, installmentsMax, feeMax) : null;
 
   const rawBattery =
-    product.variants.find((v) => v.batteryHealth)?.batteryHealth ||
+    product.variants.find(v => v.batteryHealth)?.batteryHealth ||
     (product as { batteryHealth?: string | null }).batteryHealth;
   const batteryHealth = rawBattery
     ? rawBattery.includes("%") || isNaN(Number(rawBattery.replace(/\D/g, "")))
@@ -46,7 +62,11 @@ export default function ProductCard({
   }, []);
 
   // Resolve imagem oficial limpa (Apple transparent PNG) caso a imagem do banco seja genérica
-  const rawUrl = resolveProductImage(product.name, product.imageUrl, colors[0]?.color);
+  const rawUrl = resolveProductImage(
+    product.name,
+    product.imageUrl,
+    colors[0]?.color
+  );
   const optimizedUrl = optimizeImageUrl(rawUrl, 440, 85);
   const srcSet = getImageSrcSet(rawUrl);
 
@@ -54,13 +74,17 @@ export default function ProductCard({
     product.condition === "seminovo" || product.category === "iphone_seminovo";
 
   const { addItem } = useCart();
+  const compare = useCompare();
+  const inCompare = compare.has(product.id);
+  const shop = useShopSettings();
+  const whatsapp = shop.whatsappJardim || shop.whatsappGll || "5567992086012";
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (price == null) return;
     const defaultVariant =
-      product.variants.find((v) => v.available && (v.quantity ?? 1) > 0) ??
+      product.variants.find(v => v.available && (v.quantity ?? 1) > 0) ??
       product.variants[0];
 
     const conditionLabel =
@@ -71,7 +95,9 @@ export default function ProductCard({
     const productCode =
       typeof product.id === "number"
         ? `B${product.id + 1600}`
-        : `B${String(product.id || "1000").slice(0, 8).toUpperCase()}`;
+        : `B${String(product.id || "1000")
+            .slice(0, 8)
+            .toUpperCase()}`;
 
     const sku = formatCommercialSku(defaultVariant?.sku || productCode);
     const cartItemId = `${product.id}-${defaultVariant?.id ?? "default"}-${defaultVariant?.storage ?? "default"}`;
@@ -119,8 +145,13 @@ export default function ProductCard({
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-neutral-300 gap-1 py-4">
-            <Smartphone className="h-10 w-10 text-neutral-300" strokeWidth={1.5} />
-            <span className="text-[11px] text-neutral-400 font-medium">Foto indisponível</span>
+            <Smartphone
+              className="h-10 w-10 text-neutral-300"
+              strokeWidth={1.5}
+            />
+            <span className="text-[11px] text-neutral-400 font-medium">
+              Foto indisponível
+            </span>
           </div>
         )}
 
@@ -168,7 +199,7 @@ export default function ProductCard({
           </span>
           {colors.length > 0 && (
             <div className="flex items-center gap-1">
-              {colors.slice(0, 4).map((c) => (
+              {colors.slice(0, 4).map(c => (
                 <span
                   key={c.color}
                   title={c.color}
@@ -206,7 +237,7 @@ export default function ProductCard({
                 </span>
               </div>
               <p className="mt-0.5 text-[11px] text-neutral-500">
-                no Pix · ou 12x de{" "}
+                no Pix · ou {installmentsMax}x de{" "}
                 <span className="font-semibold text-neutral-800">
                   {formatBRL(installment12 ?? 0)}
                 </span>{" "}
@@ -214,18 +245,64 @@ export default function ProductCard({
               </p>
             </>
           ) : (
-            <p className="text-xs text-neutral-400 font-medium">Indisponível no momento</p>
+            <p className="text-xs text-neutral-400 font-medium">
+              Indisponível no momento
+            </p>
           )}
 
           {/* Botão Azul Adicionar */}
           <div className="mt-3">
+            {price == null ? (
+              <a
+                href={waLink(
+                  whatsapp,
+                  `Olá! Vi o ${product.name} na Lojinha do Celular, mas está indisponível. Tem previsão de chegada?`
+                )}
+                target="_blank"
+                rel="noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Consultar previsão</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="w-full rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Adicionar</span>
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleAddToCart}
-              className="w-full rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs cursor-pointer"
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                compare.toggle(product.id);
+              }}
+              disabled={!inCompare && compare.isFull}
+              aria-pressed={inCompare}
+              className={`mt-2 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                inCompare
+                  ? "border-[#0071e3] bg-[#eef5ff] text-[#0066cc]"
+                  : "border-neutral-200 text-neutral-600 hover:border-neutral-400 hover:text-neutral-900"
+              }`}
             >
-              <Plus className="h-4 w-4" />
-              <span>Adicionar</span>
+              {inCompare ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              <span>
+                {inCompare
+                  ? "Na comparação"
+                  : compare.isFull
+                    ? "Máx. 3 aparelhos"
+                    : "Comparar"}
+              </span>
             </button>
           </div>
         </div>
