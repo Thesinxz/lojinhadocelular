@@ -1,5 +1,12 @@
 import { ArrowLeft, Check } from "lucide-react";
-import { TARGET_IPHONE_MODELS, type EvaluationData } from "../constants";
+import { MODEL_GROUPS, TARGET_IPHONE_MODELS, type EvaluationData } from "../constants";
+
+const TARGET_SET = new Set(TARGET_IPHONE_MODELS);
+/** Os mesmos modelos de troca de antes, agora agrupados por série e sem rolagem interna. */
+const TARGET_GROUPS = MODEL_GROUPS.map(group => ({
+  ...group,
+  models: group.models.filter(name => TARGET_SET.has(name)),
+})).filter(group => group.models.length > 0);
 
 interface TargetModelStepProps {
   data: EvaluationData;
@@ -33,25 +40,34 @@ export default function TargetModelStep({ data, autoAdvance, animatingSelection,
         <Check className="h-4 w-4" />
       </button>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-        {TARGET_IPHONE_MODELS.map(targetName => {
-          const isSelected = data.targetModel === targetName;
-          const isAnimating = animatingSelection === targetName;
-          return (
-            <button
-              key={targetName}
-              type="button"
-              onClick={() => autoAdvance("targetModel", targetName)}
-              className={`flex h-12 items-center justify-center rounded-xl border px-3 text-center text-xs font-semibold transition-all ${
-                isSelected || isAnimating
-                  ? "border-[#1d1d1f] bg-[#1d1d1f] text-white scale-[0.98] shadow-xs"
-                  : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-300 hover:bg-white"
-              }`}
-            >
-              <span className="truncate">{targetName}</span>
-            </button>
-          );
-        })}
+      <div className="mt-5 space-y-3.5">
+        {TARGET_GROUPS.map(group => (
+          <div key={group.title}>
+            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[#86868b]">
+              {group.title}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {group.models.map(targetName => {
+                const isSelected = data.targetModel === targetName;
+                const isAnimating = animatingSelection === targetName;
+                return (
+                  <button
+                    key={targetName}
+                    type="button"
+                    onClick={() => autoAdvance("targetModel", targetName)}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold transition-all active:scale-95 ${
+                      isSelected || isAnimating
+                        ? "border-[#1d1d1f] bg-[#1d1d1f] text-white shadow-xs"
+                        : "border-[#e5e5e7] bg-[#f5f5f7] text-[#1d1d1f] hover:border-neutral-400 hover:bg-white"
+                    }`}
+                  >
+                    {targetName.replace(/^iPhone /, "")}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {error && (
