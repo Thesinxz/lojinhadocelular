@@ -211,6 +211,7 @@ export const submitEvaluationInput = z.object({
   color: z.string().max(60).optional().default(""),
   purchaseLocation: z.string().max(100).optional().default(""),
   targetModel: z.string().max(120).optional().default(""),
+  targetDetails: z.string().max(160).optional().default(""),
   faceId: z.string().max(30).optional().default(""),
   screenOriginal: z.string().max(30).optional().default(""),
   batteryOriginal: z.string().max(30).optional().default(""),
@@ -586,6 +587,7 @@ export const shopRouter = createRouter({
           color: (input.color || "").trim(),
           purchaseLocation: (input.purchaseLocation || "").trim(),
           targetModel: (input.targetModel || "").trim(),
+          targetDetails: (input.targetDetails || "").trim(),
           faceId: (input.faceId || "").trim(),
           screenOriginal: (input.screenOriginal || "").trim(),
           batteryOriginal: (input.batteryOriginal || "").trim(),
@@ -616,11 +618,11 @@ export const shopRouter = createRouter({
           if (pool) {
             const [res]: any = await pool.query(
               `INSERT INTO evaluations (
-                name, whatsapp, model, storage, color, purchase_location, target_model,
+                name, whatsapp, model, storage, color, purchase_location, target_model, target_details,
                 face_id, screen_original, battery_original, cameras_ok, audio_ok,
                 charging_port_ok, opened_before, has_box, visual_condition, \`condition\`,
                 battery, notes, photos_count, photos, status, unit
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`,
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`,
               [
                 input.name.trim(),
                 input.whatsapp.trim(),
@@ -629,6 +631,7 @@ export const shopRouter = createRouter({
                 (input.color || "").trim(),
                 (input.purchaseLocation || "").trim(),
                 (input.targetModel || "").trim(),
+                (input.targetDetails || "").trim(),
                 (input.faceId || "").trim(),
                 (input.screenOriginal || "").trim(),
                 (input.batteryOriginal || "").trim(),
@@ -671,6 +674,7 @@ export const shopRouter = createRouter({
         model: input.model.trim(),
         storage: (input.storage || "").trim(),
         targetModel: (input.targetModel || "").trim(),
+        targetDetails: (input.targetDetails || "").trim(),
         photosCount,
         unit: input.unit,
       });

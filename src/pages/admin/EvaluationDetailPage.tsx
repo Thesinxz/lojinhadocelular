@@ -437,6 +437,7 @@ export default function EvaluationDetailPage() {
 
             <dl className="mt-3 divide-y divide-[#f0f0f2]">
               <Answer label="Quer trocar por" value={evaluation.targetModel || "Apenas vender"} />
+              {evaluation.targetDetails && <Answer label="Capacidade e cor desejadas" value={evaluation.targetDetails} />}
               <Answer label="Onde comprou" value={evaluation.purchaseLocation} />
               <Answer label="iCloud livre" value={evaluation.icloudFree} />
               <Answer label="Face ID" value={evaluation.faceId} />

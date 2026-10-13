@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ValuationResult } from "@contracts/valuation";
 import { formatBRL, type getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import { StepActions, SummaryRow } from "../parts";
-import { STEP, type EvaluationData, type PhotoSlot } from "../constants";
+import { STEP, targetDetailsText, type EvaluationData, type PhotoSlot } from "../constants";
 
 interface SummaryStepProps {
   data: EvaluationData;
@@ -45,7 +45,7 @@ export default function SummaryStep({ data, photoSlots, filledPhotosCount, unitL
         />
         <SummaryRow
           label="Quer trocar por"
-          value={data.targetModel || "Apenas vender"}
+          value={[data.targetModel || "Apenas vender", targetDetailsText(data)].filter(Boolean).join(" — ")}
           highlight
         />
         <SummaryRow label="iCloud livre" value={data.icloudFree || "Não informado"} />

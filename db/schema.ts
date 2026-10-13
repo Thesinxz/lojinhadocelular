@@ -115,6 +115,8 @@ export const evaluations = mysqlTable(
     color: varchar("color", { length: 60 }).default(""),
     purchaseLocation: varchar("purchase_location", { length: 100 }).default(""),
     targetModel: varchar("target_model", { length: 120 }).default(""),
+    // Capacidade e cor do aparelho desejado na troca (ex.: "256 GB · Cosmic Orange").
+    targetDetails: varchar("target_details", { length: 160 }).default(""),
     faceId: varchar("face_id", { length: 30 }).default(""),
     screenOriginal: varchar("screen_original", { length: 30 }).default(""),
     batteryOriginal: varchar("battery_original", { length: 30 }).default(""),

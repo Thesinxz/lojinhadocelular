@@ -23,8 +23,10 @@ import {
   formatCpfInput,
   formatPhoneInput,
   publicHighlights,
+  SELL_ONLY_LABEL,
   STEP,
   TOTAL_STEPS,
+  targetDetailsText,
   type EvaluationData,
   type PhotoSlot,
   type PhotoSlotKey,
@@ -347,6 +349,10 @@ export default function TradeIn() {
         setError("Selecione o modelo que deseja ou escolha apenas vender.");
         return false;
       }
+      if (data.targetModel !== SELL_ONLY_LABEL && (!data.targetStorage || !data.targetColor)) {
+        setError("Escolha a capacidade e a cor do iPhone que você quer.");
+        return false;
+      }
     } else if (step === STEP.functioning || step === STEP.history) {
       const fields = diagnosisFieldsOf(step - STEP.functioning);
       if (fields.some(field => !data[field])) {
@@ -451,7 +457,7 @@ export default function TradeIn() {
       `🎨 *Cor:* ${data.color || "Não informada"}`,
       `🏬 *Onde comprou:* ${data.purchaseLocation || "Não informado"}`,
       `🔋 *Saúde da bateria:* ${batteryText}`,
-      `🎯 *Interesse de troca:* ${data.targetModel || "Apenas vender"}`,
+      `🎯 *Interesse de troca:* ${[data.targetModel || "Apenas vender", targetDetailsText(data)].filter(Boolean).join(" — ")}`,
       `📍 *Loja:* ${unitLabel || "Não informada"}`,
       "",
       ...(showPrices ? [`✨ *Classificação Preliminar:* ${gradeConfig.label} (${valuation.grade})`] : []),
@@ -497,6 +503,7 @@ export default function TradeIn() {
         color: data.color.trim(),
         purchaseLocation: data.purchaseLocation,
         targetModel: data.targetModel,
+        targetDetails: targetDetailsText(data),
         faceId: data.faceId,
         screenOriginal: data.screenOriginal,
         batteryOriginal: data.batteryOriginal,
@@ -687,9 +694,11 @@ export default function TradeIn() {
           {step === 5 && (
             <TargetModelStep
               data={data}
+              updateField={updateField}
               autoAdvance={autoAdvance}
               animatingSelection={animatingSelection}
               error={error}
+              goNext={goNext}
               goBack={goBack}
             />
           )}

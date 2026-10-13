@@ -3,7 +3,7 @@ import SEO from "@/components/SEO";
 import { waLink } from "@/lib/shop";
 import { formatBRL, type getGradeBadgeConfig } from "@/lib/iphoneKeys";
 import type { ValuationResult } from "@contracts/valuation";
-import type { EvaluationData } from "./constants";
+import { targetDetailsText, type EvaluationData } from "./constants";
 
 interface SuccessScreenProps {
   data: EvaluationData;
@@ -114,6 +114,9 @@ export default function SuccessScreen({
                   </span>
                   <span className="mt-0.5 font-display text-base font-bold text-purple-950 block">
                     {data.targetModel}
+                    {targetDetailsText(data) && (
+                      <span className="block text-xs font-medium text-purple-800">{targetDetailsText(data)}</span>
+                    )}
                   </span>
                 </div>
               )}

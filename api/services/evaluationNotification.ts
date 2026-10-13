@@ -15,6 +15,7 @@ export interface EvaluationNotificationInput {
   model: string;
   storage?: string | null;
   targetModel?: string | null;
+  targetDetails?: string | null;
   photosCount?: number | null;
   /** Loja escolhida pelo cliente (vai só no webhook; o template do Cloud tem parâmetros fixos). */
   unit?: StoreUnit | "" | null;
@@ -44,6 +45,7 @@ function notificationPayload(input: EvaluationNotificationInput) {
       model: input.model,
       storage: input.storage || "",
       targetModel: input.targetModel || "",
+      targetDetails: input.targetDetails || "",
       photosCount: input.photosCount || 0,
       unit: input.unit || "",
       unitLabel: STORE_UNITS.find((u) => u.value === input.unit)?.label ?? "",
@@ -140,7 +142,7 @@ async function sendEvolutionTeamMessage(input: EvaluationNotificationInput): Pro
   const lines = [
     `📱 Nova avaliação #${input.id}`,
     `${input.name} — ${[input.model, input.storage].filter(Boolean).join(" ")}`,
-    input.targetModel ? `Quer: ${input.targetModel}` : "",
+    input.targetModel ? `Quer: ${[input.targetModel, input.targetDetails].filter(Boolean).join(" — ")}` : "",
     unitLabel ? `Loja: ${unitLabel}` : "",
     `WhatsApp: ${input.whatsapp}`,
     `Fotos: ${input.photosCount || 0}`,

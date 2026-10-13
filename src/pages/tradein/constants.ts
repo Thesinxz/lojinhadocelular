@@ -121,6 +121,9 @@ export type EvaluationData = {
   batteryPercent: number;
   batteryUnknown: boolean;
   targetModel: string;
+  /** Capacidade e cor do aparelho desejado (só quando há troca). */
+  targetStorage: string;
+  targetColor: string;
   faceId: string;
   screenOriginal: string;
   batteryOriginal: string;
@@ -147,6 +150,8 @@ export const INITIAL_EVALUATION: EvaluationData = {
   batteryPercent: 90,
   batteryUnknown: false,
   targetModel: "",
+  targetStorage: "",
+  targetColor: "",
   faceId: "",
   screenOriginal: "",
   batteryOriginal: "",
@@ -216,3 +221,11 @@ export const STEP = {
   summary: 11,
 } as const;
 export const TOTAL_STEPS = 12;
+
+export const SELL_ONLY_LABEL = "Quero apenas vender (sem troca)";
+
+/** "256 GB · Cosmic Orange" (ou só uma das partes); vazio quando não há troca. */
+export function targetDetailsText(data: Pick<EvaluationData, "targetModel" | "targetStorage" | "targetColor">): string {
+  if (!data.targetModel || data.targetModel === SELL_ONLY_LABEL) return "";
+  return [data.targetStorage, data.targetColor].filter(Boolean).join(" · ");
+}
