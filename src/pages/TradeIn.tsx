@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink, getMainStoreUrl } from "@/lib/shop";
 import { trpc } from "@/providers/trpc";
-import { safeStorage } from "@/lib/storage";
+import { safeStorage, safeSessionStorage } from "@/lib/storage";
 import {
   detectIphoneModel,
   getIphoneModelColorImage,
@@ -42,13 +42,31 @@ import PhotosStep from "@/pages/tradein/steps/PhotosStep";
 import UnitStep from "@/pages/tradein/steps/UnitStep";
 import SummaryStep from "@/pages/tradein/steps/SummaryStep";
 
+/** Progresso do cliente na aba (sem CPF e sem fotos): sobrevive a recarregar a página ou a um corte de conexão. */
+const PROGRESS_KEY = "lojinha_tradein_progress_v1";
+
+function readSavedProgress(): { step: number; data: EvaluationData; lgpdConsent: boolean } | null {
+  try {
+    const raw = safeSessionStorage.getItem(PROGRESS_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { step?: unknown; data?: Partial<EvaluationData>; lgpdConsent?: unknown };
+    if (typeof saved.step !== "number" || !saved.data || typeof saved.data !== "object") return null;
+    // As fotos não são guardadas: se o cliente já tinha passado delas, volta para a etapa das fotos.
+    const step = Math.min(Math.max(0, Math.floor(saved.step)), STEP.photos);
+    return { step, data: { ...INITIAL_EVALUATION, ...saved.data, cpf: "" }, lgpdConsent: saved.lgpdConsent === true };
+  } catch {
+    return null;
+  }
+}
+
 export default function TradeIn() {
   const settings = useShopSettings();
   const fallbackDestination = settings.whatsappJardim || settings.whatsappGll || "5567992086012";
   const submitMutation = trpc.shop.submitEvaluation.useMutation();
   const preparePhotoUploadMutation = trpc.shop.prepareEvaluationPhotoUpload.useMutation();
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<EvaluationData>(INITIAL_EVALUATION);
+  const [savedProgress] = useState(readSavedProgress);
+  const [step, setStep] = useState(savedProgress?.step ?? 0);
+  const [data, setData] = useState<EvaluationData>(savedProgress?.data ?? INITIAL_EVALUATION);
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
@@ -56,8 +74,14 @@ export default function TradeIn() {
   const [photoWarning, setPhotoWarning] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Consentimento precisa de ato afirmativo: começa desmarcado.
-  const [lgpdConsent, setLgpdConsent] = useState(false);
+  const [lgpdConsent, setLgpdConsent] = useState(savedProgress?.lgpdConsent ?? false);
   const [animatingSelection, setAnimatingSelection] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sent) return;
+    const { cpf: _cpf, ...dataWithoutCpf } = data;
+    safeSessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ step, data: dataWithoutCpf, lgpdConsent }));
+  }, [sent, step, data, lgpdConsent]);
 
   const fileInputRefs = useRef<{ [key in PhotoSlotKey]?: HTMLInputElement | null }>({});
 
@@ -300,6 +324,10 @@ export default function TradeIn() {
         setError("Selecione ou digite o modelo do seu iPhone.");
         return false;
       }
+      if (!data.storage || !data.color) {
+        setError("Escolha a capacidade e a cor do aparelho para continuar.");
+        return false;
+      }
     } else if (step === 2) {
       if (!data.purchaseLocation) {
         setError("Selecione onde comprou o aparelho.");
@@ -527,6 +555,7 @@ export default function TradeIn() {
     // aberto quando o navegador bloqueava a navegação após uma operação assíncrona.
     const whatsappUrl = waLink(destination, summaryText);
     setWhatsappUrl(whatsappUrl);
+    safeSessionStorage.removeItem(PROGRESS_KEY);
     setSent(true);
   }
 
@@ -545,9 +574,11 @@ export default function TradeIn() {
         destination={destination}
         mainStoreUrl={mainStoreUrl}
         onReset={() => {
+          safeSessionStorage.removeItem(PROGRESS_KEY);
           setSent(false);
           setStep(0);
           setData(INITIAL_EVALUATION);
+          setLgpdConsent(false);
         }}
       />
     );

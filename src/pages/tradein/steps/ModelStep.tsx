@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Smartphone, Sparkles } from "lucide-react";
 import type { IphoneColorSpec, IphoneModelSpec } from "@/lib/iphoneCatalog";
 import { Field, StepActions } from "../parts";
@@ -20,6 +20,7 @@ interface ModelStepProps {
 export default function ModelStep({ data, updateField, selectPopularModel, detectedModel, previewImage, storageOptions, colorOptions, error, goNext, goBack }: ModelStepProps) {
   // `picked`: o cliente tocou num modelo da lista; a lista recolhe e aparecem capacidade e cor.
   const [picked, setPicked] = useState(false);
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   const query = data.model.trim().toLowerCase();
   const exactMatch = Boolean(detectedModel) && detectedModel!.name.toLowerCase() === query;
@@ -30,6 +31,11 @@ export default function ModelStep({ data, updateField, selectPopularModel, detec
   // Modelo digitado que não está na lista: segue direto para capacidade e cor.
   const noMatch = Boolean(query) && groups.length === 0;
   const showDetails = picked || exactMatch || noMatch;
+
+  // Ao escolher o modelo, leva o cliente até capacidade e cor (a barra "Continuar" já está à vista).
+  useEffect(() => {
+    if (picked) detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [picked]);
 
   function changeModel() {
     setPicked(false);
@@ -95,7 +101,9 @@ export default function ModelStep({ data, updateField, selectPopularModel, detec
 
         {/* Modelo escolhido, em formato compacto */}
         {showDetails && (
-          <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-neutral-50 p-3 animate-fadeIn">
+          <div
+            ref={detailsRef}
+            className="flex scroll-mt-4 items-center gap-3 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-neutral-50 p-3 animate-fadeIn">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-neutral-100 bg-white p-1.5 shadow-xs">
               {detectedModel && previewImage ? (
                 <img
