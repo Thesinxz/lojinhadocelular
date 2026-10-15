@@ -139,10 +139,16 @@ export async function sendPushToEvaluationStaff(
   payload: PushPayload,
   sender?: PushSender,
 ): Promise<number> {
-  if (!sender && !isPushConfigured()) return 0;
+  if (!sender && !isPushConfigured()) {
+    console.warn("[Push] Desligado: faltam VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY no ambiente.");
+    return 0;
+  }
   try {
     const subscriptions = await listSubscriptions();
-    if (subscriptions.length === 0) return 0;
+    if (subscriptions.length === 0) {
+      console.warn("[Push] Nenhum navegador inscrito (ligue o sino no painel).");
+      return 0;
+    }
     const send = sender ?? defaultSender();
     const body = JSON.stringify(payload);
     const userCache = new Map<number, Awaited<ReturnType<typeof getUserById>>>();
@@ -165,6 +171,7 @@ export async function sendPushToEvaluationStaff(
         }
       }),
     );
+    console.info(`[Push] ${delivered}/${subscriptions.length} aviso(s) aceito(s) pelo serviço push.`);
     return delivered;
   } catch (err) {
     console.error("[Push] Falha ao preparar notificações:", err instanceof Error ? err.message : err);
