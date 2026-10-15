@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 import Produto from "./pages/Produto";
 import TradeIn from "./pages/TradeIn";
 import { getMainStoreUrl } from "./lib/shop";
+import { usePageViewTracking } from "./lib/usePageViewTracking";
 
 import TvMode from "./pages/TvMode";
 
@@ -52,6 +53,8 @@ export default function App() {
   const isTrocaFacilDomain =
     typeof window !== "undefined" &&
     window.location.hostname.includes("trocafacil");
+
+  usePageViewTracking(!isTv && !isAdmin);
 
   // Se estiver no subdomínio do Troca Fácil e tentar acessar vitrine, catálogo ou produto, redireciona para a loja principal
   useEffect(() => {

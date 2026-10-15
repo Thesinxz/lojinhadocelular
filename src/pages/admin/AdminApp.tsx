@@ -17,6 +17,7 @@ const AccountPage = lazy(() => import("./AccountPage"));
 const ActivityPage = lazy(() => import("./ActivityPage"));
 const ErpPage = lazy(() => import("./ErpPage"));
 const ReportsPage = lazy(() => import("./ReportsPage"));
+const TrafficPage = lazy(() => import("./TrafficPage"));
 
 function PageFallback() {
   return <div className="h-64 animate-pulse rounded-2xl border border-[#e5e5e7] bg-[#f5f5f7]" />;
@@ -129,6 +130,16 @@ function AdminGate() {
               <Suspense fallback={<PageFallback />}>
                 <ReportsPage />
               </Suspense>
+            }
+          />
+          <Route
+            path="acessos"
+            element={
+              <RequireCap cap="settings.manage">
+                <Suspense fallback={<PageFallback />}>
+                  <TrafficPage />
+                </Suspense>
+              </RequireCap>
             }
           />
           <Route

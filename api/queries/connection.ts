@@ -274,6 +274,20 @@ export async function ensureTables() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        day VARCHAR(10) NOT NULL,
+        visitor VARCHAR(32) NOT NULL,
+        path VARCHAR(120) NOT NULL,
+        site VARCHAR(12) NOT NULL,
+        device VARCHAR(10) NOT NULL,
+        source VARCHAR(20) NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_page_views_day (day)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,

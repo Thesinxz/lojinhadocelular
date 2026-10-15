@@ -36,6 +36,7 @@ import type { ShopProduct } from "./erp/types";
 import { getAdminSettings, saveSettings } from "./services/settingsStore";
 import { evaluationProcedures } from "./adminEvaluations";
 import { pushProcedures } from "./adminPush";
+import { trafficProcedures } from "./adminTraffic";
 import { parseValuationConfig } from "./valuation/config";
 import { loadValuationConfig, valuationProcedures } from "./adminValuation";
 import { dashboardProcedures } from "./adminDashboard";
@@ -503,6 +504,7 @@ export const adminRouter = createRouter({
 
   ...evaluationProcedures,
   ...pushProcedures,
+  ...trafficProcedures,
   ...valuationProcedures,
 
   erpOverride: adminProcedure

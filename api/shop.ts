@@ -15,13 +15,22 @@ import { dispatchCustomerEventInBackground } from "./services/autoMessages";
 import { runLoyaltyCheckInBackground } from "./services/loyaltyCheck";
 import { declaredLojinhaPurchase } from "@contracts/loyalty";
 import { isValidCpf, normalizeBrazilPhone } from "@contracts/brDocs";
+import {
+  allowPageView,
+  classifySource,
+  deviceFromUserAgent,
+  isBotUserAgent,
+  normalizeViewPath,
+  recordPageView,
+  visitorHash,
+} from "./services/pageViews";
 import { allowInterestClick, recordProductInterest } from "./services/productInterest";
 import { getRecentBuyers } from "./services/socialProof";
 import { getSingleSetting } from "./services/settingsStore";
 import { clientIpFromRequest } from "./auth";
 import { sanitizeVisit } from "@contracts/visit";
 import { sendPushToEvaluationStaff } from "./services/pushNotifications";
-import { localDateKey } from "./dashboard";
+import { DASHBOARD_TIMEZONE, localDateKey } from "./dashboard";
 import {
   notifyEvaluationCreated,
   persistEvaluationNotificationStatus,
@@ -489,6 +498,40 @@ export const shopRouter = createRouter({
     if (enabled !== "1") return { title, items: [] as Awaited<ReturnType<typeof getRecentBuyers>> };
     return { title, items: await getRecentBuyers() };
   }),
+
+  /** Conta uma visualização de página (sem cookies; ignora robôs). Nunca falha para o visitante. */
+  trackView: publicQuery
+    .input(
+      z.object({
+        path: z.string().max(300),
+        site: z.enum(["loja", "trocafacil"]),
+        /** Só na primeira página da visita: de onde a pessoa veio. */
+        entry: z
+          .object({ referrer: z.string().max(500).default(""), utmSource: z.string().max(60).default("") })
+          .optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const ip = clientIpFromRequest(ctx.req);
+        const userAgent = ctx.req.headers.get("user-agent") ?? "";
+        if (isBotUserAgent(userAgent) || !allowPageView(ip)) return { ok: false };
+        const day = localDateKey(new Date(), DASHBOARD_TIMEZONE);
+        const ownHost = (ctx.req.headers.get("host") ?? "").split(":")[0].toLowerCase().replace(/^www\./, "");
+        await recordPageView({
+          day,
+          visitor: visitorHash(ip, userAgent, day),
+          path: normalizeViewPath(input.path),
+          site: input.site,
+          device: deviceFromUserAgent(userAgent),
+          source: input.entry ? classifySource(input.entry.referrer, input.entry.utmSource, ownHost) : "",
+        });
+        return { ok: true };
+      } catch (err) {
+        console.error("[Views] Falha ao registrar visualização:", err instanceof Error ? err.message : err);
+        return { ok: false };
+      }
+    }),
 
   /** Conta um clique de interesse (pedir no WhatsApp) em um produto existente da vitrine. */
   trackInterest: publicQuery

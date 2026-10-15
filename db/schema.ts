@@ -258,3 +258,21 @@ export const evaluationErpEntries = mysqlTable("evaluation_erp_entries", {
   userName: varchar("user_name", { length: 80 }).notNull().default(""),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/** Visualizações de página do site (sem cookies: visitante = hash diário anônimo). */
+export const pageViews = mysqlTable(
+  "page_views",
+  {
+    id: serial("id").primaryKey(),
+    day: varchar("day", { length: 10 }).notNull(), // AAAA-MM-DD (Campo Grande)
+    visitor: varchar("visitor", { length: 32 }).notNull(),
+    path: varchar("path", { length: 120 }).notNull(),
+    site: varchar("site", { length: 12 }).notNull(), // loja | trocafacil
+    device: varchar("device", { length: 10 }).notNull(), // mobile | desktop | tablet
+    source: varchar("source", { length: 20 }).notNull().default(""), // só na 1ª página da visita
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    dayIdx: index("idx_page_views_day").on(table.day),
+  }),
+);
