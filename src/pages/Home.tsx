@@ -68,9 +68,12 @@ const PRICE_RANGES = [
   { key: "7mais", label: "Acima de R$ 7.000", min: 7000, max: Infinity },
 ] as const;
 
-const CATEGORY_PILLS: { label: string; value: CategoryValue | undefined }[] = [
+type HomeCategory = CategoryValue | "iphones";
+
+const CATEGORY_PILLS: { label: string; value: HomeCategory | undefined }[] = [
   { label: "Todos", value: undefined },
-  { label: "iPhones", value: "iphone_lacrado" },
+  { label: "iPhones", value: "iphones" },
+  { label: "Lacrados", value: "iphone_lacrado" },
   { label: "Seminovos", value: "iphone_seminovo" },
   { label: "Android", value: "android" },
   { label: "Acessórios", value: "acessorio" },
@@ -94,7 +97,7 @@ export default function Home() {
     return undefined;
   }, [searchParams]);
 
-  const [selectedCategory, setSelectedCategory] = useState<CategoryValue | undefined>(
+  const [selectedCategory, setSelectedCategory] = useState<HomeCategory | undefined>(
     initialCategory,
   );
   const [search, setSearch] = useState("");
@@ -158,7 +161,9 @@ export default function Home() {
     let list = allProducts;
 
     if (selectedCategory) {
-      list = list.filter((p) => p.category === selectedCategory);
+      list = selectedCategory === "iphones"
+        ? list.filter((p) => p.category === "iphone_lacrado" || p.category === "iphone_seminovo")
+        : list.filter((p) => p.category === selectedCategory);
     }
 
     const range = PRICE_RANGES.find((r) => r.key === priceKey) ?? PRICE_RANGES[0];
