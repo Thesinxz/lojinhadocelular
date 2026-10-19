@@ -181,7 +181,12 @@ app.use(
 // Cache agressivo para assets com hash (JS/CSS/fonts) — imutáveis
 app.use("/assets/*", async (c, next) => {
   await next();
-  c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  if (c.res.status >= 200 && c.res.status < 300) {
+    c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  } else {
+    // Missing assets can appear briefly during a rolling deploy; never cache a 404 as immutable.
+    c.res.headers.set("Cache-Control", "no-store");
+  }
 });
 
 // Entrega direta de imagens estáticas com headers abertos para WhatsApp, Facebook e crawlers

@@ -6,6 +6,8 @@ import { TRPCProvider } from "@/providers/trpc"
 import ErrorBoundary from '@/components/ErrorBoundary'
 import App from './App.tsx'
 
+document.documentElement.dataset.release = 'asset-cache-fix-20261019'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
