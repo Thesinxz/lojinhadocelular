@@ -48,6 +48,8 @@ export function replaceOrInjectMeta(
     origin: string;
     canonicalUrl?: string;
     noindex?: boolean;
+    imgWidth?: string;
+    imgHeight?: string;
   },
 ): string {
   // Remove título anterior
@@ -70,8 +72,8 @@ export function replaceOrInjectMeta(
 
   // WhatsApp e redes sociais recomendam 1200x630 para banners e 600x600 para produtos individuais
   const isProduct = tags.ogType === "product";
-  const imgWidth = isProduct ? "600" : "1200";
-  const imgHeight = isProduct ? "600" : "630";
+  const imgWidth = tags.imgWidth || (isProduct ? "600" : "1200");
+  const imgHeight = tags.imgHeight || (isProduct ? "600" : "630");
   const isJpg = tags.img.toLowerCase().includes(".jpg") || tags.img.toLowerCase().includes(".jpeg");
   const imgType = isJpg ? "image/jpeg" : "image/png";
 
@@ -178,7 +180,15 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     "lojinhadocelular.com";
   const origin = `${proto}://${host}`;
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
-  const canonicalDomain = isLocal ? origin : "https://lojinhadocelular.com";
+  const isTradeInHost = host.split(":")[0].toLowerCase() === "trocafacil.lojinhadocelular.com";
+  const canonicalDomain = isLocal
+    ? origin
+    : isTradeInHost
+      ? "https://trocafacil.lojinhadocelular.com"
+      : "https://lojinhadocelular.com";
+  const tradeInImage = `${origin}/images/troca-facil-og.png`;
+  let imgWidth: string | undefined;
+  let imgHeight: string | undefined;
 
   let title = "Lojinha do Celular — iPhones, Smartphones & Assistência Técnica";
   let desc =
@@ -193,6 +203,14 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
 
   // ROTA HOME (/)
   if (pathname === "/" || pathname === "") {
+    if (isTradeInHost) {
+      title = "Troca Fácil — Avalie e Troque seu Celular | Lojinha do Celular";
+      desc =
+        "Avalie seu celular usado e use o valor como desconto no seu próximo iPhone. Faça sua pré-avaliação online com a Troca Fácil da Lojinha do Celular.";
+      img = tradeInImage;
+      imgWidth = "1729";
+      imgHeight = "910";
+    }
     canonicalUrl = `${canonicalDomain}/`;
   }
   // ROTA DE AVALIAÇÃO / TROCA FÁCIL (/avaliacao)
@@ -200,7 +218,9 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     title = "Avaliação e Troca de Celular — Troca Fácil Lojinha do Celular";
     desc =
       "Venda ou troque seu celular e iPhone usado com segurança e melhor avaliação de mercado. Use como desconto na compra do seu novo aparelho na Lojinha do Celular em Jardim-MS. WhatsApp: (67) 99208-6012.";
-    img = `${origin}/images/og-preview.jpg?v=3`;
+    img = tradeInImage;
+    imgWidth = "1729";
+    imgHeight = "910";
     canonicalUrl = `${canonicalDomain}/avaliacao`;
   }
   // ROTA DE PRIVACIDADE (/privacidade)
@@ -400,6 +420,8 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     noindex,
     ogType,
     origin,
+    imgWidth,
+    imgHeight,
   });
 
   if (isSocialScraper) {
