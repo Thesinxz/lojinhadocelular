@@ -228,21 +228,37 @@ app.get("/images/:file", async c => {
 app.get("/images/iphones/:file", async c => {
   const fileName = c.req.param("file");
   const safeName = path.basename(fileName);
-  const baseName = safeName.replace(/\.(png|webp)$/i, "");
+  const baseName = safeName.replace(/\.(png|jpe?g|webp)$/i, "");
 
-  const possiblePaths = [
+  const exactPaths = [
+    path.resolve(process.cwd(), "public/images/iphones", safeName),
+    path.resolve(process.cwd(), "dist/public/images/iphones", safeName),
+    path.resolve(import.meta.dirname, "public/images/iphones", safeName),
+    path.resolve(import.meta.dirname, "../public/images/iphones", safeName),
+  ];
+  const webpFallbackPaths = [
     path.resolve(process.cwd(), "public/images/iphones", `${baseName}.webp`),
     path.resolve(process.cwd(), "dist/public/images/iphones", `${baseName}.webp`),
     path.resolve(import.meta.dirname, "public/images/iphones", `${baseName}.webp`),
     path.resolve(import.meta.dirname, "../public/images/iphones", `${baseName}.webp`),
-    path.resolve(process.cwd(), "public/images/iphones", safeName),
-    path.resolve(process.cwd(), "dist/public/images/iphones", safeName),
   ];
+  const requestedJpeg = path.extname(safeName).toLowerCase() === ".jpg" ||
+    path.extname(safeName).toLowerCase() === ".jpeg";
+  const possiblePaths = requestedJpeg
+    ? exactPaths
+    : [...webpFallbackPaths, ...exactPaths];
 
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
       const ext = path.extname(p).toLowerCase();
-      const contentType = ext === ".webp" ? "image/webp" : "image/png";
+      const contentType =
+        ext === ".webp"
+          ? "image/webp"
+          : ext === ".jpg" || ext === ".jpeg"
+            ? "image/jpeg"
+            : ext === ".png"
+              ? "image/png"
+              : "application/octet-stream";
       const buffer = fs.readFileSync(p);
       return c.body(buffer, 200, {
         "Content-Type": contentType,
