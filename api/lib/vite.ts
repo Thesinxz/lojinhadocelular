@@ -365,14 +365,15 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
           foundProduct.warranty ||
           firstVariant?.warranty ||
           (isLacrado ? "1 ano de garantia" : "Garantia com procedência");
-        const batteryBadge =
-          foundProduct.batteryHealth || firstVariant?.batteryHealth
-            ? ` • 🔋 Bateria ${foundProduct.batteryHealth || firstVariant?.batteryHealth}`
-            : "";
+        // Não usar a descrição livre do ERP no Open Graph: alguns cadastros
+        // contêm anotações internas de manutenção que acabam expostas no WhatsApp.
+        const rawBattery = foundProduct.batteryHealth || firstVariant?.batteryHealth;
+        const batteryValue = rawBattery && !/^0(?:%|\.0)?$/.test(rawBattery.trim())
+          ? rawBattery.trim()
+          : null;
+        const batteryBadge = batteryValue ? ` • 🔋 Bateria ${batteryValue}` : "";
 
-        desc = foundProduct.description
-          ? foundProduct.description.replace(/[\r\n]+/g, " ").slice(0, 160)
-          : `${conditionBadge} • 🛡️ ${warrantyBadge}${batteryBadge} • Pronta entrega em Jardim-MS e Guia Lopes da Laguna. Compre no WhatsApp da Lojinha do Celular!`;
+        desc = `${conditionBadge} • 🛡️ ${warrantyBadge}${batteryBadge} • Pronta entrega em Jardim-MS e Guia Lopes da Laguna. Consulte pelo WhatsApp.`;
 
         let resolvedImage =
           foundProduct.imageUrl || firstVariant?.imageUrl || "";

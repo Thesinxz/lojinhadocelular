@@ -11,6 +11,7 @@ import {
   Gift,
   Video,
   Flame,
+  Share2,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -72,6 +73,7 @@ export default function Produto() {
   const [userVariantId, setUserVariantId] = useState<string | number | null>(null);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
   const [mediaTab, setMediaTab] = useState<"photo" | "video">("photo");
+  const [shareFeedback, setShareFeedback] = useState("");
 
   const currentIdKey = isUuidOrString ? idStr : numericId;
   if (selectedProductId !== currentIdKey) {
@@ -241,6 +243,7 @@ export default function Produto() {
       : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
   const displaySku = formatCommercialSku(selected?.sku || productCode);
   const cleanTitle = formatCommercialProductName(product?.name || "", color, storage);
+  const prodUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const unitLocationText = isGuiaOnly
     ? "Guia Lopes da Laguna - MS"
@@ -257,6 +260,41 @@ export default function Produto() {
         }📍 Unidade: ${unitLocationText}\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
 
+  const shareMessage =
+    product && price != null
+      ? [
+          `📱 *${cleanTitle}*`,
+          `${conditionLabel}${batteryHealthDisplay ? ` • 🔋 Bateria ${batteryHealthDisplay}` : ""}`,
+          `💰 ${formattedPrice} no Pix${installment12 ? ` ou ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão` : ""}`,
+          `🛡️ ${selected?.warranty || product.warranty || (isLacrado ? "1 ano de garantia" : "Garantia com procedência")}`,
+          `📍 Disponível em ${unitLocationText}`,
+          `🔗 ${prodUrl || `https://lojinhadocelular.com/produto/${product.id}`}`,
+          "",
+          "Consulte a disponibilidade com a Lojinha do Celular.",
+        ].join("\n")
+      : "";
+
+  const handleShare = async () => {
+    if (!shareMessage) return;
+    setShareFeedback("");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: cleanTitle, text: shareMessage });
+        return;
+      }
+      await navigator.clipboard.writeText(shareMessage);
+      setShareFeedback("Resumo copiado para compartilhar.");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      try {
+        await navigator.clipboard.writeText(shareMessage);
+        setShareFeedback("Resumo copiado para compartilhar.");
+      } catch {
+        setShareFeedback("Não foi possível compartilhar agora.");
+      }
+    }
+  };
+
   const prodTitle = cleanTitle
     ? `${cleanTitle} — Lojinha do Celular`
     : product
@@ -271,8 +309,6 @@ export default function Produto() {
     selected?.imageUrl || product?.imageUrl,
     color,
   );
-  const prodUrl = typeof window !== "undefined" ? window.location.href : "";
-
   const productJsonLd =
     product && price != null
       ? {
@@ -812,6 +848,24 @@ export default function Produto() {
                 </>
               )}
             </div>
+
+            {isAvailable && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="w-full rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span>Compartilhar produto</span>
+                </button>
+                {shareFeedback && (
+                  <p className="mt-2 text-center text-xs text-neutral-500" role="status">
+                    {shareFeedback}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Promo Cards (Screenshot 4: Trade-in e Brinde) */}
             <div className="mt-6 flex flex-col gap-3">
