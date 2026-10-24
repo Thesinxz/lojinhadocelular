@@ -260,6 +260,11 @@ export default function Produto() {
         }📍 Unidade: ${unitLocationText}\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
 
+  const shareUrl = new URL(
+    prodUrl || `https://lojinhadocelular.com/produto/${product?.id ?? ""}`,
+  );
+  shareUrl.searchParams.set("utm_source", "whatsapp");
+
   const shareMessage =
     product && price != null
       ? [
@@ -269,7 +274,7 @@ export default function Produto() {
           `💰 ${formattedPrice} no Pix${installment12 ? ` ou ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão` : ""}`,
           `🛡️ ${selected?.warranty || product.warranty || (isLacrado ? "1 ano de garantia" : "Garantia com procedência")}`,
           `📍 Disponível em ${unitLocationText}`,
-          `🔗 ${prodUrl || `https://lojinhadocelular.com/produto/${product.id}`}`,
+          `🔗 ${shareUrl.toString()}`,
           "",
           "Consulte a disponibilidade com a Lojinha do Celular.",
         ].join("\n")
