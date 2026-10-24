@@ -396,7 +396,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
         // WhatsApp é sensível ao formato e ao MIME da imagem do Open Graph.
         // As imagens WebP da vitrine têm uma cópia JPEG para compartilhamento.
         if (resolvedImage.startsWith("/") && resolvedImage.toLowerCase().endsWith(".webp")) {
-          resolvedImage = resolvedImage.replace(/\.webp$/i, ".jpg");
+          resolvedImage = `${resolvedImage.replace(/\.webp$/i, ".jpg")}?v=20261024`;
         }
 
         if (resolvedImage && resolvedImage.startsWith("/")) {
