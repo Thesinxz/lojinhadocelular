@@ -12,6 +12,7 @@ import {
   Video,
   Flame,
   Share2,
+  Copy,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
@@ -292,6 +293,34 @@ export default function Produto() {
       } catch {
         setShareFeedback("Não foi possível compartilhar agora.");
       }
+    }
+  };
+
+  const handleCopyShare = async () => {
+    if (!shareMessage) return;
+    setShareFeedback("");
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareMessage);
+      } else {
+        throw new Error("Clipboard API indisponível");
+      }
+      setShareFeedback("Resumo copiado. Agora é só colar na conversa.");
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = shareMessage;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setShareFeedback(
+        copied
+          ? "Resumo copiado. Agora é só colar na conversa."
+          : "Não foi possível copiar. Tente usar Compartilhar.",
+      );
     }
   };
 
@@ -851,14 +880,24 @@ export default function Produto() {
 
             {isAvailable && (
               <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className="w-full rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
-                >
-                  <Share2 className="h-4 w-4" />
-                  <span>Compartilhar produto</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span>Compartilhar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyShare}
+                    className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
+                  >
+                    <Copy className="h-4 w-4" />
+                    <span>Copiar resumo</span>
+                  </button>
+                </div>
                 {shareFeedback && (
                   <p className="mt-2 text-center text-xs text-neutral-500" role="status">
                     {shareFeedback}
