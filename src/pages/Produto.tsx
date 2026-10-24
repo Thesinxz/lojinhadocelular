@@ -11,7 +11,6 @@ import {
   Gift,
   Video,
   Flame,
-  Share2,
   Copy,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
@@ -264,6 +263,7 @@ export default function Produto() {
   const shareMessage =
     product && price != null
       ? [
+          "Olha esse aparelho na Lojinha do Celular:",
           `📱 *${cleanTitle}*`,
           `${conditionLabel}${batteryHealthDisplay ? ` • 🔋 Bateria ${batteryHealthDisplay}` : ""}`,
           `💰 ${formattedPrice} no Pix${installment12 ? ` ou ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão` : ""}`,
@@ -275,25 +275,10 @@ export default function Produto() {
         ].join("\n")
       : "";
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!shareMessage) return;
-    setShareFeedback("");
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: cleanTitle, text: shareMessage });
-        return;
-      }
-      await navigator.clipboard.writeText(shareMessage);
-      setShareFeedback("Resumo copiado para compartilhar.");
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return;
-      try {
-        await navigator.clipboard.writeText(shareMessage);
-        setShareFeedback("Resumo copiado para compartilhar.");
-      } catch {
-        setShareFeedback("Não foi possível compartilhar agora.");
-      }
-    }
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleCopyShare = async () => {
@@ -886,8 +871,8 @@ export default function Produto() {
                     onClick={handleShare}
                     className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
                   >
-                    <Share2 className="h-4 w-4" />
-                    <span>Compartilhar</span>
+                    <WhatsAppIcon className="h-4 w-4 fill-current" />
+                    <span>Enviar resumo no WhatsApp</span>
                   </button>
                   <button
                     type="button"
