@@ -74,8 +74,12 @@ export function replaceOrInjectMeta(
   const isProduct = tags.ogType === "product";
   const imgWidth = tags.imgWidth || (isProduct ? "600" : "1200");
   const imgHeight = tags.imgHeight || (isProduct ? "600" : "630");
-  const isJpg = tags.img.toLowerCase().includes(".jpg") || tags.img.toLowerCase().includes(".jpeg");
-  const imgType = isJpg ? "image/jpeg" : "image/png";
+  const imageUrl = tags.img.toLowerCase();
+  const imgType = imageUrl.includes(".jpg") || imageUrl.includes(".jpeg")
+    ? "image/jpeg"
+    : imageUrl.includes(".webp")
+      ? "image/webp"
+      : "image/png";
 
   const robotsTag = tags.noindex
     ? '<meta name="robots" content="noindex, nofollow" />'
@@ -387,6 +391,12 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
             resolvedImage,
             firstVariant?.color ?? undefined,
           );
+        }
+
+        // WhatsApp é sensível ao formato e ao MIME da imagem do Open Graph.
+        // As imagens WebP da vitrine têm uma cópia JPEG para compartilhamento.
+        if (resolvedImage.startsWith("/") && resolvedImage.toLowerCase().endsWith(".webp")) {
+          resolvedImage = resolvedImage.replace(/\.webp$/i, ".jpg");
         }
 
         if (resolvedImage && resolvedImage.startsWith("/")) {
