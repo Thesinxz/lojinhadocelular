@@ -58,12 +58,13 @@ export default function Produto() {
 
   const isDemo = !!demoFallback;
   const isValidId = isUuidOrString ? !!productRouteId : (!Number.isNaN(numericId) && numericId > 0) || isDemo;
+  const productQueryId = shareSlugUuid ? idStr : productRouteId;
 
   const s = useShopSettings();
   const query = trpc.shop.product.useQuery(
-    { id: isUuidOrString ? productRouteId : numericId > 0 ? numericId : 1 },
+    { id: isUuidOrString ? productQueryId : numericId > 0 ? numericId : 1 },
     {
-      enabled: (isUuidOrString ? !!productRouteId : (!Number.isNaN(numericId) && numericId > 0)) && !isDemo,
+      enabled: (isUuidOrString ? !!productQueryId : (!Number.isNaN(numericId) && numericId > 0)) && !isDemo,
       staleTime: 1000 * 30,
     },
   );
