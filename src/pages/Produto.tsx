@@ -26,6 +26,11 @@ import {
   formatCommercialProductName,
   formatCommercialSku,
 } from "@/lib/commercialFormatting";
+import {
+  createProductShareSlug,
+  extractProductIdFromShareSlug,
+  extractProductUuidPrefixFromShareSlug,
+} from "@/lib/productUrls";
 import SEO from "@/components/SEO";
 import SpecSheet from "@/components/SpecSheet";
 
@@ -34,8 +39,12 @@ type Variant = ProductWithVariants["variants"][number];
 export default function Produto() {
   const { id } = useParams<{ id: string }>();
   const idStr = id ? String(id).trim() : "";
-  const isUuidOrString = typeof id === "string" && (id.includes("-") || Number.isNaN(Number(id)));
-  const numericId = Number(id);
+  const shareSlugId = extractProductIdFromShareSlug(idStr);
+  const shareSlugUuid = extractProductUuidPrefixFromShareSlug(idStr);
+  const productRouteId = shareSlugId ?? idStr;
+  const isUuidOrString = Boolean(shareSlugUuid) ||
+    (typeof id === "string" && (productRouteId.includes("-") || Number.isNaN(Number(productRouteId))));
+  const numericId = Number(productRouteId);
 
   const demoFallback = useMemo(() => {
     if (isUuidOrString) return undefined;
@@ -48,13 +57,13 @@ export default function Produto() {
   }, [isUuidOrString, numericId]);
 
   const isDemo = !!demoFallback;
-  const isValidId = isUuidOrString ? !!idStr : (!Number.isNaN(numericId) && numericId > 0) || isDemo;
+  const isValidId = isUuidOrString ? !!productRouteId : (!Number.isNaN(numericId) && numericId > 0) || isDemo;
 
   const s = useShopSettings();
   const query = trpc.shop.product.useQuery(
-    { id: isUuidOrString ? idStr : numericId > 0 ? numericId : 1 },
+    { id: isUuidOrString ? productRouteId : numericId > 0 ? numericId : 1 },
     {
-      enabled: (isUuidOrString ? !!idStr : (!Number.isNaN(numericId) && numericId > 0)) && !isDemo,
+      enabled: (isUuidOrString ? !!productRouteId : (!Number.isNaN(numericId) && numericId > 0)) && !isDemo,
       staleTime: 1000 * 30,
     },
   );
@@ -66,7 +75,7 @@ export default function Produto() {
   }, [query.data, demoFallback]);
 
   // Gerenciamento de seleção compatível com React 19
-  const [selectedProductId, setSelectedProductId] = useState<string | number>(idStr || numericId);
+  const [selectedProductId, setSelectedProductId] = useState<string | number>(productRouteId || numericId);
   const [userVersion, setUserVersion] = useState<string | null>(null);
   const [userStorage, setUserStorage] = useState<string | null>(null);
   const [userColor, setUserColor] = useState<string | null>(null);
@@ -75,7 +84,7 @@ export default function Produto() {
   const [mediaTab, setMediaTab] = useState<"photo" | "video">("photo");
   const [shareFeedback, setShareFeedback] = useState("");
 
-  const currentIdKey = isUuidOrString ? idStr : numericId;
+  const currentIdKey = isUuidOrString ? productRouteId : numericId;
   if (selectedProductId !== currentIdKey) {
     setSelectedProductId(currentIdKey);
     setUserVersion(null);
@@ -243,7 +252,13 @@ export default function Produto() {
       : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
   const displaySku = formatCommercialSku(selected?.sku || productCode);
   const cleanTitle = formatCommercialProductName(product?.name || "", color, storage);
-  const prodUrl = typeof window !== "undefined" ? window.location.href : "";
+  const prodPath = product
+    ? `/produto/${createProductShareSlug(cleanTitle || product.name, product.id)}`
+    : "";
+  const prodUrl =
+    typeof window !== "undefined" && prodPath
+      ? `${window.location.origin}${prodPath}`
+      : "";
 
   const unitLocationText = isGuiaOnly
     ? "Guia Lopes da Laguna - MS"
@@ -263,20 +278,21 @@ export default function Produto() {
   const shareUrl = new URL(
     prodUrl || `https://lojinhadocelular.com/produto/${product?.id ?? ""}`,
   );
-  shareUrl.searchParams.set("utm_source", "whatsapp");
+  if (product) {
+    shareUrl.pathname = `/produto/${createProductShareSlug(cleanTitle, product.id)}`;
+    shareUrl.hash = "";
+    shareUrl.search = "";
+  }
 
   const shareMessage =
     product && price != null
       ? [
-          "Olha esse aparelho na Lojinha do Celular:",
           `📱 *${cleanTitle}*`,
-          `${conditionLabel}${batteryHealthDisplay ? ` • 🔋 Bateria ${batteryHealthDisplay}` : ""}`,
           `💰 ${formattedPrice} no Pix${installment12 ? ` ou ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão` : ""}`,
+          `${conditionLabel}${batteryHealthDisplay ? ` • 🔋 Bateria ${batteryHealthDisplay}` : ""}`,
           `🛡️ ${selected?.warranty || product.warranty || (isLacrado ? "1 ano de garantia" : "Garantia com procedência")}`,
           `📍 Disponível em ${unitLocationText}`,
           `🔗 ${shareUrl.toString()}`,
-          "",
-          "Consulte a disponibilidade com a Lojinha do Celular.",
         ].join("\n")
       : "";
 
@@ -382,8 +398,8 @@ export default function Produto() {
   const trackInterestMutation = trpc.shop.trackInterest.useMutation();
   /** Conta o clique de interesse; falhas não atrapalham o cliente. */
   const trackInterest = () => {
-    if (isDemo || !idStr) return;
-    trackInterestMutation.mutate({ productId: isUuidOrString ? idStr : numericId });
+    if (isDemo || !product) return;
+    trackInterestMutation.mutate({ productId: product.id });
   };
 
   const handleAddToCart = () => {

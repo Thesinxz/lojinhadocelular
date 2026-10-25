@@ -14,6 +14,7 @@ import { getIphoneSpecs, type IphoneSpecSheet } from "@/lib/iphoneSpecs";
 import { PerformanceBar } from "@/components/SpecSheet";
 import { formatBRL } from "@contracts/types";
 import SEO from "@/components/SEO";
+import { createProductShareSlug } from "@/lib/productUrls";
 
 const UNIT_LABEL: Record<string, string> = {
   jardim: "Jardim",
@@ -193,7 +194,7 @@ export default function Comparar() {
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
-                      <Link to={`/produto/${p.id}`} className="block">
+                      <Link to={`/produto/${createProductShareSlug(p.name, p.id)}`} className="block">
                         {img && (
                           <img
                             src={img}

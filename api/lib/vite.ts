@@ -5,8 +5,13 @@ import fs from "fs";
 import path from "path";
 import { getErpCatalog } from "../erp/service";
 import { formatCommercialProductName } from "../../src/lib/commercialFormatting";
+import { createProductShareSlug } from "../../src/lib/productUrls";
 import { resolveProductImage } from "../../src/lib/iphoneCatalog";
 import { DEMO_PRODUCTS } from "../../src/lib/catalogDemo";
+import {
+  extractProductIdFromShareSlug,
+  extractProductUuidPrefixFromShareSlug,
+} from "../../src/lib/productUrls";
 
 type App = Hono<{ Bindings: HttpBindings }>;
 
@@ -249,6 +254,9 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     if (productMatch) {
       const rawId = productMatch[1];
       const productIdStr = decodeURIComponent(rawId).trim();
+      const shareSlugId = extractProductIdFromShareSlug(productIdStr);
+      const lookupId = shareSlugId ?? productIdStr;
+      const uuidPrefix = extractProductUuidPrefixFromShareSlug(productIdStr);
       let foundProduct: {
         id: string | number;
         externalId?: string | null;
@@ -276,20 +284,23 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
         if (erp.status === "ok" && erp.products.length > 0) {
           const match = erp.products.find((p) => {
             const idMatch =
-              String(p.id).trim().toLowerCase() === productIdStr.toLowerCase();
+              String(p.id).trim().toLowerCase() === lookupId.toLowerCase();
             const extMatch =
               p.externalId &&
-              p.externalId.trim().toLowerCase() === productIdStr.toLowerCase();
+              p.externalId.trim().toLowerCase() === lookupId.toLowerCase();
             const altMatch =
               Array.isArray(p.alternateIds) &&
-              p.alternateIds.some(
-                (alt) => alt.trim().toLowerCase() === productIdStr.toLowerCase(),
-              );
+              p.alternateIds.some((alt) => alt.trim().toLowerCase() === lookupId.toLowerCase());
             const pWithSku = p as { sku?: unknown };
             const skuMatch =
               typeof pWithSku.sku === "string" &&
-              pWithSku.sku.trim().toLowerCase() === productIdStr.toLowerCase();
-            return idMatch || extMatch || altMatch || skuMatch;
+              pWithSku.sku.trim().toLowerCase() === lookupId.toLowerCase();
+            const uuidPrefixMatch = Boolean(
+              uuidPrefix &&
+                (String(p.id).toLowerCase().startsWith(uuidPrefix.toLowerCase()) ||
+                  p.externalId?.toLowerCase().startsWith(uuidPrefix.toLowerCase())),
+            );
+            return idMatch || extMatch || altMatch || skuMatch || uuidPrefixMatch;
           });
           if (match && match.active !== false) {
             foundProduct = match;
@@ -304,7 +315,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
         try {
           const { getDb } = await import("../queries/connection");
           const db = getDb();
-          const numericId = Number(productIdStr);
+          const numericId = Number(lookupId);
           if (!Number.isNaN(numericId) && numericId > 0) {
             const p = await db.query.products.findFirst({
               where: (prod, { eq }) => eq(prod.id, numericId),
@@ -323,8 +334,8 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
       if (!foundProduct) {
         const demo = DEMO_PRODUCTS.find(
           (p) =>
-            String(p.id) === productIdStr ||
-            p.name.toLowerCase().includes(productIdStr.toLowerCase()),
+            String(p.id) === lookupId ||
+            p.name.toLowerCase().includes(lookupId.toLowerCase()),
         );
         if (demo) {
           foundProduct = demo as unknown as typeof foundProduct;
@@ -333,7 +344,6 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
 
       if (foundProduct) {
         ogType = "product";
-        canonicalUrl = `${canonicalDomain}/produto/${encodeURIComponent(String(foundProduct.id || foundProduct.externalId || productIdStr))}`;
         const firstVariant = foundProduct.variants?.[0];
         const validCashPrices = (foundProduct.variants || [])
           .filter((v) => v.available !== false && (v.priceCash ?? 0) > 0)
@@ -357,6 +367,14 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
           firstVariant?.color,
           firstVariant?.storage,
         );
+
+        const canonicalSlug = createProductShareSlug(
+          cleanCommercialTitle,
+          foundProduct.id || foundProduct.externalId || productIdStr,
+        );
+        canonicalUrl = shareSlugId
+          ? `${canonicalDomain}${pathname}`
+          : `${canonicalDomain}/produto/${canonicalSlug}`;
 
         title = `${cleanCommercialTitle}${formattedCash} — Lojinha do Celular`;
 

@@ -6,6 +6,7 @@ import type { ProductWithVariants } from "@/providers/trpc";
 import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
 import { useShopSettings, optimizeImageUrl, waLink } from "@/lib/shop";
 import { IPHONE_CATALOG } from "@/lib/iphoneCatalog";
+import { createProductShareSlug } from "@/lib/productUrls";
 
 const SLIDE_SECONDS = 7;
 
@@ -349,7 +350,7 @@ function Slide({
     const detail = [storages.length === 1 ? storages[0] : "", activeItem?.color].filter(Boolean).join(" ");
     const url = whatsapp
       ? waLink(`55${whatsapp.replace(/\D/g, "").replace(/^55/, "")}`, `Olá! Vi na TV da loja e tenho interesse no ${product.name}${detail ? ` ${detail}` : ""}.`)
-      : `${window.location.origin}/produto/${product.id}`;
+      : `${window.location.origin}/produto/${createProductShareSlug(`${product.name} ${detail}`, product.id)}`;
     QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: "#141414", light: "#ffffff" } })
       .then(setQr)
       .catch(() => {});

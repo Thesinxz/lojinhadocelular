@@ -9,6 +9,10 @@ import { TRPCError } from "@trpc/server";
 import { SETTING_KEYS } from "../contracts/types";
 import { env } from "./lib/env";
 import { getErpCatalog } from "./erp/service";
+import {
+  extractProductIdFromShareSlug,
+  extractProductUuidPrefixFromShareSlug,
+} from "../src/lib/productUrls";
 import type { StoreUnitAvailability } from "./erp/types";
 import { getShopPublicSettings } from "./services/settingsStore";
 import { dispatchCustomerEventInBackground } from "./services/autoMessages";
@@ -391,17 +395,27 @@ export const shopRouter = createRouter({
     .query(async ({ input, ctx }) => {
       ctx.resHeaders.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
       const idStr = String(input.id).trim();
+      const shortUuid = extractProductIdFromShareSlug(idStr);
+      const uuidPrefix = extractProductUuidPrefixFromShareSlug(idStr);
+      const productId = shortUuid ?? idStr;
 
       // Se ERP estiver ativo, busca no catálogo do ERP por externalId ou id
       if (env.erpCatalogEnabled) {
         const erp = await getErpCatalog();
         if (erp.status === "ok") {
-          const found = erp.products.find(
+          const exactMatch = erp.products.find(
             (p) =>
-              String(p.id) === idStr ||
-              p.externalId === idStr ||
-              p.alternateIds?.includes(idStr),
+              String(p.id) === productId ||
+              p.externalId === productId ||
+              p.alternateIds?.includes(productId),
           );
+          const prefixMatches = uuidPrefix
+            ? erp.products.filter((p) =>
+                String(p.id).toLowerCase().startsWith(uuidPrefix.toLowerCase()) ||
+                String(p.externalId || "").toLowerCase().startsWith(uuidPrefix.toLowerCase()),
+              )
+            : [];
+          const found = exactMatch || (prefixMatches.length === 1 ? prefixMatches[0] : undefined);
           if (found && found.active !== false) {
             return sanitizePublicProduct(found);
           }
@@ -412,7 +426,7 @@ export const shopRouter = createRouter({
         });
       }
 
-      const numId = Number(idStr);
+      const numId = Number(productId);
       if (!Number.isNaN(numId) && numId > 0) {
         try {
           const db = getDb();

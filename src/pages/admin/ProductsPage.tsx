@@ -18,6 +18,7 @@ import { trpc } from "@/providers/trpc";
 import { formatBRL, CATEGORIES } from "@contracts/types";
 import { minPrice } from "@/lib/shop";
 import { useAdminSession } from "@/lib/adminSession";
+import { createProductShareSlug } from "@/lib/productUrls";
 import AdminProductEditor from "@/components/admin/AdminProductEditor";
 import { AdminErpProductEditor } from "@/components/admin/AdminErpProductEditor";
 import type { ShopProduct } from "../../../api/erp/types";
@@ -584,7 +585,7 @@ export default function ProductsPage() {
                                 ERP
                               </a>
                               <a
-                                href={`/produto/${p.id}`}
+                                href={`/produto/${createProductShareSlug(p.name, p.id)}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="rounded-xl border border-[#e5e5e7] bg-white px-3 py-2 text-xs font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] transition"
