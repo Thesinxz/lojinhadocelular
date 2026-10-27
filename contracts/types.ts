@@ -394,6 +394,11 @@ export function totalWithFee(priceCash: number, feePct: number): number {
   return Math.round(priceCash / (1 - feePct / 100));
 }
 
+/** Reconstrói o preço de referência no cartão quando o preço Pix tem 12% de desconto. */
+export function cardPriceFromPix(pricePix: number): number {
+  return Math.round(pricePix / 0.88);
+}
+
 export type FeeTable = Record<string, number>;
 
 export function parseFees(json: string | undefined): FeeTable {

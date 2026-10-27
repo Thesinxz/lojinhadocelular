@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { ProductWithVariants } from "@/providers/trpc";
-import { formatBRL, installmentFromFees, CATEGORIES } from "@contracts/types";
+import { formatBRL, installmentFromFees, cardPriceFromPix, CATEGORIES } from "@contracts/types";
 import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
@@ -210,9 +210,10 @@ export default function Produto() {
   const selected = derived?.selected;
   const isAvailable = !!selected?.available && (selected?.quantity ?? 1) > 0;
   const price = selected?.priceCash ?? null;
-  const maxFee = s.fees[String(s.installmentsMax)] ?? 0;
-  const installment12 =
-    price != null ? installmentFromFees(price, s.installmentsMax, maxFee) : null;
+  const interestFreeInstallments = Math.max(1, Math.min(12, s.installmentsMax));
+  const installment12 = price != null
+    ? Math.round(cardPriceFromPix(price) / interestFreeInstallments)
+    : null;
 
   const isLacrado =
     selected?.condition === "lacrado" || product?.condition === "lacrado";
@@ -271,7 +272,7 @@ export default function Produto() {
     product && price != null
       ? `*Olá, Lojinha do Celular!* 📱\nQuero fechar este pedido pelo site:\n\n1. *${cleanTitle}* (${conditionLabel}) — cód. ${displaySku}\nPix: ${formattedPrice}\n\n*Total no Pix: ${formattedPrice}*\n${
           installment12
-            ? `ou até ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão\n\n`
+            ? `ou ${interestFreeInstallments}x de ${formatBRL(installment12)} sem juros no cartão${s.installmentsMax > 12 ? " (acima de 12x, com juros)" : ""}\n\n`
             : "\n"
         }📍 Unidade: ${unitLocationText}\n\nPode confirmar disponibilidade e a entrega? 📦`
       : "";
@@ -289,7 +290,7 @@ export default function Produto() {
     product && price != null
       ? [
           `📱 *${cleanTitle}*`,
-          `💰 ${formattedPrice} no Pix${installment12 ? ` ou ${s.installmentsMax}x de ${formatBRL(installment12)} no cartão` : ""}`,
+          `💰 ${formattedPrice} no Pix${installment12 ? ` ou ${interestFreeInstallments}x de ${formatBRL(installment12)} sem juros no cartão` : ""}`,
           `${conditionLabel}${batteryHealthDisplay ? ` • 🔋 Bateria ${batteryHealthDisplay}` : ""}`,
           `🛡️ ${selected?.warranty || product.warranty || (isLacrado ? "1 ano de garantia" : "Garantia com procedência")}`,
           `📍 Disponível em ${unitLocationText}`,
@@ -709,28 +710,24 @@ export default function Produto() {
             <div className="mt-4">
               {price != null && isAvailable ? (
                 <div>
-                  {/* Selo de Pix */}
-                  <span className="inline-block rounded-full bg-[#e8f2ff] px-3 py-1 text-xs font-bold text-[#0066cc] mb-1">
-                    12% OFF no Pix
-                  </span>
-
                   {/* Preço à vista destacado */}
                   <div className="text-4xl sm:text-5xl font-black text-neutral-950 tracking-tight mt-1">
                     {formatBRL(price)}
                   </div>
 
                   {/* Subtítulo à vista no Pix */}
-                  <p className="text-xs text-neutral-500 mt-0.5 font-medium">
-                    à vista no Pix
+                  <p className="text-sm text-neutral-500 mt-0.5 font-medium">
+                    à vista no Pix · 12% de desconto já aplicado
                   </p>
 
                   {/* Linha de Parcelamento */}
                   <p
                     onClick={() => setShowAllInstallments((v) => !v)}
-                    className="text-xs sm:text-sm text-neutral-600 mt-2 cursor-pointer hover:text-black transition"
+                    className="text-xs sm:text-sm text-neutral-600 mt-3 cursor-pointer hover:text-black transition"
                   >
-                    ou em até{" "}
-                    <span className="font-bold text-neutral-900">{s.installmentsMax}x de {formatBRL(installment12 ?? 0)}</span> no cartão —{" "}
+                    ou <span className="font-bold text-neutral-900">{interestFreeInstallments}x de {formatBRL(installment12 ?? 0)} sem juros</span> no cartão
+                    {s.installmentsMax > 12 && <span className="block mt-1 text-neutral-500">Acima de 12x, consulte as parcelas com juros.</span>}{" "}
+                    —{" "}
                     <span className="underline decoration-neutral-300">
                       {showAllInstallments ? "ocultar parcelas" : "ver todas as parcelas"}
                     </span>
@@ -738,22 +735,25 @@ export default function Produto() {
 
                   {showAllInstallments && (
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3.5 text-xs animate-in fade-in-50">
-                      {Array.from(
-                        { length: s.installmentsMax },
-                        (_, i) => i + 1,
-                      ).map((n) => {
-                        const fee = s.fees[String(n)] ?? 0;
-                        const val = installmentFromFees(price, n, fee);
-                        return (
-                          <div
-                            key={n}
-                            className="flex items-center justify-between gap-1 text-neutral-600"
-                          >
-                            <span className="font-bold text-neutral-900">{n}x</span>
-                            <span className="text-neutral-800 font-medium">{formatBRL(val)}</span>
-                          </div>
-                        );
-                      })}
+                      {(() => {
+                        const cardPrice = cardPriceFromPix(price);
+                        return Array.from(
+                          { length: s.installmentsMax },
+                          (_, i) => i + 1,
+                        ).map((n) => {
+                          const fee = n > 12 ? s.fees[String(n)] ?? 0 : 0;
+                          const val = installmentFromFees(cardPrice, n, fee);
+                          return (
+                            <div
+                              key={n}
+                              className="flex items-center justify-between gap-1 text-neutral-600"
+                            >
+                              <span className="font-bold text-neutral-900">{n}x</span>
+                              <span className="text-neutral-800 font-medium">{formatBRL(val)}</span>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>

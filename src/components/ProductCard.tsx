@@ -11,7 +11,7 @@ import {
 import type { ProductWithVariants } from "@/providers/trpc";
 import {
   formatBRL,
-  installmentFromFees,
+  cardPriceFromPix,
   type FeeTable,
 } from "@contracts/types";
 import {
@@ -30,7 +30,6 @@ import { createProductShareSlug } from "@/lib/productUrls";
 export default function ProductCard({
   product,
   installmentsMax,
-  fees,
   priority = false,
 }: {
   product: ProductWithVariants;
@@ -40,9 +39,10 @@ export default function ProductCard({
 }) {
   const price = minPrice(product);
   const colors = availableColors(product);
-  const feeMax = fees[String(installmentsMax)] ?? 0;
-  const installment12 =
-    price != null ? installmentFromFees(price, installmentsMax, feeMax) : null;
+  const interestFreeInstallments = Math.max(1, Math.min(12, installmentsMax));
+  const installment12 = price != null
+    ? Math.round(cardPriceFromPix(price) / interestFreeInstallments)
+    : null;
 
   const rawBattery =
     product.variants.find(v => v.batteryHealth)?.batteryHealth ||
@@ -229,20 +229,20 @@ export default function ProductCard({
         <div className="mt-auto pt-3">
           {price != null ? (
             <>
-              <div className="flex items-baseline gap-2 flex-wrap">
+              <div>
                 <span className="text-xl sm:text-2xl font-black tracking-tight text-neutral-950">
                   {formatBRL(price)}
                 </span>
-                <span className="rounded-full bg-[#e8f2ff] px-2 py-0.5 text-[11px] font-bold text-[#0066cc]">
-                  12% OFF no Pix
-                </span>
               </div>
               <p className="mt-0.5 text-[11px] text-neutral-500">
-                no Pix · ou {installmentsMax}x de{" "}
+                à vista no Pix · 12% de desconto aplicado
+              </p>
+              <p className="mt-1 text-xs text-neutral-600">
+                ou {interestFreeInstallments}x de{" "}
                 <span className="font-semibold text-neutral-800">
                   {formatBRL(installment12 ?? 0)}
                 </span>{" "}
-                sem juros
+                sem juros{installmentsMax > 12 && " · acima de 12x, com juros"}
               </p>
             </>
           ) : (
