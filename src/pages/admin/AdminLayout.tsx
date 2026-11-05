@@ -7,6 +7,7 @@ import {
   Bell,
   BellOff,
   BellRing,
+  Download,
   Eye,
   Home,
   LogOut,
@@ -37,6 +38,11 @@ interface NavItem {
   icon: ComponentType<{ className?: string }>;
   cap?: Capability;
   end?: boolean;
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -112,6 +118,21 @@ export default function AdminLayout() {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const onBeforeInstall = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -149,9 +170,22 @@ export default function AdminLayout() {
     }
   }
 
+  async function installAdminApp() {
+    if (!installPrompt) {
+      toast.info("No iPhone ou iPad: toque em Compartilhar e escolha ‘Adicionar à Tela de Início’.");
+      return;
+    }
+    await installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+    if (result.outcome === "accepted") toast.success("Painel instalado neste dispositivo.");
+    setInstallPrompt(null);
+  }
+
   const items = NAV_ITEMS.filter((item) => !item.cap || can(item.cap));
   const roleLabel = ADMIN_ROLES.find((r) => r.value === user?.role)?.label ?? "";
   const unitLabel = STORE_UNITS.find((u) => u.value === user?.unit)?.label ?? "Todas as unidades";
+  const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
   const sidebarLink = ({ isActive }: { isActive: boolean }) =>
     `flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition ${
@@ -181,6 +215,15 @@ export default function AdminLayout() {
               {item.to === "/admin/avaliacoes" && <PendingBadge count={pending} />}
             </NavLink>
           ))}
+          {(installPrompt || isAppleMobile) && (
+            <button
+              type="button"
+              onClick={installAdminApp}
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#6e6e73] transition hover:bg-[#f5f5f7] hover:text-[#1d1d1f]"
+            >
+              <Download className="h-4 w-4 shrink-0" /> Instalar o painel
+            </button>
+          )}
         </nav>
         <div className="space-y-1 border-t border-[#e5e5e7] p-3">
           <NavLink to="/admin/conta" className={sidebarLink}>
@@ -338,6 +381,18 @@ export default function AdminLayout() {
             <NavLink to="/admin/conta" className={sidebarLink} onClick={() => setMoreOpen(false)}>
               <UserCircle className="h-4 w-4" /> Minha conta
             </NavLink>
+            {(installPrompt || isAppleMobile) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  void installAdminApp();
+                }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#6e6e73] transition hover:bg-[#f5f5f7]"
+              >
+                <Download className="h-4 w-4" /> Instalar o painel
+              </button>
+            )}
             <a
               href="/tv"
               target="_blank"

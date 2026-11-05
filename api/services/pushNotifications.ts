@@ -165,8 +165,10 @@ export async function sendPushToEvaluationStaff(
           delivered += 1;
         } catch (err) {
           const status = (err as { statusCode?: number })?.statusCode;
-          // 404/410: o navegador cancelou a inscrição. Remove para não tentar de novo.
-          if (status === 404 || status === 410) await removeSubscription(sub.endpoint).catch(() => {});
+          // 404/410: inscrição removida; 401/403: VAPID não corresponde (ex.: chave antiga).
+          if (status === 401 || status === 403 || status === 404 || status === 410) {
+            await removeSubscription(sub.endpoint).catch(() => {});
+          }
           else console.error("[Push] Falha ao enviar notificação:", status ?? (err instanceof Error ? err.message : err));
         }
       }),

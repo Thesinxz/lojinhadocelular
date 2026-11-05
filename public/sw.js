@@ -22,13 +22,9 @@ self.addEventListener("push", (event) => {
     data: { url: data.url || "/admin/avaliacoes" },
   };
 
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
-      // Painel aberto e à vista: o próprio painel já avisa (alerta na tela e som); evita duplicar.
-      if (windows.some((w) => w.visibilityState === "visible")) return undefined;
-      return self.registration.showNotification(title, options);
-    }),
-  );
+  // O push precisa gerar uma notificação do sistema também quando o painel está aberto.
+  // O alerta dentro do painel é separado e não substitui a notificação do Chrome/desktop.
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {

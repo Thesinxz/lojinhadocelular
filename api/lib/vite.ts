@@ -455,6 +455,12 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     imgHeight,
   });
 
+  // O admin tem um PWA próprio; mantenha o manifest fora da vitrine pública.
+  if (pathname.startsWith("/admin")) {
+    const adminPwaHead = '<link rel="manifest" href="/admin/manifest.webmanifest" />';
+    content = content.replace(/(<head[^>]*>)/i, `$1\n    ${adminPwaHead}`);
+  }
+
   if (isSocialScraper) {
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   } else {

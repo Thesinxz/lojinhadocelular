@@ -1,0 +1,26 @@
+{
+  "id": "/admin/",
+  "name": "Painel da Loja | Lojinha do Celular",
+  "short_name": "Lojinha Admin",
+  "description": "Painel administrativo da Lojinha do Celular para acompanhar avaliações e atender clientes.",
+  "lang": "pt-BR",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#fbfbfd",
+  "theme_color": "#fbfbfd",
+  "icons": [
+    {
+      "src": "/images/admin-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

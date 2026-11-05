@@ -30,6 +30,13 @@ function keyToBytes(base64: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+function subscriptionUsesKey(subscription: PushSubscription, key: Uint8Array<ArrayBuffer>): boolean {
+  const currentKey = subscription.options.applicationServerKey;
+  if (!currentKey) return false;
+  const currentBytes = new Uint8Array(currentKey);
+  return currentBytes.length === key.length && currentBytes.every((byte, index) => byte === key[index]);
+}
+
 /**
  * Avisos de avaliação nova no navegador (Chrome, Edge, Firefox...):
  * - com o painel aberto em outra aba/janela: notificação nativa;
@@ -56,9 +63,14 @@ export function useBrowserNotifications(onOpen?: () => void) {
     try {
       await navigator.serviceWorker.register("/sw.js");
       const registration = await navigator.serviceWorker.ready;
-      const subscription =
-        (await registration.pushManager.getSubscription()) ??
-        (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) }));
+      const applicationServerKey = keyToBytes(publicKey);
+      let subscription = await registration.pushManager.getSubscription();
+      // Ao trocar as chaves VAPID, a inscrição antiga não pode ser usada com a nova chave.
+      if (subscription && !subscriptionUsesKey(subscription, applicationServerKey)) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+      subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
       const json = subscription.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;
       await subscribeMutation.mutateAsync({

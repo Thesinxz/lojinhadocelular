@@ -31,10 +31,28 @@ function useNoIndex() {
     meta.content = "noindex, nofollow";
     meta.setAttribute("data-admin", "true");
     document.head.appendChild(meta);
+    const mobileCapable = document.createElement("meta");
+    mobileCapable.name = "apple-mobile-web-app-capable";
+    mobileCapable.content = "yes";
+    mobileCapable.setAttribute("data-admin", "true");
+    document.head.appendChild(mobileCapable);
+    const mobileTitle = document.createElement("meta");
+    mobileTitle.name = "apple-mobile-web-app-title";
+    mobileTitle.content = "Lojinha Admin";
+    mobileTitle.setAttribute("data-admin", "true");
+    document.head.appendChild(mobileTitle);
+    const themeColor = document.createElement("meta");
+    themeColor.name = "theme-color";
+    themeColor.content = "#fbfbfd";
+    themeColor.setAttribute("data-admin", "true");
+    document.head.appendChild(themeColor);
     const previousTitle = document.title;
     document.title = "Painel da Loja | Lojinha do Celular";
     return () => {
       meta.remove();
+      mobileCapable.remove();
+      mobileTitle.remove();
+      themeColor.remove();
       document.title = previousTitle;
     };
   }, []);
