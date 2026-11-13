@@ -17,15 +17,35 @@ import {
   ChevronDown,
   HelpCircle,
   Clock,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import HeroBlk from "@/components/HeroBlk";
 import ProductCard from "@/components/ProductCard";
+import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import SEO from "@/components/SEO";
 import { trpc, type ProductWithVariants } from "@/providers/trpc";
 import SocialProofStrip from "@/components/SocialProofStrip";
-import { useShopSettings, sortProducts, minPrice, type SortOption, waLink } from "@/lib/shop";
+import { useShopSettings, sortProducts, type SortOption, waLink } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
-import type { CategoryValue } from "@contracts/types";
+import { setPreferredStoreUnit } from "@/lib/storeUnit";
+import {
+  VITRINE_BATCH_SIZE,
+  PRICE_RANGES,
+  HOME_CATEGORY_PILLS,
+  UNIT_FILTER_PILLS,
+  type HomeCategory,
+  type UnitFilter,
+  type PriceRangeKey,
+  type VitrineFilterState,
+  parseVitrineSearchParams,
+  buildVitrineSearchParams,
+  filterAndSortVitrineProducts,
+  extractStorageOptions,
+  countSecondaryFilters,
+  hasAnyActiveVitrineFilter,
+  sliceVitrineBatch,
+} from "@/lib/vitrineFilters";
 
 const FAQ_ITEMS = [
   {
@@ -60,51 +80,70 @@ const FAQ_ITEMS = [
   },
 ];
 
-const PRICE_RANGES = [
-  { key: "todos", label: "Qualquer preço", min: 0, max: Infinity },
-  { key: "ate2", label: "Até R$ 2.000", min: 0, max: 2000 },
-  { key: "2a4", label: "R$ 2.000 – 4.000", min: 2000, max: 4000 },
-  { key: "4a7", label: "R$ 4.000 – 7.000", min: 4000, max: 7000 },
-  { key: "7mais", label: "Acima de R$ 7.000", min: 7000, max: Infinity },
-] as const;
-
-type HomeCategory = CategoryValue | "iphones";
-
-const CATEGORY_PILLS: { label: string; value: HomeCategory | undefined }[] = [
-  { label: "Todos", value: undefined },
-  { label: "iPhones", value: "iphones" },
-  { label: "Lacrados", value: "iphone_lacrado" },
-  { label: "Seminovos", value: "iphone_seminovo" },
-  { label: "Android", value: "android" },
-  { label: "Acessórios", value: "acessorio" },
-];
-
 export default function Home() {
   const s = useShopSettings();
   const whatsapp = s.whatsappJardim || s.whatsappGll || "5567992086012";
 
-  const [searchParams] = useSearchParams();
-  const initialCategory = useMemo(() => {
-    const c = searchParams.get("categoria");
-    if (
-      c === "iphone_lacrado" ||
-      c === "iphone_seminovo" ||
-      c === "android" ||
-      c === "acessorio"
-    ) {
-      return c as CategoryValue;
-    }
-    return undefined;
-  }, [searchParams]);
-
-  const [selectedCategory, setSelectedCategory] = useState<HomeCategory | undefined>(
-    initialCategory,
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlFilters = useMemo(
+    () => parseVitrineSearchParams(searchParams),
+    [searchParams],
   );
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("relevancia");
-  const [priceKey, setPriceKey] = useState<(typeof PRICE_RANGES)[number]["key"]>("todos");
-  const [storage, setStorage] = useState("");
+  const [searchInput, setSearchInput] = useState(() => urlFilters.search);
+  const [filtersExpanded, setFiltersExpanded] = useState(
+    () => countSecondaryFilters(urlFilters) > 0,
+  );
+  const [visibleCount, setVisibleCount] = useState(VITRINE_BATCH_SIZE);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  const filterState: VitrineFilterState = useMemo(
+    () => ({
+      ...urlFilters,
+      search: searchInput,
+    }),
+    [urlFilters, searchInput],
+  );
+
+  const updateFilters = (patch: Partial<VitrineFilterState>) => {
+    const nextSearch = patch.search !== undefined ? patch.search : searchInput;
+    if (patch.search !== undefined) {
+      setSearchInput(patch.search);
+    }
+    const nextState: VitrineFilterState = {
+      ...urlFilters,
+      ...patch,
+      search: nextSearch,
+    };
+    setSearchParams(buildVitrineSearchParams(nextState), { replace: true });
+    setVisibleCount(VITRINE_BATCH_SIZE);
+  };
+
+  const handleCategorySelect = (category: HomeCategory | undefined) => {
+    updateFilters({ category });
+  };
+
+  const handleUnitSelect = (unit: UnitFilter) => {
+    if (unit === "jardim") setPreferredStoreUnit("jardim");
+    else if (unit === "guia_lopes") setPreferredStoreUnit("gll");
+    updateFilters({ unit });
+  };
+
+  const handlePriceSelect = (priceKey: PriceRangeKey) => {
+    updateFilters({ priceKey });
+  };
+
+  const handleStorageSelect = (st: string) => {
+    updateFilters({ storage: urlFilters.storage === st ? "" : st });
+  };
+
+  const handleSortSelect = (sortBy: SortOption) => {
+    updateFilters({ sortBy });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    setVisibleCount(VITRINE_BATCH_SIZE);
+  };
 
   const faqJsonLd = useMemo(
     () => ({
@@ -156,58 +195,28 @@ export default function Home() {
     return [...dbList, ...demoList];
   }, [productsQuery.data, isErpEnabled, catalogStatusQuery.isSuccess, catalogStatusQuery.data]);
 
-  // Filtra por categoria e termo de busca, e ordena
-  const filteredProducts = useMemo(() => {
-    let list = allProducts;
+  const filteredProducts = useMemo(
+    () =>
+      filterAndSortVitrineProducts(allProducts, filterState, (items, sortOption) =>
+        sortProducts(items, sortOption as SortOption),
+      ),
+    [allProducts, filterState],
+  );
 
-    if (selectedCategory) {
-      list = selectedCategory === "iphones"
-        ? list.filter((p) => p.category === "iphone_lacrado" || p.category === "iphone_seminovo")
-        : list.filter((p) => p.category === selectedCategory);
-    }
+  const visibleProducts = useMemo(
+    () => sliceVitrineBatch(filteredProducts, visibleCount),
+    [filteredProducts, visibleCount],
+  );
+  const remainingCount = Math.max(0, filteredProducts.length - visibleProducts.length);
 
-    const range = PRICE_RANGES.find((r) => r.key === priceKey) ?? PRICE_RANGES[0];
-    if (range.key !== "todos") {
-      list = list.filter((p) => {
-        const price = minPrice(p);
-        return price != null && price >= range.min && price < range.max;
-      });
-    }
+  const storageOptions = useMemo(() => extractStorageOptions(allProducts), [allProducts]);
+  const secondaryFilterCount = countSecondaryFilters(filterState);
+  const hasActiveFilters = hasAnyActiveVitrineFilter(filterState);
 
-    if (storage) {
-      list = list.filter((p) => p.variants.some((v) => v.storage === storage));
-    }
-
-    if (search.trim()) {
-      const term = search.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          p.brand.toLowerCase().includes(term) ||
-          p.variants.some(
-            (v) =>
-              v.storage.toLowerCase().includes(term) ||
-              v.version.toLowerCase().includes(term) ||
-              v.color.toLowerCase().includes(term),
-          ),
-      );
-    }
-
-    return sortProducts(list, sortBy);
-  }, [allProducts, selectedCategory, search, sortBy, priceKey, storage]);
-
-  const storageOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of allProducts) for (const v of p.variants) if (v.storage) set.add(v.storage);
-    return [...set].sort((a, b) => parseInt(a) - parseInt(b));
-  }, [allProducts]);
-
-  const hasActiveFilters = !!search || !!selectedCategory || priceKey !== "todos" || !!storage;
   const clearFilters = () => {
-    setSearch("");
-    setSelectedCategory(undefined);
-    setPriceKey("todos");
-    setStorage("");
+    setSearchInput("");
+    setSearchParams(new URLSearchParams(), { replace: true });
+    setVisibleCount(VITRINE_BATCH_SIZE);
   };
 
   return (
@@ -246,25 +255,37 @@ export default function Home() {
 
           {/* Controles de Busca e Ordenação no estilo BLK Store */}
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Campo de Busca com fundo cinza claro arredondado */}
+            {/* Campo de Busca com botão limpar rápido */}
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 transition-colors" />
               <input
                 type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar na loja"
-                className="w-full rounded-full border border-transparent bg-[#f5f5f7] py-3.5 pl-11 pr-4 text-sm text-[#1d1d1f] placeholder:text-neutral-400 outline-none transition-all duration-200 focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15"
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Buscar modelo, cor ou capacidade"
+                aria-label="Buscar produtos na vitrine"
+                className="w-full rounded-full border border-transparent bg-[#f5f5f7] py-3.5 pl-11 pr-10 text-sm text-[#1d1d1f] placeholder:text-neutral-400 outline-none transition-all duration-200 focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchChange("")}
+                  aria-label="Limpar busca"
+                  className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-neutral-200/80 text-neutral-600 transition hover:bg-neutral-300 hover:text-neutral-900 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Seletor de Ordenação */}
             <div className="relative flex items-center shrink-0">
               <ArrowUpDown className="pointer-events-none absolute left-3.5 h-3.5 w-3.5 text-neutral-500" />
               <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="rounded-full border border-transparent bg-[#f5f5f7] py-3.5 pl-9 pr-6 text-xs font-semibold text-neutral-800 outline-none cursor-pointer transition-all duration-200 hover:bg-neutral-200/70 focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15"
+                value={urlFilters.sortBy}
+                onChange={(e) => handleSortSelect(e.target.value as SortOption)}
+                aria-label="Ordenar produtos"
+                className="w-full sm:w-auto rounded-full border border-transparent bg-[#f5f5f7] py-3.5 pl-9 pr-8 text-xs font-semibold text-neutral-800 outline-none cursor-pointer transition-all duration-200 hover:bg-neutral-200/70 focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/15"
               >
                 <option value="relevancia">Lançamentos / Relevância</option>
                 <option value="menor_preco">Menor Preço</option>
@@ -274,16 +295,16 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Pílulas de Categoria (Chips exatamente como na BLK Store) */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {CATEGORY_PILLS.map((pill) => {
-              const isActive = selectedCategory === pill.value;
+          {/* Pílulas de Categoria */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {HOME_CATEGORY_PILLS.map((pill) => {
+              const isActive = urlFilters.category === pill.value;
               return (
                 <button
                   key={pill.label}
                   type="button"
-                  onClick={() => setSelectedCategory(pill.value)}
-                  className={`shrink-0 cursor-pointer rounded-full px-5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                  onClick={() => handleCategorySelect(pill.value)}
+                  className={`shrink-0 cursor-pointer rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${
                     isActive
                       ? "bg-[#1d1d1f] text-white shadow-sm"
                       : "bg-white border border-neutral-200/80 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
@@ -295,52 +316,121 @@ export default function Home() {
             })}
           </div>
 
-          {/* Faixa de preço e capacidade */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {PRICE_RANGES.map((r) => (
+          {/* Linha de Unidade + Botão Colapsável de Filtros (Preço e GB) */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {UNIT_FILTER_PILLS.map((pill) => {
+                const isActive = urlFilters.unit === pill.value;
+                return (
+                  <button
+                    key={pill.value}
+                    type="button"
+                    onClick={() => handleUnitSelect(pill.value)}
+                    className={`inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                      isActive
+                        ? "bg-[#0071e3] text-white shadow-xs"
+                        : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
+                    }`}
+                  >
+                    {pill.value !== "todas" && <MapPin className="h-3 w-3" />}
+                    <span>{pill.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
-                key={r.key}
                 type="button"
-                onClick={() => setPriceKey(r.key)}
-                className={`shrink-0 cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                  priceKey === r.key
-                    ? "bg-[#0071e3] text-white shadow-sm"
-                    : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
+                aria-expanded={filtersExpanded}
+                onClick={() => setFiltersExpanded((prev) => !prev)}
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                  filtersExpanded || secondaryFilterCount > 0
+                    ? "border-[#0071e3] bg-[#eef5ff] text-[#0066cc]"
+                    : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                 }`}
               >
-                {r.label}
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <span>Filtros</span>
+                {secondaryFilterCount > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0071e3] px-1 text-[10px] font-bold text-white">
+                    {secondaryFilterCount}
+                  </span>
+                )}
               </button>
-            ))}
-            {storageOptions.length > 0 && <span className="mx-1 h-4 w-px shrink-0 bg-neutral-200" />}
-            {storageOptions.map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStorage(storage === st ? "" : st)}
-                className={`shrink-0 cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                  storage === st
-                    ? "bg-[#0071e3] text-white shadow-sm"
-                    : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="shrink-0 cursor-pointer px-2 text-xs font-semibold text-[#0066cc] underline underline-offset-4"
-              >
-                Limpar filtros
-              </button>
-            )}
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="cursor-pointer px-2 text-xs font-semibold text-[#0066cc] underline underline-offset-4"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Grid de Produtos ou Estado Vazio */}
+          {/* Gaveta colapsável de Preço (em centavos) e Armazenamento */}
+          {filtersExpanded && (
+            <div className="rounded-2xl border border-neutral-200/80 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3 animate-in fade-in duration-150">
+              <div>
+                <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                  Faixa de preço no Pix
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRICE_RANGES.map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => handlePriceSelect(r.key)}
+                      className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                        urlFilters.priceKey === r.key
+                          ? "bg-[#1d1d1f] text-white"
+                          : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {storageOptions.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                    Armazenamento
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {storageOptions.map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => handleStorageSelect(st)}
+                        className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                          urlFilters.storage === st
+                            ? "bg-[#0071e3] text-white"
+                            : "bg-[#f5f5f7] text-neutral-600 hover:bg-neutral-200/70"
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Grid de Produtos, Skeleton ou Estado Vazio */}
           {catalogStatusQuery.isLoading || productsQuery.isLoading ? (
-            <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center text-sm text-neutral-500 shadow-sm">
-              Carregando produtos disponíveis…
+            <div
+              aria-label="Carregando produtos da vitrine"
+              className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4"
+            >
+              {Array.from({ length: 6 }, (_, idx) => (
+                <ProductCardSkeleton key={idx} />
+              ))}
             </div>
           ) : filteredProducts.length === 0 ? (
             isErpEnabled && catalogStatus === "offline" ? (
@@ -382,7 +472,7 @@ export default function Home() {
                   O catálogo está configurado para ler dados do ERP Gestão Celular, mas o identificador da loja (ERP_STORE_SLUG) ainda não foi preenchido no servidor.
                 </p>
               </div>
-            ) : isErpEnabled && (catalogStatus === "empty" || (allProducts.length === 0 && !search && !selectedCategory)) ? (
+            ) : isErpEnabled && (catalogStatus === "empty" || (allProducts.length === 0 && !hasActiveFilters)) ? (
               <div className="mt-8 rounded-3xl border border-neutral-200/80 bg-white p-8 text-center sm:p-12 shadow-sm">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600">
                   <PackageOpen className="h-6 w-6" />
@@ -434,8 +524,8 @@ export default function Home() {
                   <a
                     href={waLink(
                       whatsapp,
-                      search
-                        ? `Olá! Estou procurando por "${search}" na Lojinha do Celular. Vocês têm em estoque ou previsão?`
+                      searchInput
+                        ? `Olá! Estou procurando por "${searchInput}" na Lojinha do Celular. Vocês têm em estoque ou previsão?`
                         : "Olá! Gostaria de consultar a disponibilidade de aparelhos na Lojinha do Celular.",
                     )}
                     target="_blank"
@@ -449,17 +539,33 @@ export default function Home() {
               </div>
             )
           ) : (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-              {filteredProducts.map((p, i) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  installmentsMax={s.installmentsMax}
-                  fees={s.fees}
-                  priority={i < 4}
-                />
-              ))}
-            </div>
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                {visibleProducts.map((p, i) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    installmentsMax={s.installmentsMax}
+                    fees={s.fees}
+                    priority={i < 4}
+                  />
+                ))}
+              </div>
+              {remainingCount > 0 && (
+                <div className="mt-8 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + VITRINE_BATCH_SIZE)}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-200 bg-white px-6 py-3 text-xs sm:text-sm font-semibold text-neutral-900 shadow-xs transition hover:bg-neutral-50 active:scale-[0.98]"
+                  >
+                    <span>Ver mais produtos</span>
+                    <span className="rounded-full bg-[#f5f5f7] px-2 py-0.5 text-[11px] font-bold text-neutral-600">
+                      +{Math.min(remainingCount, VITRINE_BATCH_SIZE)} ({remainingCount} restantes)
+                    </span>
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -563,8 +669,10 @@ export default function Home() {
                 maps:
                   s.mapsJardim ||
                   "https://www.google.com/maps/search/?api=1&query=Av.+Duque+de+Caxias+486+Jardim+MS",
-                waLink:
-                  "https://wa.me/5567992086012?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20a%20Unidade%20Jardim.",
+                waLink: waLink(
+                  s.whatsappJardim || "5567992086012",
+                  "Olá! Gostaria de falar com a Unidade Jardim.",
+                ),
                 hours: "Segunda a Sexta: 07h00 às 18h30 • Sábado: 07h00 às 13h",
               },
               {
@@ -573,8 +681,10 @@ export default function Home() {
                 maps:
                   s.mapsGll ||
                   "https://www.google.com/maps/search/?api=1&query=Rua+Macias+Barbosa+2185+Guia+Lopes+da+Laguna+MS",
-                waLink:
-                  "https://wa.me/5567998206533?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20a%20Unidade%20Guia%20Lopes.",
+                waLink: waLink(
+                  s.whatsappGll || "5567998206533",
+                  "Olá! Gostaria de falar com a Unidade Guia Lopes.",
+                ),
                 hours: "Segunda a Sexta: 07h30 às 18h • Sábado: 07h30 às 12h",
               },
             ].map((u) => (
@@ -648,7 +758,7 @@ export default function Home() {
                   Loja de iPhone (Novos &amp; Seminovos)
                 </h3>
                 <p className="mt-2 text-xs text-neutral-600 leading-relaxed">
-                  iPhones lacrados na caixa e seminovos premium dos EUA com até <b>1 ano de garantia</b>, procedência e bateria verificada. Modelos do iPhone 11 ao iPhone 16 Pro Max com pronta entrega.
+                  iPhones lacrados na caixa e seminovos premium dos EUA com até <b>1 ano de garantia</b>, procedência e bateria verificada. Linha completa do iPhone 11 aos lançamentos atuais com pronta entrega.
                 </p>
               </div>
               <div className="mt-4 pt-4 border-t border-neutral-200/60 text-[11px] font-semibold text-neutral-500">
