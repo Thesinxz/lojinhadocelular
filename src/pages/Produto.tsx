@@ -1,71 +1,111 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router";
+import { getQueryKey } from "@trpc/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck,
   MessageCircle,
   ChevronLeft,
+  ChevronDown,
   AlertCircle,
   RefreshCw,
   Plus,
   RefreshCcw,
   Gift,
-  Video,
   Flame,
   Copy,
+  Scale,
+  Check,
 } from "lucide-react";
-import { trpc } from "@/providers/trpc";
-import type { ProductWithVariants } from "@/providers/trpc";
-import { formatBRL, installmentFromFees, cardPriceFromPix, CATEGORIES } from "@contracts/types";
-import { useShopSettings, waLink, optimizeImageUrl, getImageSrcSet } from "@/lib/shop";
+import { trpc, type ProductWithVariants, type RouterOutputs } from "@/providers/trpc";
+import {
+  formatBRL,
+  installmentFromFees,
+  cardPriceFromPix,
+  CATEGORIES,
+} from "@contracts/types";
+import { useShopSettings, waLink } from "@/lib/shop";
 import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
-import { resolveProductImage } from "@/lib/iphoneCatalog";
-import { getVideoEmbed } from "@/components/admin/AdminProductEditor";
+import { getVideoEmbed } from "@/lib/videoEmbed";
 import { useCart } from "@/lib/cart";
+import { useCompare } from "@/lib/compare";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import {
   formatCommercialProductName,
   formatCommercialSku,
 } from "@/lib/commercialFormatting";
+import { createProductShareSlug } from "@/lib/productUrls";
 import {
-  createProductShareSlug,
-  extractProductIdFromShareSlug,
-  extractProductUuidPrefixFromShareSlug,
-} from "@/lib/productUrls";
+  buildProductGalleryImages,
+  buildProductJsonLd,
+  deriveVariantSelection,
+  findProductInCachedCatalog,
+  parseProductRouteParams,
+  pickNextColorVariant,
+  pickNextStorageVariant,
+  pickNextVersionVariant,
+  type ParsedProductRoute,
+} from "@/lib/productDetail";
 import SEO from "@/components/SEO";
 import SpecSheet from "@/components/SpecSheet";
-
-type Variant = ProductWithVariants["variants"][number];
+import ProductGallery from "@/components/produto/ProductGallery";
+import MobileStickyCta from "@/components/produto/MobileStickyCta";
+import RelatedProducts from "@/components/produto/RelatedProducts";
 
 export default function Produto() {
   const { id } = useParams<{ id: string }>();
-  const idStr = id ? String(id).trim() : "";
-  const shareSlugId = extractProductIdFromShareSlug(idStr);
-  const shareSlugUuid = extractProductUuidPrefixFromShareSlug(idStr);
-  const productRouteId = shareSlugId ?? idStr;
-  const isUuidOrString = Boolean(shareSlugUuid) ||
-    (typeof id === "string" && (productRouteId.includes("-") || Number.isNaN(Number(productRouteId))));
-  const numericId = Number(productRouteId);
+  const parsed = parseProductRouteParams(id);
 
+  return (
+    <ProdutoContent
+      key={parsed.productQueryId || parsed.idStr || "invalid"}
+      parsed={parsed}
+    />
+  );
+}
+
+function ProdutoContent({ parsed }: { parsed: ParsedProductRoute }) {
   const demoFallback = useMemo(() => {
-    if (isUuidOrString) return undefined;
-    if (Number.isNaN(numericId)) return undefined;
+    if (parsed.isUuidOrString) return undefined;
+    if (Number.isNaN(parsed.numericId)) return undefined;
     return (
-      DEMO_PRODUCTS.find((p) => p.id === numericId) ||
-      DEMO_PRODUCTS.find((p) => p.id === Math.abs(numericId)) ||
-      (numericId < 0 ? DEMO_PRODUCTS[0] : undefined)
+      DEMO_PRODUCTS.find((p) => p.id === parsed.numericId) ||
+      DEMO_PRODUCTS.find((p) => p.id === Math.abs(parsed.numericId)) ||
+      (parsed.numericId < 0 ? DEMO_PRODUCTS[0] : undefined)
     );
-  }, [isUuidOrString, numericId]);
+  }, [parsed.isUuidOrString, parsed.numericId]);
 
-  const isDemo = !!demoFallback;
-  const isValidId = isUuidOrString ? !!productRouteId : (!Number.isNaN(numericId) && numericId > 0) || isDemo;
-  const productQueryId = shareSlugUuid ? idStr : productRouteId;
+  const isDemo = Boolean(demoFallback);
+  const isValidId = parsed.isValidId || isDemo;
 
   const s = useShopSettings();
+  const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
+  const cachedCatalog: readonly ProductWithVariants[] | undefined =
+    utils.shop.products.getData();
+  const cachedProduct = useMemo(
+    () => findProductInCachedCatalog(cachedCatalog, parsed.idStr),
+    [cachedCatalog, parsed.idStr],
+  );
+  const productsQueryState = queryClient.getQueryState(
+    getQueryKey(trpc.shop.products, undefined, "query"),
+  );
+
   const query = trpc.shop.product.useQuery(
-    { id: isUuidOrString ? productQueryId : numericId > 0 ? numericId : 1 },
     {
-      enabled: (isUuidOrString ? !!productQueryId : (!Number.isNaN(numericId) && numericId > 0)) && !isDemo,
+      id: parsed.isUuidOrString
+        ? parsed.productQueryId
+        : parsed.numericId > 0
+          ? parsed.numericId
+          : 1,
+    },
+    {
+      enabled: isValidId && !isDemo,
       staleTime: 1000 * 30,
+      initialData: cachedProduct as RouterOutputs["shop"]["product"] | undefined,
+      initialDataUpdatedAt: cachedProduct
+        ? productsQueryState?.dataUpdatedAt
+        : undefined,
     },
   );
 
@@ -75,26 +115,15 @@ export default function Produto() {
     return null;
   }, [query.data, demoFallback]);
 
-  // Gerenciamento de seleção compatível com React 19
-  const [selectedProductId, setSelectedProductId] = useState<string | number>(productRouteId || numericId);
   const [userVersion, setUserVersion] = useState<string | null>(null);
   const [userStorage, setUserStorage] = useState<string | null>(null);
   const [userColor, setUserColor] = useState<string | null>(null);
   const [userVariantId, setUserVariantId] = useState<string | number | null>(null);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
   const [mediaTab, setMediaTab] = useState<"photo" | "video">("photo");
+  const [manualImageUrl, setManualImageUrl] = useState<string | null>(null);
   const [shareFeedback, setShareFeedback] = useState("");
-
-  const currentIdKey = isUuidOrString ? productRouteId : numericId;
-  if (selectedProductId !== currentIdKey) {
-    setSelectedProductId(currentIdKey);
-    setUserVersion(null);
-    setUserStorage(null);
-    setUserColor(null);
-    setUserVariantId(null);
-    setShowAllInstallments(false);
-    setMediaTab("photo");
-  }
+  const inlineCtaRef = useRef<HTMLDivElement | null>(null);
 
   const defaultVariant = useMemo(() => {
     if (!product || product.variants.length === 0) return null;
@@ -111,109 +140,59 @@ export default function Produto() {
 
   const derived = useMemo(() => {
     if (!product) return null;
-    const vs = product.variants;
-
-    const versions = [...new Set(vs.map((v) => v.version))];
-    const byVersion = vs.filter((v) => v.version === version);
-    const storages = [...new Set(byVersion.map((v) => v.storage))];
-    const colors = [...new Set(vs.filter((v) => v.version === version).map((v) => v.color))];
-
-    const storageAvailable = (st: string) =>
-      byVersion.some((v) => v.storage === st && v.available && (v.quantity ?? 1) > 0);
-    const colorAvailable = (c: string) =>
-      vs.some(
-        (v) =>
-          v.version === version &&
-          v.color === c &&
-          v.available &&
-          (v.quantity ?? 1) > 0,
-      );
-    const colorHex = (c: string) =>
-      vs.find((v) => v.version === version && v.color === c)?.colorHex ?? "#111111";
-
-    const matchingVariants = vs.filter(
-      (v) => v.version === version && v.storage === storage && v.color === cMatch(color, vs, version, storage),
-    );
-
-    const selected =
-      matchingVariants.find((v) => v.id === selectedVariantId) ??
-      matchingVariants.find((v) => v.available && (v.quantity ?? 1) > 0) ??
-      matchingVariants[0] ??
-      vs.find((v) => v.version === version && v.storage === storage && v.color === color) ??
-      vs[0];
-
-    return { versions, storages, colors, storageAvailable, colorAvailable, colorHex, matchingVariants, selected };
+    return deriveVariantSelection(product.variants, {
+      version,
+      storage,
+      color,
+      selectedVariantId,
+    });
   }, [product, version, storage, color, selectedVariantId]);
 
-  function cMatch(c: string, vs: Variant[], ver: string, st: string) {
-    if (vs.some((v) => v.version === ver && v.storage === st && v.color === c)) return c;
-    const first = vs.find((v) => v.version === ver && v.storage === st && v.available);
-    return first ? first.color : c;
-  }
-
-  function pickStorage(st: string) {
-    setUserStorage(st);
-    if (!product) return;
-    const match = product.variants.find(
-      (v) =>
-        v.version === version &&
-        v.storage === st &&
-        v.color === color &&
-        v.available &&
-        (v.quantity ?? 1) > 0,
-    );
-    if (match) {
-      setUserVariantId(match.id ?? null);
-    } else {
-      const first = product.variants.find(
-        (v) =>
-          v.version === version &&
-          v.storage === st &&
-          v.available &&
-          (v.quantity ?? 1) > 0,
-      );
-      if (first) {
-        setUserColor(first.color);
-        setUserVariantId(first.id ?? null);
-      }
+  const pickVersion = (nextVersion: string) => {
+    setManualImageUrl(null);
+    if (!product) {
+      setUserVersion(nextVersion);
+      return;
     }
-  }
+    const next = pickNextVersionVariant(product.variants, nextVersion);
+    setUserVersion(next.version);
+    setUserStorage(next.storage ?? null);
+    setUserColor(next.color ?? null);
+    setUserVariantId(next.variantId);
+  };
 
-  function pickColor(c: string) {
-    setUserColor(c);
-    if (!product) return;
-    const match = product.variants.find(
-      (v) =>
-        v.version === version &&
-        v.storage === storage &&
-        v.color === c &&
-        v.available &&
-        (v.quantity ?? 1) > 0,
-    );
-    if (match) {
-      setUserVariantId(match.id ?? null);
-    } else {
-      const first = product.variants.find(
-        (v) =>
-          v.version === version &&
-          v.color === c &&
-          v.available &&
-          (v.quantity ?? 1) > 0,
-      );
-      if (first) {
-        setUserStorage(first.storage);
-        setUserVariantId(first.id ?? null);
-      }
+  const pickStorage = (nextStorage: string) => {
+    setManualImageUrl(null);
+    if (!product) {
+      setUserStorage(nextStorage);
+      return;
     }
-  }
+    const next = pickNextStorageVariant(product.variants, version, nextStorage, color);
+    setUserStorage(next.storage ?? nextStorage);
+    if (next.color !== undefined) setUserColor(next.color);
+    setUserVariantId(next.variantId);
+  };
+
+  const pickColor = (nextColor: string) => {
+    setManualImageUrl(null);
+    if (!product) {
+      setUserColor(nextColor);
+      return;
+    }
+    const next = pickNextColorVariant(product.variants, version, nextColor, storage);
+    setUserColor(next.color ?? nextColor);
+    if (next.storage !== undefined) setUserStorage(next.storage);
+    setUserVariantId(next.variantId);
+  };
 
   const selected = derived?.selected;
-  const isAvailable = !!selected?.available && (selected?.quantity ?? 1) > 0;
+  const isAvailable = Boolean(selected?.available) && (selected?.quantity ?? 1) > 0;
   const price = selected?.priceCash ?? null;
   const interestFreeInstallments = Math.max(1, Math.min(12, s.installmentsMax));
-  const installment12 = price != null
-    ? Math.round(cardPriceFromPix(price) / interestFreeInstallments)
-    : null;
+  const installment12 =
+    price != null
+      ? Math.round(cardPriceFromPix(price) / interestFreeInstallments)
+      : null;
 
   const isLacrado =
     selected?.condition === "lacrado" || product?.condition === "lacrado";
@@ -235,7 +214,8 @@ export default function Produto() {
     ? (CATEGORIES.find((c) => c.value === product.category)?.label ?? product.category)
     : "";
 
-  const unitAvailability = selected?.unitAvailability || product?.unitAvailability || "jardim";
+  const unitAvailability =
+    selected?.unitAvailability || product?.unitAvailability || "jardim";
   const isGuiaOnly = unitAvailability === "guia_lopes";
   const isAmbas = unitAvailability === "ambas";
 
@@ -246,14 +226,19 @@ export default function Produto() {
   const conditionLabel = isLacrado ? "Lacrado" : "Seminovo";
   const formattedPrice = price != null ? formatBRL(price) : "";
 
-  const { addItem } = useCart();
+  const { addItem, isOpen: isCartOpen } = useCart();
+  const compare = useCompare();
 
   const productCode =
     typeof product?.id === "number"
       ? `B${product.id + 1600}`
       : `B${String(product?.id || "1000").slice(0, 8).toUpperCase()}`;
   const displaySku = formatCommercialSku(selected?.sku || productCode);
-  const cleanTitle = formatCommercialProductName(product?.name || "", color, storage);
+  const cleanTitle = formatCommercialProductName(
+    product?.name || "",
+    color,
+    storage,
+  );
   const prodPath = product
     ? `/produto/${createProductShareSlug(cleanTitle || product.name, product.id)}`
     : "";
@@ -332,6 +317,22 @@ export default function Produto() {
     }
   };
 
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+    return buildProductGalleryImages(
+      product.name,
+      product.imageUrl,
+      selected?.imageUrl,
+      color,
+      product.variants,
+    );
+  }, [product, selected?.imageUrl, color]);
+
+  const activeImage =
+    manualImageUrl && galleryImages.includes(manualImageUrl)
+      ? manualImageUrl
+      : (galleryImages[0] ?? "");
+
   const prodTitle = cleanTitle
     ? `${cleanTitle} — Lojinha do Celular`
     : product
@@ -341,64 +342,29 @@ export default function Produto() {
     ? product.description ||
       `Compre ${product.name} na Lojinha do Celular com garantia e melhor preço em Jardim-MS e Guia Lopes da Laguna.`
     : "";
-  const prodImage = resolveProductImage(
-    product?.name ?? "",
-    selected?.imageUrl || product?.imageUrl,
-    color,
-  );
+
   const productJsonLd =
     product && price != null
-      ? {
-          "@context": "https://schema.org",
-          "@type": "Product",
-          name: cleanTitle || product.name,
-          image: prodImage
-            ? prodImage.startsWith("/")
-              ? `https://lojinhadocelular.com${prodImage}`
-              : prodImage
-            : undefined,
+      ? buildProductJsonLd({
+          productId: product.id,
+          cleanTitle: cleanTitle || product.name,
           description: prodDesc,
+          brand: product.brand,
           sku: displaySku || String(product.id),
-          brand: {
-            "@type": "Brand",
-            name:
-              product.brand ||
-              (product.name.toLowerCase().includes("iphone") ? "Apple" : "Smartphone"),
-          },
-          offers: {
-            "@type": "Offer",
-            url: prodUrl || `https://lojinhadocelular.com/produto/${product.id}`,
-            priceCurrency: "BRL",
-            price: (price / 100).toFixed(2),
-            priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-              .toISOString()
-              .split("T")[0],
-            itemCondition: isLacrado
-              ? "https://schema.org/NewCondition"
-              : "https://schema.org/UsedCondition",
-            availability: isAvailable
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-            seller: {
-              "@type": "LocalBusiness",
-              name: "Lojinha do Celular",
-              telephone: "+55-67-99208-6012",
-              priceRange: "$$",
-              address: {
-                "@type": "PostalAddress",
-                streetAddress: "Rua Marechal Rondon, 620",
-                addressLocality: "Jardim",
-                addressRegion: "MS",
-                postalCode: "79240-000",
-                addressCountry: "BR",
-              },
-            },
-          },
-        }
+          priceCash: price,
+          imageUrl: activeImage,
+          productUrl: prodUrl || `https://lojinhadocelular.com/produto/${product.id}`,
+          isLacrado,
+          isAvailable,
+          unitAvailability,
+          addressJardim: s.addressJardim,
+          addressGll: s.addressGll,
+          whatsappJardim: s.whatsappJardim,
+          whatsappGll: s.whatsappGll,
+        })
       : undefined;
 
   const trackInterestMutation = trpc.shop.trackInterest.useMutation();
-  /** Conta o clique de interesse; falhas não atrapalham o cliente. */
   const trackInterest = () => {
     if (isDemo || !product) return;
     trackInterestMutation.mutate({ productId: product.id });
@@ -416,8 +382,8 @@ export default function Produto() {
       storage: storage || "",
       condition: conditionLabel,
       sku: displaySku,
-      price: price,
-      imageUrl: prodImage || product.imageUrl || "",
+      price,
+      imageUrl: activeImage || product.imageUrl || "",
     });
   };
 
@@ -532,21 +498,31 @@ export default function Produto() {
     );
   }
 
+  const showVersions = derived.versions.filter(Boolean).length > 1;
   const showStorages = derived.storages.filter(Boolean).length > 0;
   const showColors = derived.colors.filter(Boolean).length > 0;
+  const inCompare = compare.has(product.id);
+  const compareBlocked = compare.isFull && !inCompare;
+  const whatsappDirectHref = waLink(targetWhatsapp, buyMessage);
+  const variantSummary = [color, storage && storage !== "Padrão" ? storage : ""]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="bg-white min-h-screen text-[#1d1d1f] pt-4 pb-20 px-4">
+    <div
+      className={`bg-white min-h-screen text-[#1d1d1f] pt-4 px-4 ${
+        isAvailable ? "pb-28 md:pb-20" : "pb-20"
+      }`}
+    >
       <SEO
         title={prodTitle}
         description={prodDesc}
-        image={prodImage}
+        image={activeImage}
         url={prodUrl}
         jsonLd={productJsonLd}
       />
 
       <div className="max-w-5xl mx-auto">
-        {/* Botão de retorno discreto no topo: ← Loja */}
         <div className="mb-4">
           <Link
             to="/#vitrine"
@@ -556,98 +532,18 @@ export default function Produto() {
           </Link>
         </div>
 
-        {/* Grid em 2 colunas no desktop */}
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start max-w-5xl mx-auto">
-          {/* Coluna da Esquerda (Foto do Produto ou Vídeo) */}
-          <div className="aspect-square w-full rounded-3xl bg-[#fbfbfd] border border-neutral-100 p-4 sm:p-8 flex items-center justify-center shadow-xs overflow-hidden relative">
-            {videoEmbed && (
-              <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-full bg-black/75 p-1 backdrop-blur-md shadow-md">
-                <button
-                  type="button"
-                  onClick={() => setMediaTab("photo")}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition cursor-pointer ${
-                    mediaTab === "photo"
-                      ? "bg-white text-black shadow-xs"
-                      : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  📷 Foto
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMediaTab("video")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition cursor-pointer ${
-                    mediaTab === "video"
-                      ? "bg-purple-600 text-white shadow-xs"
-                      : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  <Video className="h-3.5 w-3.5" /> Vídeo
-                </button>
-              </div>
-            )}
+          <ProductGallery
+            productName={cleanTitle || product.name}
+            images={galleryImages}
+            activeImage={activeImage}
+            onSelectImage={(url) => setManualImageUrl(url)}
+            mediaTab={mediaTab}
+            onChangeMediaTab={setMediaTab}
+            videoEmbed={videoEmbed}
+          />
 
-            {mediaTab === "video" && videoEmbed ? (
-              <div className="h-full w-full flex items-center justify-center bg-black rounded-2xl overflow-hidden">
-                {videoEmbed.type === "youtube" ? (
-                  <iframe
-                    src={videoEmbed.src}
-                    title="Vídeo do aparelho"
-                    className="h-full w-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : videoEmbed.type === "video" ? (
-                  <video
-                    src={videoEmbed.src}
-                    controls
-                    autoPlay
-                    muted
-                    playsInline
-                    className="h-full w-full object-contain"
-                  />
-                ) : (
-                  <div className="text-center p-6 text-white">
-                    <Video className="mx-auto h-10 w-10 text-purple-400 mb-2" />
-                    <p className="text-sm font-semibold">Vídeo demonstrativo</p>
-                    <a
-                      href={videoEmbed.src}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-500"
-                    >
-                      Assistir vídeo externo
-                    </a>
-                  </div>
-                )}
-              </div>
-            ) : prodImage ? (
-              <img
-                src={optimizeImageUrl(prodImage, 800, 85)}
-                srcSet={getImageSrcSet(prodImage)}
-                sizes="(max-width: 768px) 100vw, 500px"
-                alt={product.name}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-                onError={(e) => {
-                  e.currentTarget.removeAttribute("srcset");
-                  if (prodImage && e.currentTarget.src !== prodImage) {
-                    e.currentTarget.src = prodImage;
-                  }
-                }}
-                className="h-full w-full max-h-full max-w-full object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition-all duration-300"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm font-medium text-neutral-400">
-                Sem foto
-              </div>
-            )}
-          </div>
-
-          {/* Coluna da Direita (Configuração e Compra) */}
           <div className="flex flex-col">
-            {/* Badges superiores exatamente como na BLK Store */}
             <div className="flex flex-wrap items-center gap-2">
               {Boolean(product.featured) && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-3 py-1 text-xs font-black uppercase tracking-wide text-white shadow-xs animate-in fade-in">
@@ -671,19 +567,16 @@ export default function Produto() {
                 </span>
               )}
 
-              {/* Código do produto */}
               <span className="rounded-full border border-neutral-200 px-2.5 py-0.5 text-xs font-mono text-neutral-500">
                 {displaySku}
               </span>
 
-              {/* Bateria para seminovos */}
               {batteryHealthDisplay && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
                   🔋 Bateria {batteryHealthDisplay}
                 </span>
               )}
 
-              {/* Badge de Unidade / Loja */}
               {unitAvailability === "guia_lopes" && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900">
                   📍 Unidade Guia Lopes
@@ -701,37 +594,48 @@ export default function Produto() {
               )}
             </div>
 
-            {/* Título do Produto */}
             <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-neutral-950 mt-3 leading-tight">
               {cleanTitle}
             </h1>
 
-            {/* Bloco de Preço */}
             <div className="mt-4">
               {price != null && isAvailable ? (
                 <div>
-                  {/* Preço à vista destacado */}
                   <div className="text-4xl sm:text-5xl font-black text-neutral-950 tracking-tight mt-1">
                     {formatBRL(price)}
                   </div>
 
-                  {/* Subtítulo à vista no Pix */}
                   <p className="text-sm text-neutral-500 mt-0.5 font-medium">
                     à vista no Pix · 12% de desconto já aplicado
                   </p>
 
-                  {/* Linha de Parcelamento */}
-                  <p
+                  <button
+                    type="button"
                     onClick={() => setShowAllInstallments((v) => !v)}
-                    className="text-xs sm:text-sm text-neutral-600 mt-3 cursor-pointer hover:text-black transition"
+                    aria-expanded={showAllInstallments}
+                    className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-left text-xs sm:text-sm text-neutral-600 hover:text-black transition cursor-pointer"
                   >
-                    ou <span className="font-bold text-neutral-900">{interestFreeInstallments}x de {formatBRL(installment12 ?? 0)} sem juros</span> no cartão
-                    {s.installmentsMax > 12 && <span className="block mt-1 text-neutral-500">Acima de 12x, consulte as parcelas com juros.</span>}{" "}
-                    —{" "}
-                    <span className="underline decoration-neutral-300">
-                      {showAllInstallments ? "ocultar parcelas" : "ver todas as parcelas"}
+                    <span>
+                      ou{" "}
+                      <span className="font-bold text-neutral-900">
+                        {interestFreeInstallments}x de {formatBRL(installment12 ?? 0)} sem juros
+                      </span>{" "}
+                      no cartão
                     </span>
-                  </p>
+                    <span className="inline-flex items-center gap-1 font-medium text-neutral-700 underline decoration-neutral-300">
+                      {showAllInstallments ? "ocultar parcelas" : "ver todas as parcelas"}
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 transition-transform ${
+                          showAllInstallments ? "rotate-180" : ""
+                        }`}
+                      />
+                    </span>
+                    {s.installmentsMax > 12 && (
+                      <span className="w-full text-[11px] sm:text-xs text-neutral-500 mt-0.5">
+                        Acima de 12x, consulte as parcelas com juros.
+                      </span>
+                    )}
+                  </button>
 
                   {showAllInstallments && (
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3.5 text-xs animate-in fade-in-50">
@@ -741,7 +645,7 @@ export default function Produto() {
                           { length: s.installmentsMax },
                           (_, i) => i + 1,
                         ).map((n) => {
-                          const fee = n > 12 ? s.fees[String(n)] ?? 0 : 0;
+                          const fee = n > 12 ? (s.fees[String(n)] ?? 0) : 0;
                           const val = installmentFromFees(cardPrice, n, fee);
                           return (
                             <div
@@ -749,7 +653,9 @@ export default function Produto() {
                               className="flex items-center justify-between gap-1 text-neutral-600"
                             >
                               <span className="font-bold text-neutral-900">{n}x</span>
-                              <span className="text-neutral-800 font-medium">{formatBRL(val)}</span>
+                              <span className="text-neutral-800 font-medium">
+                                {formatBRL(val)}
+                              </span>
                             </div>
                           );
                         });
@@ -764,20 +670,48 @@ export default function Produto() {
               )}
             </div>
 
-            {/* Seletores de Capacidade e Cores */}
-            {showStorages && (
+            {showVersions && (
               <div className="mt-6">
-                <label className="text-xs font-bold uppercase tracking-wider text-neutral-500 block mb-2">
-                  Capacidade
-                </label>
+                <span className="text-xs font-bold uppercase tracking-wider text-neutral-500 block mb-2">
+                  Versão
+                </span>
                 <div className="flex flex-wrap gap-2">
-                  {derived.storages.map((st) => {
+                  {derived.versions.filter(Boolean).map((ver) => {
+                    const isSelected = version === ver;
+                    return (
+                      <button
+                        key={ver}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => pickVersion(ver)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+                          isSelected
+                            ? "bg-[#1d1d1f] text-white shadow-xs"
+                            : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {ver}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {showStorages && (
+              <div className="mt-5">
+                <span className="text-xs font-bold uppercase tracking-wider text-neutral-500 block mb-2">
+                  Capacidade
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {derived.storages.filter(Boolean).map((st) => {
                     const isSelected = storage === st;
                     const ok = derived.storageAvailable(st);
                     return (
                       <button
                         key={st}
                         type="button"
+                        aria-pressed={isSelected}
                         onClick={() => pickStorage(st)}
                         className={`rounded-full px-5 py-2 text-sm font-semibold transition cursor-pointer ${
                           isSelected
@@ -796,25 +730,26 @@ export default function Produto() {
             {showColors && (
               <div className="mt-5">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                     Cor
-                  </label>
+                  </span>
                   <span className="text-xs text-neutral-700 font-semibold">{color}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {derived.colors.map((c) => {
+                  {derived.colors.filter(Boolean).map((c) => {
                     const isSelected = color === c;
                     const hex = derived.colorHex(c);
                     return (
                       <button
                         key={c}
                         type="button"
+                        aria-pressed={isSelected}
                         onClick={() => pickColor(c)}
                         className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition cursor-pointer ${
                           isSelected
                             ? "bg-[#1d1d1f] text-white shadow-xs"
                             : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                        }`}
+                        } ${!derived.colorAvailable(c) ? "opacity-50" : ""}`}
                       >
                         <span
                           className="h-3.5 w-3.5 rounded-full border border-black/10 shrink-0"
@@ -828,12 +763,13 @@ export default function Produto() {
               </div>
             )}
 
-            {/* Aviso quando o aparelho está fisicamente em Guia Lopes */}
             {isGuiaOnly && (
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/90 p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
                 <span className="text-base leading-none">📍</span>
                 <div>
-                  <p className="font-bold text-amber-950">Aparelho disponível na Unidade de Guia Lopes da Laguna</p>
+                  <p className="font-bold text-amber-950">
+                    Aparelho disponível na Unidade de Guia Lopes da Laguna
+                  </p>
                   <p className="mt-0.5 text-amber-800">
                     Ao pedir pelo WhatsApp, seu pedido será atendido diretamente pela nossa filial de Guia Lopes para separação e entrega.
                   </p>
@@ -841,8 +777,8 @@ export default function Produto() {
               </div>
             )}
 
-            {/* Botões de Ação Duplos */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            {/* Botões de Ação principais */}
+            <div ref={inlineCtaRef} className="mt-6 flex flex-col sm:flex-row gap-3">
               {!isAvailable ? (
                 <a
                   href={waLink(
@@ -869,13 +805,10 @@ export default function Produto() {
                   </button>
 
                   <a
-                    href={waLink(targetWhatsapp, buyMessage)}
+                    href={whatsappDirectHref}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={() => {
-                      trackInterest();
-                      handleAddToCart();
-                    }}
+                    onClick={trackInterest}
                     className="flex-1 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.98] cursor-pointer"
                   >
                     <WhatsAppIcon className="h-4 w-4 fill-white" />
@@ -887,22 +820,45 @@ export default function Produto() {
 
             {isAvailable && (
               <div className="mt-3">
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row gap-2.5">
                   <button
                     type="button"
                     onClick={handleShare}
-                    className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
+                    className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-2.5 px-4 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
                   >
                     <WhatsAppIcon className="h-4 w-4 fill-current" />
-                    <span>Enviar resumo no WhatsApp</span>
+                    <span>Enviar resumo</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleCopyShare}
-                    className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
+                    className="flex-1 rounded-full border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 py-2.5 px-4 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] cursor-pointer"
                   >
                     <Copy className="h-4 w-4" />
                     <span>Copiar resumo</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={inCompare}
+                    disabled={compareBlocked}
+                    onClick={() => compare.toggle(product.id)}
+                    title={
+                      compareBlocked
+                        ? "Limite de 3 aparelhos para comparar atingido"
+                        : inCompare
+                          ? "Remover da comparação"
+                          : "Comparar este aparelho"
+                    }
+                    className={`rounded-full border py-2.5 px-4 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition ${
+                      inCompare
+                        ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] cursor-pointer"
+                        : compareBlocked
+                          ? "border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed"
+                          : "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 cursor-pointer"
+                    }`}
+                  >
+                    {inCompare ? <Check className="h-4 w-4" /> : <Scale className="h-4 w-4" />}
+                    <span>{inCompare ? "Comparando" : "Comparar"}</span>
                   </button>
                 </div>
                 {shareFeedback && (
@@ -913,9 +869,7 @@ export default function Produto() {
               </div>
             )}
 
-            {/* Promo Cards (Screenshot 4: Trade-in e Brinde) */}
             <div className="mt-6 flex flex-col gap-3">
-              {/* Card 1: Trade-in */}
               <a
                 href="https://trocafacil.lojinhadocelular.com"
                 className="rounded-2xl border border-neutral-200/90 bg-white p-4 flex items-center gap-3.5 shadow-xs hover:border-neutral-300 transition group"
@@ -933,7 +887,6 @@ export default function Produto() {
                 </div>
               </a>
 
-              {/* Card 2: Brinde */}
               <div className="rounded-2xl bg-[#eef5ff] border border-[#d2e4ff] text-[#0066cc] p-4 flex items-center gap-3.5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ddecff] text-[#0066cc]">
                   <Gift className="h-5 w-5" />
@@ -949,7 +902,17 @@ export default function Produto() {
               </div>
             </div>
 
-            {/* Tabela de Especificações (Screenshot 4) */}
+            {product.description?.trim() && (
+              <div className="mt-6 rounded-2xl border border-neutral-200/80 bg-[#fbfbfd] p-4">
+                <h2 className="font-display text-sm font-bold text-neutral-900">
+                  Sobre este aparelho
+                </h2>
+                <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-neutral-600 whitespace-pre-line">
+                  {product.description.trim()}
+                </p>
+              </div>
+            )}
+
             <div className="mt-8 border-t border-neutral-200 pt-4">
               <div className="divide-y divide-neutral-100 text-xs sm:text-sm">
                 <div className="flex items-center justify-between py-2.5">
@@ -958,11 +921,15 @@ export default function Produto() {
                 </div>
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-neutral-500">Categoria</span>
-                  <span className="font-bold text-neutral-900 text-right">{categoryLabel || "iPhone"}</span>
+                  <span className="font-bold text-neutral-900 text-right">
+                    {categoryLabel || "Smartphone"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-neutral-500">Condição</span>
-                  <span className="font-bold text-neutral-900 text-right">{conditionLabel}</span>
+                  <span className="font-bold text-neutral-900 text-right">
+                    {conditionLabel}
+                  </span>
                 </div>
                 {color && (
                   <div className="flex items-center justify-between py-2.5">
@@ -991,22 +958,51 @@ export default function Produto() {
                 {warrantyDisplay && (
                   <div className="flex items-center justify-between py-2.5">
                     <span className="text-neutral-500">Garantia</span>
-                    <span className="font-bold text-neutral-900 text-right">{warrantyDisplay}</span>
+                    <span className="font-bold text-neutral-900 text-right">
+                      {warrantyDisplay}
+                    </span>
                   </div>
                 )}
               </div>
 
-              <SpecSheet productName={product.name} />
+              <SpecSheet
+                productName={product.name}
+                brand={product.brand}
+                categoryLabel={categoryLabel}
+                conditionLabel={conditionLabel}
+                notes={selected?.notes}
+                warranty={warrantyDisplay}
+              />
 
-              {/* Selo de Procedência & Confiança */}
               <div className="mt-5 flex items-center gap-2.5 rounded-2xl bg-neutral-50 border border-neutral-100 p-3.5 text-xs text-neutral-600">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>{s.warrantyBadgeText || "Garantia de até 1 ano e procedência verificada."}</span>
+                <span>
+                  {s.warrantyBadgeText || "Garantia de até 1 ano e procedência verificada."}
+                </span>
               </div>
             </div>
           </div>
         </div>
+
+        <RelatedProducts currentProduct={product} isDemo={isDemo} />
       </div>
+
+      <MobileStickyCta
+        targetRef={inlineCtaRef}
+        isAvailable={isAvailable}
+        isCartOpen={isCartOpen}
+        cleanTitle={cleanTitle}
+        variantSummary={variantSummary}
+        formattedPrice={formattedPrice}
+        installmentSummary={
+          installment12
+            ? `${interestFreeInstallments}x ${formatBRL(installment12)}`
+            : undefined
+        }
+        whatsappHref={whatsappDirectHref}
+        onAddToCart={handleAddToCart}
+        onTrackInterest={trackInterest}
+      />
     </div>
   );
 }
