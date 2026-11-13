@@ -1,15 +1,23 @@
 import { Link, useLocation } from "react-router";
 import { Scale, X } from "lucide-react";
 import { useCompare } from "@/lib/compare";
+import { useProductStickyCtaVisible } from "@/lib/stickyCtaState";
 
 /** Barra flutuante que aparece quando há aparelhos marcados para comparar. */
 export default function CompareBar() {
   const { ids, clear } = useCompare();
   const { pathname } = useLocation();
+  const stickyCtaVisible = useProductStickyCtaVisible();
   if (ids.length === 0 || pathname === "/comparar") return null;
 
+  const bottomClass = stickyCtaVisible
+    ? "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:bottom-4"
+    : "bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] md:bottom-4";
+
   return (
-    <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none">
+    <div
+      className={`fixed inset-x-0 ${bottomClass} z-40 flex justify-center px-4 pointer-events-none transition-all duration-200`}
+    >
       <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-[#1d1d1f] py-2 pl-5 pr-2 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
         <Scale className="h-4 w-4 text-white/70" />
         <span className="text-xs font-semibold sm:text-sm">

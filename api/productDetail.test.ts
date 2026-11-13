@@ -10,6 +10,10 @@ import {
   pickNextStorageVariant,
   selectRelatedProducts,
 } from "../src/lib/productDetail";
+import {
+  getProductStickyCtaVisibleSnapshot,
+  setProductStickyCtaVisible,
+} from "../src/lib/stickyCtaState";
 
 const SAMPLE_VARIANTS = [
   {
@@ -263,5 +267,14 @@ describe("productDetail pure helpers", () => {
     expect(related.some((p) => p.id === 5)).toBe(false);
     expect(related[0].id).toBe(2);
     expect(related.slice(0, 3).every((p) => p.category === "iphone_lacrado")).toBe(true);
+  });
+
+  it("stickyCtaState alterna e notifica visibilidade da barra sticky", () => {
+    setProductStickyCtaVisible(false);
+    expect(getProductStickyCtaVisibleSnapshot()).toBe(false);
+    setProductStickyCtaVisible(true);
+    expect(getProductStickyCtaVisibleSnapshot()).toBe(true);
+    setProductStickyCtaVisible(false);
+    expect(getProductStickyCtaVisibleSnapshot()).toBe(false);
   });
 });
