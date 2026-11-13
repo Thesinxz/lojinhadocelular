@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Menu, X, ShoppingBag } from "lucide-react";
 import { openWhatsAppModal } from "@/lib/whatsappModal";
-import { WhatsAppIcon } from "./WhatsAppModal";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 import { useCart } from "@/lib/cart";
 import { getMainStoreUrl } from "@/lib/shop";
 
@@ -44,8 +44,10 @@ export default function Header() {
               aria-label="Lojinha do Celular - Início"
             >
               <img
-                src="/images/logo-icon.png"
+                src="/images/logo-icon-nav.webp"
                 alt="Logo Lojinha do Celular"
+                width={25}
+                height={36}
                 className="h-9 w-auto object-contain"
               />
               <div className="leading-tight">
@@ -64,8 +66,10 @@ export default function Header() {
               aria-label="Lojinha do Celular - Início"
             >
               <img
-                src="/images/logo-icon.png"
+                src="/images/logo-icon-nav.webp"
                 alt="Logo Lojinha do Celular"
+                width={25}
+                height={36}
                 className="h-9 w-auto object-contain"
               />
               <div className="leading-tight">

@@ -21,7 +21,7 @@ import { DEMO_PRODUCTS } from "@/lib/catalogDemo";
 import { resolveProductImage } from "@/lib/iphoneCatalog";
 import { getVideoEmbed } from "@/components/admin/AdminProductEditor";
 import { useCart } from "@/lib/cart";
-import { WhatsAppIcon } from "@/components/WhatsAppModal";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import {
   formatCommercialProductName,
   formatCommercialSku,

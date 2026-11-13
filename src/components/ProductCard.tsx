@@ -26,6 +26,7 @@ import { useCompare } from "@/lib/compare";
 import { useShopSettings, waLink } from "@/lib/shop";
 import { formatCommercialSku } from "@/lib/commercialFormatting";
 import { createProductShareSlug } from "@/lib/productUrls";
+import { prefetchProductRoute } from "@/lib/routePrefetch";
 
 export default function ProductCard({
   product,
@@ -120,6 +121,9 @@ export default function ProductCard({
   return (
     <Link
       to={`/produto/${createProductShareSlug(product.name, product.id)}`}
+      onMouseEnter={prefetchProductRoute}
+      onFocus={prefetchProductRoute}
+      onTouchStart={prefetchProductRoute}
       className="group flex flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white p-3 sm:p-4 shadow-[0_2px_14px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(0,0,0,0.09)] active:scale-[0.99]"
     >
       {/* Container da foto com fundo neutro claro e enquadramento destacado */}

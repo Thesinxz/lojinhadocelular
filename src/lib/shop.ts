@@ -69,76 +69,7 @@ export function minPrice(product: { variants: { available: boolean; priceCash: n
   return Math.min(...prices);
 }
 
-/**
- * Normaliza e otimiza imagens (ImgBB, Unsplash, Apple CDN, etc.) usando CDN Cloudflare de borda (wsrv.nl).
- * Converte imagens pesadas de 5MB–10MB para WebP/AVIF progressivo de ~15KB–35KB!
- *
- * Parâmetros:
- * - w: largura redimensionada ideal
- * - output=webp: compressão de alta eficiência
- * - q=75: equilíbrio perfeito entre nitidez e tamanho
- * - il: carregamento progressivo (interlaced) para exibição imediata
- * - af: auto format (serve AVIF ou WebP conforme suporte do navegador)
- * - n=-1: remove metadados EXIF/ICC inúteis para reduzir KB
- */
-export function optimizeImageUrl(
-  url: string | null | undefined,
-  width = 360,
-  quality = 75,
-): string {
-  if (!url) return "";
-  const trimmed = url.trim();
-  if (!trimmed) return "";
-
-  // Imagens locais ou data URIs mantêm original
-  if (trimmed.startsWith("/") || trimmed.startsWith("data:")) return trimmed;
-
-  // Imagens do Gestão Celular ou de domínios bloqueados pelo proxy wsrv.nl (TLD .br)
-  if (
-    trimmed.includes("gestaocelular.com.br") ||
-    trimmed.includes(".br/") ||
-    trimmed.includes("wsrv.nl")
-  ) {
-    return trimmed;
-  }
-
-  // Recorte cirúrgico para imagens oficiais da Apple que possuem caixas 16:9 ou margens vazias
-  let cropParams = "";
-  if (trimmed.includes("finish-select")) {
-    // iPhone frente e verso: enquadra perfeitamente o aparelho preenchendo o quadro sem barras cinzas
-    cropParams = "&precrop&cx=340&cy=300&cw=320&ch=380";
-  } else if (trimmed.includes("MHXH3")) {
-    // Carregador MagSafe Apple: foca no disco de carregamento com proporção ideal
-    cropParams = "&precrop&cx=200&cy=80&cw=600&ch=650";
-  }
-
-  // Aceleração via CDN Edge com WebP/AVIF progressivo
-  return `https://wsrv.nl/?url=${encodeURIComponent(trimmed)}${cropParams}&w=${width}&output=webp&q=${quality}&il&af&n=-1`;
-}
-
-/**
- * Gera srcset responsivo para telas normais (@1x) e telas Retina de alta densidade (@2x / @3x)
- */
-export function getImageSrcSet(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  const trimmed = url.trim();
-  if (
-    !trimmed ||
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("data:") ||
-    trimmed.includes("gestaocelular.com.br") ||
-    trimmed.includes(".br/") ||
-    trimmed.includes("wsrv.nl")
-  ) {
-    return undefined;
-  }
-
-  const w320 = optimizeImageUrl(trimmed, 320, 75);
-  const w480 = optimizeImageUrl(trimmed, 480, 75);
-  const w640 = optimizeImageUrl(trimmed, 640, 75);
-
-  return `${w320} 320w, ${w480} 480w, ${w640} 640w`;
-}
+export { optimizeImageUrl, getImageSrcSet } from "./imageOptimization";
 
 /** Cores disponíveis de um produto (sem duplicar) */
 export function availableColors(product: { variants: { available: boolean; color: string; colorHex?: string | null }[] }) {

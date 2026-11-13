@@ -6,12 +6,14 @@ import { secureHeaders } from "hono/secure-headers";
 import { cors } from "hono/cors";
 import type { HttpBindings } from "@hono/node-server";
 import fs from "fs";
+import fsPromises from "fs/promises";
 import { Readable } from "stream";
 import path from "path";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
+import { warmUpErpCatalog } from "./erp/service";
 import { ensureTables, getPool } from "./queries/connection";
 import { isEvaluationNotificationConfigured } from "./services/evaluationNotification";
 import { isEvaluationPhotoStorageConfigured } from "./services/evaluationPhotoStorage";
@@ -83,29 +85,160 @@ app.use(
   })
 );
 
-function resolveStaticFilePath(fileName: string): string | null {
-  const safeName = path.basename(fileName);
-  const possiblePaths = [
-    path.resolve(process.cwd(), "public", safeName),
-    path.resolve(process.cwd(), "dist/public", safeName),
-    path.resolve(import.meta.dirname, "public", safeName),
-    path.resolve(import.meta.dirname, "../public", safeName),
-    path.resolve(import.meta.dirname, "../dist/public", safeName),
+const MAX_STATIC_CACHE_ENTRIES = 200;
+const MAX_CACHED_ASSET_BYTES = 512 * 1024;
+const staticAssetCache = new Map<
+  string,
+  { filePath: string; mtimeMs: number; size: number; etag: string; buffer: Buffer }
+>();
+
+function getPublicAssetCandidateDirs(subDir = ""): string[] {
+  const dirs = [
+    path.resolve(process.cwd(), "public", subDir),
+    path.resolve(process.cwd(), "dist/public", subDir),
+    path.resolve(import.meta.dirname, "public", subDir),
+    path.resolve(import.meta.dirname, "../public", subDir),
+    path.resolve(import.meta.dirname, "../dist/public", subDir),
   ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) return p;
+  return Array.from(new Set(dirs));
+}
+
+function buildWeakEtag(size: number, mtimeMs: number): string {
+  return `W/"${size.toString(36)}-${Math.trunc(mtimeMs).toString(36)}"`;
+}
+
+function matchesIfNoneMatch(headerValue: string | undefined, etag: string): boolean {
+  if (!headerValue) return false;
+  const trimmed = headerValue.trim();
+  if (trimmed === "*") return true;
+  return trimmed
+    .split(",")
+    .map(part => part.trim().replace(/^W\//i, ""))
+    .includes(etag.replace(/^W\//i, ""));
+}
+
+async function resolveStaticFileAsync(
+  candidateFiles: string[],
+): Promise<{ filePath: string; stat: fs.Stats } | null> {
+  for (const filePath of candidateFiles) {
+    try {
+      const stat = await fsPromises.stat(filePath);
+      if (stat.isFile()) return { filePath, stat };
+    } catch {
+      // Arquivo não existe neste diretório candidato
+    }
   }
   return null;
 }
 
-function streamVideoFile(c: Context, fileName: string) {
-  const filePath = resolveStaticFilePath(fileName);
-  if (!filePath) {
+async function serveStaticAssetWithEtag(
+  c: Context,
+  candidateFiles: string[],
+  resolveContentType: (resolvedPath: string) => string,
+  extraHeaders: Record<string, string>,
+) {
+  const resolved = await resolveStaticFileAsync(candidateFiles);
+  if (!resolved) return null;
+
+  const { filePath, stat } = resolved;
+  const etag = buildWeakEtag(stat.size, stat.mtimeMs);
+  const contentType = resolveContentType(filePath);
+  const headers: Record<string, string> = {
+    "Content-Type": contentType,
+    ETag: etag,
+    ...extraHeaders,
+  };
+
+  if (matchesIfNoneMatch(c.req.header("if-none-match"), etag)) {
+    return c.body(null, 304, headers);
+  }
+
+  let cached = staticAssetCache.get(filePath);
+  if (
+    cached &&
+    cached.mtimeMs === stat.mtimeMs &&
+    cached.size === stat.size
+  ) {
+    // Atualiza ordem LRU simples no Map
+    staticAssetCache.delete(filePath);
+    staticAssetCache.set(filePath, cached);
+    if (c.req.method === "HEAD") {
+      return c.body(null, 200, {
+        ...headers,
+        "Content-Length": cached.buffer.byteLength.toString(),
+      });
+    }
+    return c.body(new Uint8Array(cached.buffer), 200, headers);
+  }
+
+  const buffer = await fsPromises.readFile(filePath);
+  if (buffer.byteLength <= MAX_CACHED_ASSET_BYTES) {
+    if (staticAssetCache.size >= MAX_STATIC_CACHE_ENTRIES) {
+      const oldestKey = staticAssetCache.keys().next().value;
+      if (oldestKey) staticAssetCache.delete(oldestKey);
+    }
+    cached = {
+      filePath,
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      etag,
+      buffer,
+    };
+    staticAssetCache.set(filePath, cached);
+  }
+
+  if (c.req.method === "HEAD") {
+    return c.body(null, 200, {
+      ...headers,
+      "Content-Length": buffer.byteLength.toString(),
+    });
+  }
+  return c.body(new Uint8Array(buffer), 200, headers);
+}
+
+function getContentTypeByExt(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".svg":
+      return "image/svg+xml";
+    case ".webp":
+      return "image/webp";
+    case ".woff2":
+      return "font/woff2";
+    case ".woff":
+      return "font/woff";
+    case ".ttf":
+      return "font/ttf";
+    case ".html":
+      return "text/html; charset=utf-8";
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".js":
+      return "application/javascript; charset=utf-8";
+    case ".json":
+      return "application/json; charset=utf-8";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+async function streamVideoFile(c: Context, fileName: string) {
+  const safeName = path.basename(fileName);
+  const resolved = await resolveStaticFileAsync(
+    getPublicAssetCandidateDirs().map(dir => path.join(dir, safeName)),
+  );
+  if (!resolved) {
     return c.text("Video not found", 404);
   }
 
-  const stat = fs.statSync(filePath);
+  const { filePath, stat } = resolved;
   const fileSize = stat.size;
+  const etag = buildWeakEtag(fileSize, stat.mtimeMs);
   const range = c.req.header("range");
 
   // Headers estritos essenciais para iOS Safari, Chrome no iOS e Cloudflare CDN
@@ -113,6 +246,7 @@ function streamVideoFile(c: Context, fileName: string) {
   const baseHeaders: Record<string, string> = {
     "Accept-Ranges": "bytes",
     "Content-Type": "video/mp4",
+    ETag: etag,
     "Cache-Control": "public, max-age=31536000, no-transform, s-maxage=0",
     "Cloudflare-CDN-Cache-Control": "no-store",
     "CDN-Cache-Control": "no-store",
@@ -156,16 +290,31 @@ function streamVideoFile(c: Context, fileName: string) {
 // Rotas de streaming de vídeo com suporte obrigatório a HTTP 206 Byte-Ranges para iOS Safari
 app.on(["GET", "HEAD"], "/hero.mp4", c => streamVideoFile(c, "hero.mp4"));
 app.on(["GET", "HEAD"], "/hero-mobile.mp4", c => streamVideoFile(c, "hero-mobile.mp4"));
-app.on(["GET", "HEAD"], "/hero-poster.jpg", c => {
-  const filePath = resolveStaticFilePath("hero-poster.jpg");
-  if (!filePath) return c.text("Poster not found", 404);
-  const buffer = fs.readFileSync(filePath);
-  return c.body(buffer, 200, {
-    "Content-Type": "image/jpeg",
-    "Cache-Control": "public, max-age=31536000, immutable",
-    "Cross-Origin-Resource-Policy": "cross-origin",
-    "Access-Control-Allow-Origin": "*",
-  });
+app.on(["GET", "HEAD"], "/hero-poster.jpg", async c => {
+  const res = await serveStaticAssetWithEtag(
+    c,
+    getPublicAssetCandidateDirs().map(dir => path.join(dir, "hero-poster.jpg")),
+    () => "image/jpeg",
+    {
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cross-Origin-Resource-Policy": "cross-origin",
+      "Access-Control-Allow-Origin": "*",
+    },
+  );
+  return res ?? c.text("Poster not found", 404);
+});
+app.on(["GET", "HEAD"], "/hero-poster.webp", async c => {
+  const res = await serveStaticAssetWithEtag(
+    c,
+    getPublicAssetCandidateDirs().map(dir => path.join(dir, "hero-poster.webp")),
+    () => "image/webp",
+    {
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cross-Origin-Resource-Policy": "cross-origin",
+      "Access-Control-Allow-Origin": "*",
+    },
+  );
+  return res ?? c.text("Poster not found", 404);
 });
 
 // Compressão gzip/deflate em respostas de texto, JS, CSS e JSON (exclui mídias binárias)
@@ -178,7 +327,7 @@ app.use(
   })
 );
 
-// Cache agressivo para assets com hash (JS/CSS/fonts) — imutáveis
+// Cache agressivo para assets com hash (JS/CSS) e fontes — imutáveis
 app.use("/assets/*", async (c, next) => {
   await next();
   if (c.res.status >= 200 && c.res.status < 300) {
@@ -189,131 +338,92 @@ app.use("/assets/*", async (c, next) => {
   }
 });
 
-// Entrega direta de imagens estáticas com headers abertos para WhatsApp, Facebook e crawlers
-app.get("/images/:file", async c => {
-  const fileName = c.req.param("file");
-  const safeName = path.basename(fileName);
-  const possiblePaths = [
-    path.resolve(process.cwd(), "public/images", safeName),
-    path.resolve(process.cwd(), "dist/public/images", safeName),
-    path.resolve(import.meta.dirname, "public/images", safeName),
-    path.resolve(import.meta.dirname, "../public/images", safeName),
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      const ext = path.extname(safeName).toLowerCase();
-      const contentType =
-        ext === ".jpg" || ext === ".jpeg"
-          ? "image/jpeg"
-          : ext === ".png"
-            ? "image/png"
-            : ext === ".svg"
-              ? "image/svg+xml"
-              : ext === ".webp"
-                ? "image/webp"
-                : "application/octet-stream";
-      const buffer = fs.readFileSync(p);
-      return c.body(buffer, 200, {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400",
-        "Cross-Origin-Resource-Policy": "cross-origin",
-        "Access-Control-Allow-Origin": "*",
-      });
-    }
-  }
-  return c.text("Not Found", 404);
+app.on(["GET", "HEAD"], "/fonts/:file", async c => {
+  const safeName = path.basename(c.req.param("file"));
+  const res = await serveStaticAssetWithEtag(
+    c,
+    getPublicAssetCandidateDirs("fonts").map(dir => path.join(dir, safeName)),
+    getContentTypeByExt,
+    {
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cross-Origin-Resource-Policy": "cross-origin",
+      "Access-Control-Allow-Origin": "*",
+    },
+  );
+  return res ?? c.text("Font not found", 404);
 });
 
-// Entrega direta de imagens dos iPhones (WebP com fallback transparente e headers abertos)
-app.get("/images/iphones/:file", async c => {
-  const fileName = c.req.param("file");
-  const safeName = path.basename(fileName);
-  const baseName = safeName.replace(/\.(png|jpe?g|webp)$/i, "");
+app.use("/fonts/*", async (c, next) => {
+  await next();
+  if (c.res.status >= 200 && c.res.status < 300 && !c.res.headers.has("Cache-Control")) {
+    c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    c.res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+    c.res.headers.set("Access-Control-Allow-Origin", "*");
+  }
+});
 
-  const exactPaths = [
-    path.resolve(process.cwd(), "public/images/iphones", safeName),
-    path.resolve(process.cwd(), "dist/public/images/iphones", safeName),
-    path.resolve(import.meta.dirname, "public/images/iphones", safeName),
-    path.resolve(import.meta.dirname, "../public/images/iphones", safeName),
-  ];
-  const webpFallbackPaths = [
-    path.resolve(process.cwd(), "public/images/iphones", `${baseName}.webp`),
-    path.resolve(process.cwd(), "dist/public/images/iphones", `${baseName}.webp`),
-    path.resolve(import.meta.dirname, "public/images/iphones", `${baseName}.webp`),
-    path.resolve(import.meta.dirname, "../public/images/iphones", `${baseName}.webp`),
-  ];
-  const requestedJpeg = path.extname(safeName).toLowerCase() === ".jpg" ||
-    path.extname(safeName).toLowerCase() === ".jpeg";
-  const possiblePaths = requestedJpeg
+// Entrega direta de imagens estáticas com ETag, leitor assíncrono e headers abertos para WhatsApp/crawlers
+app.on(["GET", "HEAD"], "/images/:file", async c => {
+  const safeName = path.basename(c.req.param("file"));
+  const res = await serveStaticAssetWithEtag(
+    c,
+    getPublicAssetCandidateDirs("images").map(dir => path.join(dir, safeName)),
+    getContentTypeByExt,
+    {
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "Cross-Origin-Resource-Policy": "cross-origin",
+      "Access-Control-Allow-Origin": "*",
+    },
+  );
+  return res ?? c.text("Not Found", 404);
+});
+
+// Entrega direta de imagens dos iPhones (WebP com fallback transparente e ETag/304)
+app.on(["GET", "HEAD"], "/images/iphones/:file", async c => {
+  const safeName = path.basename(c.req.param("file"));
+  const baseName = safeName.replace(/\.(png|jpe?g|webp)$/i, "");
+  const dirs = getPublicAssetCandidateDirs("images/iphones");
+  const exactPaths = dirs.map(dir => path.join(dir, safeName));
+  const webpFallbackPaths = dirs.map(dir => path.join(dir, `${baseName}.webp`));
+  const ext = path.extname(safeName).toLowerCase();
+  const requestedJpeg = ext === ".jpg" || ext === ".jpeg";
+  const candidateFiles = requestedJpeg
     ? exactPaths
     : [...webpFallbackPaths, ...exactPaths];
 
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      const ext = path.extname(p).toLowerCase();
-      const contentType =
-        ext === ".webp"
-          ? "image/webp"
-          : ext === ".jpg" || ext === ".jpeg"
-            ? "image/jpeg"
-            : ext === ".png"
-              ? "image/png"
-              : "application/octet-stream";
-      const buffer = fs.readFileSync(p);
-      return c.body(buffer, 200, {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=604800, immutable",
-        "Cross-Origin-Resource-Policy": "cross-origin",
-        "Access-Control-Allow-Origin": "*",
-      });
-    }
-  }
-  return c.text("Not Found", 404);
+  const res = await serveStaticAssetWithEtag(
+    c,
+    candidateFiles,
+    getContentTypeByExt,
+    {
+      "Cache-Control": "public, max-age=604800, immutable",
+      "Cross-Origin-Resource-Policy": "cross-origin",
+      "Access-Control-Allow-Origin": "*",
+    },
+  );
+  return res ?? c.text("Not Found", 404);
 });
 
-// Cache de 1 dia para imagens locais (logo, favicon, og-banner) com acesso aberto para crawlers (WhatsApp, Facebook, Twitter)
+// Preserva Cache-Control mais específico (como immutable em /images/iphones/*) sem rebaixá-lo
 app.use("/images/*", async (c, next) => {
   await next();
-  c.res.headers.set("Cache-Control", "public, max-age=86400");
+  if (c.res.status >= 200 && c.res.status < 300 && !c.res.headers.has("Cache-Control")) {
+    c.res.headers.set("Cache-Control", "public, max-age=86400");
+  }
   c.res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
   c.res.headers.set("Access-Control-Allow-Origin", "*");
 });
 
 // Central NFC & QR Code da Loja (/nfc)
-function serveNfcFile(c: Context, rawFileName: string) {
+async function serveNfcFile(c: Context, rawFileName: string) {
   const safeName = path.basename(rawFileName || "index.html");
-  const possiblePaths = [
-    path.resolve(process.cwd(), "public/nfc", safeName),
-    path.resolve(process.cwd(), "dist/public/nfc", safeName),
-    path.resolve(import.meta.dirname, "public/nfc", safeName),
-    path.resolve(import.meta.dirname, "../public/nfc", safeName),
-    path.resolve(import.meta.dirname, "../dist/public/nfc", safeName),
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-      const ext = path.extname(safeName).toLowerCase();
-      const contentType =
-        ext === ".html"
-          ? "text/html; charset=utf-8"
-          : ext === ".css"
-            ? "text/css; charset=utf-8"
-            : ext === ".js"
-              ? "application/javascript; charset=utf-8"
-              : ext === ".json"
-                ? "application/json; charset=utf-8"
-                : ext === ".png"
-                  ? "image/png"
-                  : ext === ".svg"
-                    ? "image/svg+xml"
-                    : "application/octet-stream";
-      const buffer = fs.readFileSync(p);
-      return c.body(buffer, 200, {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=300",
-      });
-    }
-  }
-  return c.text("Not Found", 404);
+  const res = await serveStaticAssetWithEtag(
+    c,
+    getPublicAssetCandidateDirs("nfc").map(dir => path.join(dir, safeName)),
+    getContentTypeByExt,
+    { "Cache-Control": "public, max-age=300" },
+  );
+  return res ?? c.text("Not Found", 404);
 }
 
 app.get("/nfc", c => serveNfcFile(c, "index.html"));
@@ -559,6 +669,9 @@ if (env.isProduction) {
   serve({ fetch: app.fetch, port }, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  // Aquece o catálogo do ERP em segundo plano para acelerar a 1ª visita.
+  void warmUpErpCatalog();
 
   // LGPD: apaga avaliações com prazo de guarda vencido (a cada 12 h).
   const { startRetentionJob } = await import("./services/retention");

@@ -2,8 +2,15 @@ import type { Context, Hono } from "hono";
 import type { HttpBindings } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import fs from "fs";
+import fsPromises from "fs/promises";
 import path from "path";
+import superjson from "superjson";
 import { getErpCatalog } from "../erp/service";
+import {
+  getPublicSettings,
+  getWarmPublicHomeCatalogSnapshot,
+  sanitizePublicProduct,
+} from "../shop";
 import { formatCommercialProductName } from "../../src/lib/commercialFormatting";
 import { createProductShareSlug } from "../../src/lib/productUrls";
 import { resolveProductImage } from "../../src/lib/iphoneCatalog";
@@ -22,6 +29,44 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+const cachedIndexHtml = new Map<string, string>();
+
+export function clearHtmlCacheForTesting() {
+  cachedIndexHtml.clear();
+}
+
+async function readIndexHtml(indexPath: string): Promise<string> {
+  if (process.env.NODE_ENV === "development") {
+    return fsPromises.readFile(indexPath, "utf-8");
+  }
+  const hit = cachedIndexHtml.get(indexPath);
+  if (hit !== undefined) return hit;
+  const content = await fsPromises.readFile(indexPath, "utf-8");
+  cachedIndexHtml.set(indexPath, content);
+  return content;
+}
+
+function serializeInitialDataScript(payload: unknown): string {
+  const safeJson = superjson
+    .stringify(payload)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  return `<script id="__INITIAL_DATA__" type="application/json">${safeJson}</script>`;
+}
+
+function injectBeforeBodyEnd(html: string, snippet: string): string {
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `    ${snippet}\n  </body>`);
+  }
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `    ${snippet}\n  </head>`);
+  }
+  return `${html}\n${snippet}`;
 }
 
 function findIndexHtml(): string | null {
@@ -156,7 +201,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
   if (!indexPath) {
     return c.text("App build not found. Please run pnpm build first.", 500);
   }
-  let content = fs.readFileSync(indexPath, "utf-8");
+  let content = await readIndexHtml(indexPath);
 
   // 1. Redirecionamentos 301 permanentes para URLs canônicas limpas (evita "Página com redirecionamento" ou duplicatas no GSC)
   if (pathname === "/index.html") {
@@ -195,7 +240,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     : isTradeInHost
       ? "https://trocafacil.lojinhadocelular.com"
       : "https://lojinhadocelular.com";
-  const tradeInImage = `${origin}/images/troca-facil-og.png`;
+  const tradeInImage = `${origin}/images/troca-facil-og.jpg?v=2`;
   let imgWidth: string | undefined;
   let imgHeight: string | undefined;
 
@@ -207,6 +252,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
   let canonicalUrl = `${canonicalDomain}/`;
   let noindex = false;
   let httpStatus: 200 | 404 = 200;
+  let hydratedProductPayload: { id: string | number; data: unknown } | null = null;
   const currentUrl =
     pathname === "/index.html" || pathname === "" ? `${origin}/` : `${origin}${pathname}`;
 
@@ -217,8 +263,8 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
       desc =
         "Avalie seu celular usado e use o valor como desconto no seu próximo iPhone. Faça sua pré-avaliação online com a Troca Fácil da Lojinha do Celular.";
       img = tradeInImage;
-      imgWidth = "1729";
-      imgHeight = "910";
+      imgWidth = "1200";
+      imgHeight = "630";
     }
     canonicalUrl = `${canonicalDomain}/`;
   }
@@ -228,8 +274,8 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
     desc =
       "Venda ou troque seu celular e iPhone usado com segurança e melhor avaliação de mercado. Use como desconto na compra do seu novo aparelho na Lojinha do Celular em Jardim-MS. WhatsApp: (67) 99208-6012.";
     img = tradeInImage;
-    imgWidth = "1729";
-    imgHeight = "910";
+    imgWidth = "1200";
+    imgHeight = "630";
     canonicalUrl = `${canonicalDomain}/avaliacao`;
   }
   // ROTA DE PRIVACIDADE (/privacidade)
@@ -257,6 +303,13 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
       const shareSlugId = extractProductIdFromShareSlug(productIdStr);
       const lookupId = shareSlugId ?? productIdStr;
       const uuidPrefix = extractProductUuidPrefixFromShareSlug(productIdStr);
+      const isUuidOrStringQuery =
+        Boolean(uuidPrefix) ||
+        lookupId.includes("-") ||
+        Number.isNaN(Number(lookupId));
+      const queryInputId: string | number = isUuidOrStringQuery
+        ? (uuidPrefix ? productIdStr : lookupId)
+        : Number(lookupId);
       let foundProduct: {
         id: string | number;
         externalId?: string | null;
@@ -275,6 +328,7 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
           warranty?: string | null;
           batteryHealth?: string | null;
           imageUrl?: string | null;
+          notes?: unknown;
         }[];
       } | null = null;
 
@@ -304,6 +358,10 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
           });
           if (match && match.active !== false) {
             foundProduct = match;
+            hydratedProductPayload = {
+              id: queryInputId,
+              data: sanitizePublicProduct(match),
+            };
           }
         }
       } catch (err) {
@@ -323,6 +381,21 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
             });
             if (p && p.active !== false) {
               foundProduct = p;
+              hydratedProductPayload = {
+                id: queryInputId,
+                data: sanitizePublicProduct({
+                  ...p,
+                  unitAvailability: "jardim",
+                  stockJardim: 1,
+                  stockGuiaLopes: 0,
+                  variants: p.variants.map((v) => ({
+                    ...v,
+                    unitAvailability: "jardim",
+                    stockJardim: v.quantity ?? 1,
+                    stockGuiaLopes: 0,
+                  })),
+                }),
+              };
             }
           }
         } catch {
@@ -456,17 +529,45 @@ export async function renderEnrichedHtml(c: Context): Promise<Response> {
   });
 
   // O admin tem um PWA próprio; mantenha o manifest fora da vitrine pública.
-  if (pathname.startsWith("/admin")) {
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isTvRoute = pathname.startsWith("/tv");
+  if (isAdminRoute) {
     const adminPwaHead = '<link rel="manifest" href="/admin/manifest.webmanifest" />';
     content = content.replace(/(<head[^>]*>)/i, `$1\n    ${adminPwaHead}`);
   }
 
-  if (isSocialScraper) {
+  // Hidratação segura no HTML para eliminar RTT extra de API no 1º acesso
+  const shouldHydrate =
+    !isSocialScraper &&
+    httpStatus === 200 &&
+    !isAdminRoute &&
+    !isTvRoute;
+
+  if (shouldHydrate) {
+    try {
+      const settings = await getPublicSettings();
+      const bootstrap: Record<string, unknown> = { settings };
+
+      if ((pathname === "/" || pathname === "") && !isTradeInHost) {
+        Object.assign(bootstrap, getWarmPublicHomeCatalogSnapshot());
+      } else if (pathname.startsWith("/produto/") && hydratedProductPayload) {
+        bootstrap.product = hydratedProductPayload;
+      }
+
+      content = injectBeforeBodyEnd(content, serializeInitialDataScript(bootstrap));
+    } catch {
+      // Falha na hidratação nunca pode impedir a entrega do HTML
+    }
+  }
+
+  const isSensitiveRoute = isAdminRoute || httpStatus !== 200;
+  if (isSocialScraper && !isSensitiveRoute) {
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+  } else if (isSensitiveRoute) {
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate");
   } else {
-    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    c.header("Pragma", "no-cache");
-    c.header("Expires", "0");
+    // Permite Back-Forward Cache (bfcache) no mobile mantendo revalidação direta na borda/navegação
+    c.header("Cache-Control", "public, no-cache, must-revalidate");
   }
 
   return c.html(content, httpStatus);

@@ -1,5 +1,5 @@
 import { createTRPCReact } from "@trpc/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { httpBatchLink, httpLink, splitLink } from "@trpc/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import superjson from "superjson";
 import type { AppRouter } from "../../api/router";
@@ -7,6 +7,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { ReactNode } from "react";
 
 import { safeStorage } from "@/lib/storage";
+import { hydrateQueryClientFromInitialData } from "@/lib/initialData";
 
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 export type ProductWithVariants = RouterOutputs["shop"]["products"][number];
@@ -28,35 +29,63 @@ const queryClient = new QueryClient({
   },
 });
 
+function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  credentials: RequestCredentials,
+) {
+  // O envio da avaliação pode carregar fotos e ser feito em rede móvel.
+  // Um timeout de 15s abortava o request no Safari antes do banco responder.
+  let signal = init?.signal;
+  if (!signal && typeof AbortSignal !== "undefined") {
+    const timeoutMs = 60_000;
+    if (typeof AbortSignal.timeout === "function") {
+      signal = AbortSignal.timeout(timeoutMs);
+    } else {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), timeoutMs);
+      signal = controller.signal;
+    }
+  }
+  return globalThis.fetch(input, {
+    ...(init ?? {}),
+    signal: signal ?? init?.signal,
+    credentials,
+  });
+}
+
+hydrateQueryClientFromInitialData(queryClient, trpc);
+
 const trpcClient = trpc.createClient({
   links: [
-    httpBatchLink({
-      url: "/api/trpc",
-      transformer: superjson,
-      headers() {
-        const token = safeStorage.getItem("admin_token");
-        return token ? { Authorization: `Bearer ${token}` } : {};
+    splitLink({
+      condition(op) {
+        return (
+          op.type === "query" &&
+          op.path.startsWith("shop.") &&
+          op.path !== "shop.tradeInQuote"
+        );
       },
-      fetch(input, init) {
-        // O envio da avaliação pode carregar fotos e ser feito em rede móvel.
-        // Um timeout de 15s abortava o request no Safari antes do banco responder.
-        let signal = init?.signal;
-        if (!signal && typeof AbortSignal !== "undefined") {
-          const timeoutMs = 60_000;
-          if (typeof AbortSignal.timeout === "function") {
-            signal = AbortSignal.timeout(timeoutMs);
-          } else {
-            const controller = new AbortController();
-            setTimeout(() => controller.abort(), timeoutMs);
-            signal = controller.signal;
-          }
-        }
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          signal: signal ?? init?.signal,
-          credentials: "include",
-        });
-      },
+      // Queries públicas da vitrine: GET determinístico sem Authorization/cookies para cachear no Cloudflare BR
+      true: httpLink({
+        url: "/api/trpc",
+        transformer: superjson,
+        fetch(input, init) {
+          return fetchWithTimeout(input, init, "omit");
+        },
+      }),
+      // Mutações e painel admin: mantêm batching, token Bearer e cookies
+      false: httpBatchLink({
+        url: "/api/trpc",
+        transformer: superjson,
+        headers() {
+          const token = safeStorage.getItem("admin_token");
+          return token ? { Authorization: `Bearer ${token}` } : {};
+        },
+        fetch(input, init) {
+          return fetchWithTimeout(input, init, "include");
+        },
+      }),
     }),
   ],
 });

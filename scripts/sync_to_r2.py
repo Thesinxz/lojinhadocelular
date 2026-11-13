@@ -76,26 +76,36 @@ def main():
         config=Config(signature_version="s3v4"),
     )
 
-    webp_files = [f for f in os.listdir(SRC_DIR) if f.endswith(".webp")]
-    print(f"Enviando {len(webp_files)} imagens otimizadas para o bucket '{bucket_name}'...")
+    webp_files = sorted(f for f in os.listdir(SRC_DIR) if f.endswith(".webp"))
+    print(f"Enviando {len(webp_files)} imagens otimizadas (full + -360w) para o bucket '{bucket_name}'...")
+
+    uploads = [
+        (os.path.join(SRC_DIR, filename), f"images/iphones/{filename}", "image/webp")
+        for filename in webp_files
+    ]
+    for root_file, mime in [
+        ("public/hero-poster.webp", "image/webp"),
+        ("public/hero-poster.jpg", "image/jpeg"),
+        ("public/hero-mobile.mp4", "video/mp4"),
+        ("public/hero.mp4", "video/mp4"),
+    ]:
+        if os.path.exists(root_file):
+            uploads.append((root_file, os.path.basename(root_file), mime))
 
     success = 0
-    for filename in webp_files:
-        local_path = os.path.join(SRC_DIR, filename)
-        s3_key = f"images/iphones/{filename}"
-        
+    for local_path, s3_key, content_type in uploads:
         with open(local_path, "rb") as f:
             s3.put_object(
                 Bucket=bucket_name,
                 Key=s3_key,
                 Body=f,
-                ContentType="image/webp",
+                ContentType=content_type,
                 CacheControl="public, max-age=31536000, immutable",
             )
         success += 1
-        print(f"  ✓ {filename} -> {s3_key}")
+        print(f"  ✓ {local_path} -> {s3_key}")
 
-    print(f"\n🎉 Sucesso! {success} imagens sincronizadas com o Cloudflare R2.")
+    print(f"\n🎉 Sucesso! {success} arquivos sincronizados com o Cloudflare R2.")
     print("Defina VITE_CLOUDFLARE_R2_URL no .env com a URL pública do seu bucket para usar imediatamente.")
 
 if __name__ == "__main__":

@@ -2,25 +2,52 @@ import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import WelcomePopup from "./components/WelcomePopup";
 import CookieBanner from "./components/CookieBanner";
-import CartDrawer from "./components/CartDrawer";
-import { CartProvider } from "./lib/cart";
-import { CompareProvider } from "./lib/compare";
-import CompareBar from "./components/CompareBar";
+import { CartProvider, useCart } from "./lib/cart";
+import { CompareProvider, useCompare } from "./lib/compare";
 import Home from "./pages/Home";
-import Produto from "./pages/Produto";
-import TradeIn from "./pages/TradeIn";
 import { getMainStoreUrl } from "./lib/shop";
 import { usePageViewTracking } from "./lib/usePageViewTracking";
+import { loadProdutoPage } from "./lib/routePrefetch";
+import { useWhatsAppModalRequested } from "./lib/whatsappModal";
 
-import TvMode from "./pages/TvMode";
-
-// Carregados sob demanda (não pesam no primeiro carregamento)
+// Rotas e overlays carregados sob demanda para enxugar o primeiro bundle no mobile
+const Produto = lazy(loadProdutoPage);
+const TradeIn = lazy(() => import("./pages/TradeIn"));
+const TvMode = lazy(() => import("./pages/TvMode"));
 const AdminApp = lazy(() => import("./pages/admin/AdminApp"));
 const Comparar = lazy(() => import("./pages/Comparar"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const WelcomePopup = lazy(() => import("./components/WelcomePopup"));
+const CartDrawer = lazy(() => import("./components/CartDrawer"));
+const CompareBar = lazy(() => import("./components/CompareBar"));
+
+function StoreOverlays() {
+  const { items, isOpen } = useCart();
+  const { ids } = useCompare();
+  const whatsAppRequested = useWhatsAppModalRequested();
+
+  return (
+    <>
+      {whatsAppRequested && (
+        <Suspense fallback={null}>
+          <WelcomePopup />
+        </Suspense>
+      )}
+      {(items.length > 0 || isOpen) && (
+        <Suspense fallback={null}>
+          <CartDrawer />
+        </Suspense>
+      )}
+      {ids.length > 0 && (
+        <Suspense fallback={null}>
+          <CompareBar />
+        </Suspense>
+      )}
+    </>
+  );
+}
 
 /** Rola até a âncora (#sobre, #unidades...) após a navegação */
 function ScrollToHash() {
@@ -88,10 +115,18 @@ export default function App() {
 
   if (isTv) {
     return (
-      <Routes>
-        <Route path="/tv" element={<TvMode />} />
-        <Route path="/tv/*" element={<TvMode />} />
-      </Routes>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[100dvh] items-center justify-center bg-neutral-950">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/tv" element={<TvMode />} />
+          <Route path="/tv/*" element={<TvMode />} />
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -114,12 +149,20 @@ export default function App() {
 
   if (isTradeIn) {
     return (
-      <Routes>
-        <Route path="/" element={<TradeIn />} />
-        <Route path="/avaliacao" element={<TradeIn />} />
-        <Route path="/troca" element={<TradeIn />} />
-        {isTrocaFacilDomain && <Route path="*" element={<TradeIn />} />}
-      </Routes>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[#fbfbfd]">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#e5e5e7] border-t-[#1d1d1f]" />
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/" element={<TradeIn />} />
+          <Route path="/avaliacao" element={<TradeIn />} />
+          <Route path="/troca" element={<TradeIn />} />
+          {isTrocaFacilDomain && <Route path="*" element={<TradeIn />} />}
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -155,10 +198,8 @@ export default function App() {
             </Suspense>
           </main>
           <Footer />
-          <WelcomePopup />
           <CookieBanner />
-          <CartDrawer />
-          <CompareBar />
+          <StoreOverlays />
         </div>
       </CompareProvider>
     </CartProvider>

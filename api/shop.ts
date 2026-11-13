@@ -8,7 +8,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { SETTING_KEYS } from "../contracts/types";
 import { env } from "./lib/env";
-import { getErpCatalog } from "./erp/service";
+import { getErpCatalog, getCachedErpCatalogIfWarm } from "./erp/service";
+import type { ErpFetchResult, ShopProduct } from "./erp/types";
 import {
   extractProductIdFromShareSlug,
   extractProductUuidPrefixFromShareSlug,
@@ -44,7 +45,7 @@ import {
   prepareEvaluationPhotosForStorage,
 } from "./services/evaluationPhotoStorage";
 
-const PUBLIC_SETTING_KEYS = [
+export const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.whatsappJardim,
   SETTING_KEYS.whatsappGll,
   SETTING_KEYS.addressJardim,
@@ -63,6 +64,99 @@ const PUBLIC_SETTING_KEYS = [
   SETTING_KEYS.privacyOfficerName,
   SETTING_KEYS.privacyEmail,
 ] as const;
+
+const CATALOG_EDGE_CACHE = "public, max-age=30, s-maxage=120, stale-while-revalidate=300";
+const SETTINGS_EDGE_CACHE = "public, max-age=120, s-maxage=300, stale-while-revalidate=600";
+const SOCIAL_PROOF_EDGE_CACHE = "public, max-age=300, s-maxage=600, stale-while-revalidate=1200";
+
+export async function getPublicSettings() {
+  return getShopPublicSettings(PUBLIC_SETTING_KEYS);
+}
+
+export function formatCatalogStatusFromErp(erp: ErpFetchResult) {
+  return {
+    erpEnabled: true as boolean,
+    status: erp.status,
+    message: erp.message,
+    count: erp.products.length,
+  };
+}
+
+export function filterAndSortPublicProducts<
+  T extends Parameters<typeof sortProductsBackend>[0][number] & { active?: boolean }
+>(
+  productsList: T[],
+  input?: { category?: string; brand?: string },
+): T[] {
+  let list = productsList.filter((p) => p.active !== false);
+  if (input?.category) {
+    list = list.filter((p) => p.category === input.category);
+  }
+  if (input?.brand) {
+    list = list.filter((p) => (p.brand || "").toLowerCase() === input.brand!.toLowerCase());
+  }
+  return sortProductsBackend(list);
+}
+
+export function findPublicProductInList<
+  T extends {
+    id: string | number;
+    externalId?: string | null;
+    alternateIds?: string[];
+    active?: boolean;
+    variants?: { notes?: unknown }[];
+  }
+>(productsList: T[], rawId: string | number): T | undefined {
+  const idStr = String(rawId).trim();
+  const shortUuid = extractProductIdFromShareSlug(idStr);
+  const uuidPrefix = extractProductUuidPrefixFromShareSlug(idStr);
+  const productId = shortUuid ?? idStr;
+
+  const exactMatch = productsList.find(
+    (p) =>
+      String(p.id) === productId ||
+      p.externalId === productId ||
+      p.alternateIds?.includes(productId),
+  );
+  const prefixMatches = uuidPrefix
+    ? productsList.filter(
+        (p) =>
+          String(p.id).toLowerCase().startsWith(uuidPrefix.toLowerCase()) ||
+          String(p.externalId || "").toLowerCase().startsWith(uuidPrefix.toLowerCase()),
+      )
+    : [];
+  const found = exactMatch || (prefixMatches.length === 1 ? prefixMatches[0] : undefined);
+  if (found && found.active !== false) {
+    return sanitizePublicProduct(found);
+  }
+  return undefined;
+}
+
+/**
+ * Monta o pacote inicial para hidratação no HTML da Home usando apenas dados já
+ * quentes em memória (nunca dispara requisição externa ao ERP durante o HTML).
+ */
+export function getWarmPublicHomeCatalogSnapshot(): {
+  catalogStatus?: ReturnType<typeof formatCatalogStatusFromErp>;
+  products?: ShopProduct[];
+} {
+  if (!env.erpCatalogEnabled) {
+    return {
+      catalogStatus: {
+        erpEnabled: false,
+        status: "disabled" as ErpFetchResult["status"] | "disabled",
+        message: undefined,
+        count: 0,
+      } as unknown as ReturnType<typeof formatCatalogStatusFromErp>,
+    };
+  }
+  const erp = getCachedErpCatalogIfWarm();
+  if (!erp) return {};
+  return {
+    catalogStatus: formatCatalogStatusFromErp(erp),
+    products: erp.status === "ok" ? filterAndSortPublicProducts(erp.products) : [],
+  };
+}
 
 function getProductModelRank(name: string): number {
   const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -265,21 +359,18 @@ export const submitEvaluationInput = z.object({
 
 export const shopRouter = createRouter({
   // Status de conexão e integridade do catálogo da loja
-  catalogStatus: publicQuery.query(async () => {
+  catalogStatus: publicQuery.query(async ({ ctx }) => {
+    ctx.resHeaders.set("Cache-Control", CATALOG_EDGE_CACHE);
     if (!env.erpCatalogEnabled) {
       return {
         erpEnabled: false,
         status: "disabled" as const,
+        message: undefined as string | undefined,
         count: 0,
       };
     }
     const erp = await getErpCatalog();
-    return {
-      erpEnabled: true,
-      status: erp.status,
-      message: erp.message,
-      count: erp.products.length,
-    };
+    return formatCatalogStatusFromErp(erp);
   }),
 
   // Catálogo público: ERP oficial (quando ativado) ou banco local
@@ -293,23 +384,13 @@ export const shopRouter = createRouter({
         .optional(),
     )
     .query(async ({ input, ctx }) => {
-      ctx.resHeaders.set(
-        "Cache-Control",
-        "public, max-age=30, stale-while-revalidate=60",
-      );
+      ctx.resHeaders.set("Cache-Control", CATALOG_EDGE_CACHE);
 
       // Requisito 3 & 8: Quando ERP_CATALOG_ENABLED=true, o ERP é a fonte oficial
       if (env.erpCatalogEnabled) {
         const erp = await getErpCatalog();
         if (erp.status === "ok") {
-          let list = erp.products.filter((p) => p.active !== false);
-          if (input?.category) {
-            list = list.filter((p) => p.category === input.category);
-          }
-          if (input?.brand) {
-            list = list.filter((p) => p.brand.toLowerCase() === input.brand!.toLowerCase());
-          }
-          return sortProductsBackend(list);
+          return filterAndSortPublicProducts(erp.products, input);
         }
         // Se a API estiver fora do ar ou sem produtos, nunca exibe produtos antigos ou locais
         return [];
@@ -351,7 +432,8 @@ export const shopRouter = createRouter({
       }
     }),
 
-  featured: publicQuery.query(async () => {
+  featured: publicQuery.query(async ({ ctx }) => {
+    ctx.resHeaders.set("Cache-Control", CATALOG_EDGE_CACHE);
     if (env.erpCatalogEnabled) {
       const erp = await getErpCatalog();
       if (erp.status === "ok") {
@@ -393,33 +475,21 @@ export const shopRouter = createRouter({
   product: publicQuery
     .input(z.object({ id: z.union([z.string(), z.number()]) }))
     .query(async ({ input, ctx }) => {
-      ctx.resHeaders.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
       const idStr = String(input.id).trim();
       const shortUuid = extractProductIdFromShareSlug(idStr);
-      const uuidPrefix = extractProductUuidPrefixFromShareSlug(idStr);
       const productId = shortUuid ?? idStr;
 
       // Se ERP estiver ativo, busca no catálogo do ERP por externalId ou id
       if (env.erpCatalogEnabled) {
         const erp = await getErpCatalog();
         if (erp.status === "ok") {
-          const exactMatch = erp.products.find(
-            (p) =>
-              String(p.id) === productId ||
-              p.externalId === productId ||
-              p.alternateIds?.includes(productId),
-          );
-          const prefixMatches = uuidPrefix
-            ? erp.products.filter((p) =>
-                String(p.id).toLowerCase().startsWith(uuidPrefix.toLowerCase()) ||
-                String(p.externalId || "").toLowerCase().startsWith(uuidPrefix.toLowerCase()),
-              )
-            : [];
-          const found = exactMatch || (prefixMatches.length === 1 ? prefixMatches[0] : undefined);
-          if (found && found.active !== false) {
-            return sanitizePublicProduct(found);
+          const found = findPublicProductInList(erp.products, input.id);
+          if (found) {
+            ctx.resHeaders.set("Cache-Control", CATALOG_EDGE_CACHE);
+            return found;
           }
         }
+        ctx.resHeaders.set("Cache-Control", "no-store");
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Produto esgotado ou não encontrado no estoque.",
@@ -436,6 +506,7 @@ export const shopRouter = createRouter({
             with: { variants: true },
           });
           if (product) {
+            ctx.resHeaders.set("Cache-Control", CATALOG_EDGE_CACHE);
             return sanitizePublicProduct({
               ...product,
               unitAvailability: "jardim" as StoreUnitAvailability,
@@ -449,17 +520,21 @@ export const shopRouter = createRouter({
               })),
             });
           }
+          ctx.resHeaders.set("Cache-Control", "no-store");
           return null;
         } catch (err) {
           console.error("Erro ao consultar produto por ID:", err);
+          ctx.resHeaders.set("Cache-Control", "no-store");
           return null;
         }
       }
+      ctx.resHeaders.set("Cache-Control", "no-store");
       return null;
     }),
 
   /** Opções públicas do Troca Fácil: só se o valor aparece para o cliente e o aviso legal (sem nenhuma tabela de preço). */
-  tradeInOptions: publicQuery.query(async () => {
+  tradeInOptions: publicQuery.query(async ({ ctx }) => {
+    ctx.resHeaders.set("Cache-Control", SETTINGS_EDGE_CACHE);
     const config = await loadValuationConfig();
     return { hidePrices: config.hidePricesToClient !== false, disclaimer: config.disclaimerText ?? "" };
   }),
@@ -490,21 +565,23 @@ export const shopRouter = createRouter({
         icloudFree: z.string().max(30).optional(),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      ctx.resHeaders.set("Cache-Control", "no-store");
       const config = await loadValuationConfig();
       if (config.hidePricesToClient !== false) return null;
       return evaluateDevice(input, config);
     }),
 
   // Configurações públicas da loja consultadas em batch único
-  settings: publicQuery.query(async () => {
-    return await getShopPublicSettings(PUBLIC_SETTING_KEYS);
+  settings: publicQuery.query(async ({ ctx }) => {
+    ctx.resHeaders.set("Cache-Control", SETTINGS_EDGE_CACHE);
+    return await getPublicSettings();
   }),
 
   // Gera uma URL temporária para o navegador enviar a foto diretamente ao R2/S3.
   /** Faixa "quem já comprou": vazia quando desligada, sem dados ou se o ERP falhar. */
   socialProof: publicQuery.query(async ({ ctx }) => {
-    ctx.resHeaders.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    ctx.resHeaders.set("Cache-Control", SOCIAL_PROOF_EDGE_CACHE);
     const [enabled, title] = await Promise.all([
       getSingleSetting(SETTING_KEYS.socialProofEnabled),
       getSingleSetting(SETTING_KEYS.socialProofTitle),

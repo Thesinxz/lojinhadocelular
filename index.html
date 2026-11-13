@@ -42,15 +42,12 @@
     <!-- Fontes hospedadas no próprio site (@font-face em src/index.css): sem terceiros e sem enviar o IP ao Google -->
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/hero-poster.webp?v=ldc9" as="image" type="image/webp" fetchpriority="high" />
 
-    <!-- Otimização de carregamento rápido de imagens CDN -->
-    <link rel="preconnect" href="https://wsrv.nl" crossorigin />
+    <!-- DNS prefetch para fallback externos secundários (sem bloquear conexões iniciais em redes móveis) -->
     <link rel="dns-prefetch" href="https://wsrv.nl" />
-    <link rel="preconnect" href="https://i.ibb.co" crossorigin />
     <link rel="dns-prefetch" href="https://i.ibb.co" />
-    <link rel="preconnect" href="https://store.storeimages.cdn-apple.com" crossorigin />
     <link rel="dns-prefetch" href="https://store.storeimages.cdn-apple.com" />
-    <link rel="preconnect" href="https://images.unsplash.com" />
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
 
     <!-- Schema.org JSON-LD para Google Search & Local SEO (#1 Google) -->

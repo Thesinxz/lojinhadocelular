@@ -95,8 +95,12 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-3">
               <img
-                src="/images/logo-icon.png"
+                src="/images/logo-icon-nav.webp"
                 alt="Lojinha do Celular"
+                width={25}
+                height={36}
+                loading="lazy"
+                decoding="async"
                 className="h-9 w-auto object-contain"
               />
               <div className="leading-tight">

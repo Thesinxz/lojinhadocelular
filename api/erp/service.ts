@@ -23,6 +23,33 @@ export function setErpCacheForTesting(products: ShopProduct[], cachedAt = Date.n
   };
 }
 
+/**
+ * Leitura síncrona do catálogo ERP apenas se o cache em memória ainda estiver
+ * válido dentro do TTL. Nunca dispara fetch remoto nem serve estoque expirado.
+ */
+export function getCachedErpCatalogIfWarm(): ErpFetchResult | null {
+  if (!env.erpCatalogEnabled || !cache) return null;
+  if (Date.now() - cache.cachedAt >= CACHE_TTL_MS) return null;
+  return {
+    status: cache.data.length > 0 ? "ok" : "empty",
+    products: cache.data,
+    cachedAt: cache.cachedAt,
+  };
+}
+
+/**
+ * Aquece o catálogo ERP em segundo plano na subida do servidor para evitar
+ * espera extra na primeira visita.
+ */
+export async function warmUpErpCatalog(): Promise<void> {
+  if (!env.erpCatalogEnabled) return;
+  try {
+    await getErpCatalog();
+  } catch {
+    // Falhas já são tratadas na rotina padrão do catálogo.
+  }
+}
+
 async function loadErpCatalog(): Promise<ErpFetchResult> {
   // Se o ERP não estiver habilitado
   if (!env.erpCatalogEnabled) {

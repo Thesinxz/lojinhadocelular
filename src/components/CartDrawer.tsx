@@ -3,7 +3,7 @@ import { X, Plus, Minus, Trash2, ShoppingBag, ShieldCheck, Gift, ArrowRight } fr
 import { useCart } from "@/lib/cart";
 import { useShopSettings, waLink, optimizeImageUrl } from "@/lib/shop";
 import { formatBRL, installmentFromFees } from "@contracts/types";
-import { WhatsAppIcon } from "./WhatsAppModal";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 import {
   formatCommercialProductName,
   formatCommercialSku,

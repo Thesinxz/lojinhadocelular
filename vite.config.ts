@@ -16,7 +16,8 @@ export default defineConfig({
     react(),
     legacy({
       targets: ["defaults", "not IE 11", "iOS >= 12", "Safari >= 12", "Chrome >= 64", "Edge >= 18"],
-      modernPolyfills: true,
+      modernTargets: ["edge>=109", "firefox>=115", "chrome>=109", "safari>=15", "chromeAndroid>=109", "iOS>=15"],
+      modernPolyfills: false,
       renderLegacyChunks: true,
     }),
   ],
@@ -35,13 +36,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
-    target: ["es2018", "edge18", "firefox60", "chrome64", "safari12"],
-    cssTarget: ["safari12", "chrome64", "firefox60"],
+    target: ["es2020", "edge109", "firefox115", "chrome109", "safari15"],
+    cssTarget: ["safari15", "chrome109", "firefox115"],
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ["react", "react-dom", "react-router"],
-          query: ["@tanstack/react-query", "@trpc/client", "@trpc/react-query"],
+          vendor: ["react", "react/jsx-runtime", "react-dom", "react-dom/client"],
+          router: ["react-router"],
+          query: ["@tanstack/react-query", "@trpc/client", "@trpc/react-query", "superjson"],
           icons: ["lucide-react"],
         },
       },

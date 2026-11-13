@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { useShopSettings, waLink } from "@/lib/shop";
-import { WhatsAppIcon } from "@/components/WhatsAppModal";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 export default function Privacidade() {
   const s = useShopSettings();
