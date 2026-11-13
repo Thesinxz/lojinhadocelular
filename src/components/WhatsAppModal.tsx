@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { X, MapPin, ExternalLink } from "lucide-react";
 import { useShopSettings, waLink } from "@/lib/shop";
 import { useWhatsAppModal } from "@/lib/whatsappModal";
@@ -9,12 +10,24 @@ export default function WhatsAppModal() {
   const s = useShopSettings();
   const { isOpen, customMessage, close } = useWhatsAppModal();
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, close]);
+
   if (!isOpen) return null;
 
   const defaultMsg = customMessage || "Olá! Vim pelo site da Lojinha do Celular e gostaria de tirar uma dúvida.";
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Falar no WhatsApp"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:items-center sm:pb-4 animate-in fade-in duration-200"
       onClick={close}
     >

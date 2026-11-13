@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { X, Plus, Minus, Trash2, ShoppingBag, ShieldCheck, Gift, ArrowRight } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { usePreferredStoreUnit } from "@/lib/storeUnit";
 import { useShopSettings, waLink, optimizeImageUrl } from "@/lib/shop";
 import { formatBRL, installmentFromFees } from "@contracts/types";
 import { WhatsAppIcon } from "./WhatsAppIcon";
@@ -22,7 +23,16 @@ export default function CartDrawer() {
   } = useCart();
 
   const s = useShopSettings();
-  const [selectedUnit, setSelectedUnit] = useState<"jardim" | "gll">("jardim");
+  const [selectedUnit, setSelectedUnit] = usePreferredStoreUnit();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeCart();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, closeCart]);
 
   const targetWhatsApp =
     selectedUnit === "jardim"
@@ -52,6 +62,9 @@ export default function CartDrawer() {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sacola de compras"
       className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={closeCart}
     >
@@ -183,25 +196,25 @@ export default function CartDrawer() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-2 py-0.5 shadow-2xs">
+                        <div className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-1 py-0.5 shadow-2xs">
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="text-neutral-500 hover:text-black transition p-0.5 cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-100 hover:text-black transition cursor-pointer"
                             aria-label="Diminuir quantidade"
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-3.5 w-3.5" />
                           </button>
-                          <span className="text-xs font-bold text-neutral-800 min-w-[14px] text-center">
+                          <span className="text-xs font-bold text-neutral-800 min-w-[18px] text-center">
                             {item.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="text-neutral-500 hover:text-black transition p-0.5 cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-100 hover:text-black transition cursor-pointer"
                             aria-label="Aumentar quantidade"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
@@ -224,7 +237,7 @@ export default function CartDrawer() {
             </div>
 
             {/* Rodapé com Resumo Financeiro e Fechamento no WhatsApp */}
-            <div className="border-t border-neutral-100 bg-white p-5 space-y-4 shadow-[0_-4px_16px_rgba(0,0,0,0.03)]">
+            <div className="border-t border-neutral-100 bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] space-y-4 shadow-[0_-4px_16px_rgba(0,0,0,0.03)]">
               {/* Seleção da Unidade para Retirada ou Entrega */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">

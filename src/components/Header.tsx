@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Menu, X, ShoppingBag } from "lucide-react";
 import { openWhatsAppModal } from "@/lib/whatsappModal";
@@ -10,6 +10,15 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { totalItems, openCart } = useCart();
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   const isTrocaFacilDomain =
     typeof window !== "undefined" && window.location.hostname.includes("trocafacil");
@@ -139,7 +148,7 @@ export default function Header() {
             <button
               type="button"
               onClick={openCart}
-              className="relative flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
               aria-label="Abrir sacola de compras"
             >
               <ShoppingBag className="h-4 w-4" />
@@ -153,7 +162,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => openWhatsAppModal("Olá! Vim pelo site da Lojinha do Celular.")}
-              className="bg-[#25D366] hover:bg-[#20ba59] text-white rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer"
+              className="bg-[#25D366] hover:bg-[#20ba59] text-white rounded-full px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer"
               aria-label="Falar no WhatsApp"
             >
               <WhatsAppIcon className="h-3.5 w-3.5 fill-white" />
@@ -162,8 +171,9 @@ export default function Header() {
 
             <button
               type="button"
-              className="rounded-lg border border-neutral-200 bg-neutral-100 p-2 text-neutral-700 hover:bg-neutral-200 transition cursor-pointer"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition cursor-pointer"
               onClick={() => setOpen(!open)}
+              aria-expanded={open}
               aria-label={open ? "Fechar menu" : "Abrir menu"}
             >
               {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
