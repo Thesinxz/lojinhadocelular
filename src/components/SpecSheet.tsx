@@ -27,10 +27,60 @@ export function PerformanceBar({
   );
 }
 
-/** Ficha técnica do modelo na página do produto. Não renderiza nada se o modelo não tiver ficha. */
-export default function SpecSheet({ productName }: { productName: string }) {
+export type SpecSheetProps = {
+  productName: string;
+  brand?: string;
+  categoryLabel?: string;
+  conditionLabel?: string;
+  notes?: string | null;
+  warranty?: string | null;
+};
+
+/** Ficha técnica do modelo na página do produto, com fallback comercial para marcas Android, iPad e acessórios. */
+export default function SpecSheet({
+  productName,
+  brand,
+  categoryLabel,
+  conditionLabel,
+  notes,
+  warranty,
+}: SpecSheetProps) {
   const sp = getIphoneSpecs(detectIphoneModel(productName)?.name);
-  if (!sp) return null;
+
+  if (!sp) {
+    const summaryRows: [string, string][] = [];
+    if (brand?.trim()) summaryRows.push(["Marca", brand.trim()]);
+    if (categoryLabel?.trim()) summaryRows.push(["Categoria", categoryLabel.trim()]);
+    if (conditionLabel?.trim()) summaryRows.push(["Condição", conditionLabel.trim()]);
+    if (warranty?.trim()) summaryRows.push(["Garantia", warranty.trim()]);
+    if (notes?.trim()) summaryRows.push(["Observações", notes.trim()]);
+
+    if (summaryRows.length === 0) return null;
+
+    return (
+      <div className="mt-5 rounded-2xl border border-neutral-200/90 bg-white p-4">
+        <h3 className="font-display text-sm font-bold text-neutral-900">
+          Detalhes e procedência
+        </h3>
+        <dl className="mt-3 divide-y divide-neutral-100 text-sm">
+          {summaryRows.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-start justify-between gap-4 py-2"
+            >
+              <dt className="shrink-0 text-neutral-500">{label}</dt>
+              <dd className="text-right font-semibold text-neutral-900">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 text-[11px] text-neutral-400">
+          Conferido presencialmente pela equipe antes da entrega em Jardim e Guia Lopes.
+        </p>
+      </div>
+    );
+  }
 
   const rows: [string, string][] = [
     ["Processador", sp.chip],
