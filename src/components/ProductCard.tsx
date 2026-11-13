@@ -7,6 +7,8 @@ import {
   Smartphone,
   Check,
   MessageCircle,
+  Scale,
+  MapPin,
 } from "lucide-react";
 import type { ProductWithVariants } from "@/providers/trpc";
 import {
@@ -27,6 +29,12 @@ import { useShopSettings, waLink } from "@/lib/shop";
 import { formatCommercialSku } from "@/lib/commercialFormatting";
 import { createProductShareSlug } from "@/lib/productUrls";
 import { prefetchProductRoute } from "@/lib/routePrefetch";
+import { selectProductCardBadges } from "@/lib/vitrineFilters";
+import {
+  getPreferredStoreUnitSnapshot,
+  resolveCartUnitFromAvailability,
+  setPreferredStoreUnit,
+} from "@/lib/storeUnit";
 
 export default function ProductCard({
   product,
@@ -75,6 +83,12 @@ export default function ProductCard({
   const isSeminovo =
     product.condition === "seminovo" || product.category === "iphone_seminovo";
 
+  const { photoBadges, unitTag } = selectProductCardBadges({
+    featured: product.featured,
+    isSeminovo,
+    unitAvailability: product.unitAvailability,
+  });
+
   const { addItem } = useCart();
   const compare = useCompare();
   const inCompare = compare.has(product.id);
@@ -88,6 +102,13 @@ export default function ProductCard({
     const defaultVariant =
       product.variants.find(v => v.available && (v.quantity ?? 1) > 0) ??
       product.variants[0];
+
+    const resolvedUnit = resolveCartUnitFromAvailability(
+      (defaultVariant as { unitAvailability?: string | null } | undefined)?.unitAvailability ??
+        product.unitAvailability,
+      getPreferredStoreUnitSnapshot()
+    );
+    setPreferredStoreUnit(resolvedUnit);
 
     const conditionLabel =
       product.condition === "lacrado" || defaultVariant?.condition === "lacrado"
@@ -160,50 +181,59 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* Badges superiores exatamente como na BLK Store */}
-        <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-col items-start gap-1 pointer-events-none">
-          {/* Badge de Promoção Vermelha quando produto está marcado como destaque/promoção */}
-          {Boolean(product.featured) && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white shadow-xs animate-in fade-in">
-              <Flame className="h-3 w-3 fill-white" />
-              PROMOÇÃO
-            </span>
-          )}
-
-          {/* Badge de Condição */}
-          {isSeminovo ? (
-            <span className="rounded-full border border-neutral-200 bg-white/95 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-neutral-800 shadow-xs backdrop-blur-sm">
-              Seminovo
-            </span>
-          ) : (
-            <span className="rounded-full bg-[#1d1d1f] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-white shadow-xs">
-              Lacrado
-            </span>
-          )}
-
-          {/* Badge de Unidade / Loja */}
-          {product.unitAvailability === "guia_lopes" && (
-            <span className="rounded-full border border-amber-300 bg-amber-500 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-xs">
-              📍 Guia Lopes
-            </span>
-          )}
-          {product.unitAvailability === "ambas" && (
-            <span className="rounded-full border border-emerald-300 bg-emerald-600 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white shadow-xs">
-              📍 2 Lojas
-            </span>
+        {/* Máximo 2 selos no canto da foto para evitar poluição no mobile */}
+        <div className="absolute left-2.5 top-2.5 right-2.5 z-10 flex flex-wrap items-start gap-1 pointer-events-none">
+          {photoBadges.map(badge =>
+            badge.kind === "promo" ? (
+              <span
+                key={badge.label}
+                className="inline-flex items-center gap-1 rounded-full bg-[#ff3b30] px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white shadow-xs animate-in fade-in"
+              >
+                <Flame className="h-3 w-3 fill-white" />
+                {badge.label}
+              </span>
+            ) : isSeminovo ? (
+              <span
+                key={badge.label}
+                className="rounded-full border border-neutral-200 bg-white/95 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-neutral-800 shadow-xs backdrop-blur-sm"
+              >
+                {badge.label}
+              </span>
+            ) : (
+              <span
+                key={badge.label}
+                className="rounded-full bg-[#1d1d1f] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-white shadow-xs"
+              >
+                {badge.label}
+              </span>
+            )
           )}
         </div>
       </div>
 
       {/* Conteúdo do Card */}
       <div className="flex flex-1 flex-col pt-3">
-        {/* Marca & Paleta de Cores */}
-        <div className="flex items-center justify-between gap-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-            {product.brand}
-          </span>
+        {/* Marca, Unidade & Paleta de Cores */}
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+              {product.brand}
+            </span>
+            {unitTag && (
+              <span
+                className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                  unitTag === "Guia Lopes"
+                    ? "bg-amber-50 text-amber-700 border border-amber-200/80"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                }`}
+              >
+                <MapPin className="h-2.5 w-2.5" />
+                <span>{unitTag}</span>
+              </span>
+            )}
+          </div>
           {colors.length > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {colors.slice(0, 4).map(c => (
                 <span
                   key={c.color}
@@ -234,19 +264,23 @@ export default function ProductCard({
           {price != null ? (
             <>
               <div>
-                <span className="text-xl sm:text-2xl font-black tracking-tight text-neutral-950">
+                <span className="text-lg sm:text-2xl font-black tracking-tight text-neutral-950">
                   {formatBRL(price)}
                 </span>
               </div>
               <p className="mt-0.5 text-[11px] text-neutral-500">
-                à vista no Pix · 12% de desconto aplicado
+                à vista no Pix
+                <span className="hidden sm:inline"> · 12% de desconto aplicado</span>
               </p>
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-600">
                 ou {interestFreeInstallments}x de{" "}
                 <span className="font-semibold text-neutral-800">
                   {formatBRL(installment12 ?? 0)}
                 </span>{" "}
-                sem juros{installmentsMax > 12 && " · acima de 12x, com juros"}
+                sem juros
+                {installmentsMax > 12 && (
+                  <span className="hidden sm:inline"> · acima de 12x, com juros</span>
+                )}
               </p>
             </>
           ) : (
@@ -255,8 +289,8 @@ export default function ProductCard({
             </p>
           )}
 
-          {/* Botão Azul Adicionar */}
-          <div className="mt-3">
+          {/* CTA Principal + Botão Compacto de Comparar */}
+          <div className="mt-3 flex items-center gap-1.5">
             {price == null ? (
               <a
                 href={waLink(
@@ -266,19 +300,19 @@ export default function ProductCard({
                 target="_blank"
                 rel="noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="w-full rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
+                className="flex-1 min-h-[40px] rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white py-2 px-3 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
               >
-                <MessageCircle className="h-4 w-4" />
-                <span>Consultar previsão</span>
+                <MessageCircle className="h-4 w-4 shrink-0" />
+                <span className="truncate">Consultar</span>
               </a>
             ) : (
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="w-full rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs cursor-pointer"
+                className="flex-1 min-h-[40px] rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white py-2 px-3 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-xs cursor-pointer"
               >
-                <Plus className="h-4 w-4" />
-                <span>Adicionar</span>
+                <Plus className="h-4 w-4 shrink-0" />
+                <span className="truncate">Sacola</span>
               </button>
             )}
             <button
@@ -290,24 +324,31 @@ export default function ProductCard({
               }}
               disabled={!inCompare && compare.isFull}
               aria-pressed={inCompare}
-              className={`mt-2 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              aria-label={
+                inCompare
+                  ? `Remover ${product.name} da comparação`
+                  : compare.isFull
+                    ? "Máximo de 3 aparelhos na comparação"
+                    : `Comparar ${product.name}`
+              }
+              title={
+                inCompare
+                  ? "Na comparação"
+                  : compare.isFull
+                    ? "Máx. 3 aparelhos"
+                    : "Comparar"
+              }
+              className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
                 inCompare
                   ? "border-[#0071e3] bg-[#eef5ff] text-[#0066cc]"
                   : "border-neutral-200 text-neutral-600 hover:border-neutral-400 hover:text-neutral-900"
               }`}
             >
               {inCompare ? (
-                <Check className="h-3.5 w-3.5" />
+                <Check className="h-4 w-4" />
               ) : (
-                <Plus className="h-3.5 w-3.5" />
+                <Scale className="h-4 w-4" />
               )}
-              <span>
-                {inCompare
-                  ? "Na comparação"
-                  : compare.isFull
-                    ? "Máx. 3 aparelhos"
-                    : "Comparar"}
-              </span>
             </button>
           </div>
         </div>

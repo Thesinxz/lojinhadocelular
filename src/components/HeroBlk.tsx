@@ -117,7 +117,7 @@ export default function HeroBlk() {
   return (
     <section
       onClick={handleManualPlay}
-      className="relative flex min-h-[580px] sm:min-h-[640px] md:min-h-[700px] flex-col items-center justify-center overflow-hidden bg-neutral-950 px-4 py-12 sm:py-16 text-center select-none"
+      className="relative flex min-h-[430px] sm:min-h-[580px] md:min-h-[680px] flex-col items-center justify-center overflow-hidden bg-neutral-950 px-4 py-10 sm:py-16 text-center select-none"
     >
       {/* Elemento LCP real em WebP ultraleve, visível imediatamente antes do streaming do vídeo */}
       <picture
@@ -158,16 +158,16 @@ export default function HeroBlk() {
 
       {/* Conteúdo centralizado e perfeitamente enquadrado para celular */}
       <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center px-2 sm:px-4">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl drop-shadow-md leading-tight sm:leading-tight">
+        <h1 className="font-display text-[1.85rem] leading-[1.12] font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl drop-shadow-md sm:leading-tight">
           Seu próximo iPhone é aqui na Lojinha.
         </h1>
-        <p className="mx-auto mt-3 sm:mt-4 max-w-2xl text-sm sm:text-lg md:text-xl text-white/90 drop-shadow-sm font-medium leading-relaxed">
+        <p className="mx-auto mt-2.5 sm:mt-4 max-w-2xl text-sm sm:text-lg md:text-xl text-white/90 drop-shadow-sm font-medium leading-relaxed">
           iPhones lacrados e seminovos com garantia e procedência, pronta entrega e
           assistência técnica em Jardim e Guia Lopes.
         </p>
 
         {/* Botões de conversão com medidas ideais para não truncar palavras no celular */}
-        <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:gap-4">
+        <div className="mt-5 sm:mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
           <a
             href="#vitrine"
             onClick={(e) => e.stopPropagation()}
