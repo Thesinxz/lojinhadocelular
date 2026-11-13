@@ -253,7 +253,7 @@ export default function AdminProductEditor({
     }));
   }
 
-  const products = trpc.admin.products.useQuery();
+  const products = trpc.admin.products.useQuery(undefined, { staleTime: 60_000 });
   const upsert = trpc.admin.upsertProduct.useMutation({
     onSuccess: () => {
       utils.admin.products.invalidate();
