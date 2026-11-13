@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import AdminCommandPalette from "@/components/admin/AdminCommandPalette";
+import { prefetchAdminRoute } from "@/lib/adminPrefetch";
 import { useNewEvaluationAlert } from "@/hooks/useNewEvaluationAlert";
 import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 import { useAdminSession, useAdminUnit } from "@/lib/adminSession";
@@ -209,7 +210,15 @@ export default function AdminLayout() {
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Menu do painel">
           {items.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={sidebarLink}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={sidebarLink}
+              onMouseEnter={() => prefetchAdminRoute(item.to)}
+              onFocus={() => prefetchAdminRoute(item.to)}
+              onTouchStart={() => prefetchAdminRoute(item.to)}
+            >
               <item.icon className="h-4 w-4 shrink-0" />
               <span>{item.label}</span>
               {item.to === "/admin/avaliacoes" && <PendingBadge count={pending} />}
@@ -226,7 +235,13 @@ export default function AdminLayout() {
           )}
         </nav>
         <div className="space-y-1 border-t border-[#e5e5e7] p-3">
-          <NavLink to="/admin/conta" className={sidebarLink}>
+          <NavLink
+            to="/admin/conta"
+            className={sidebarLink}
+            onMouseEnter={() => prefetchAdminRoute("/admin/conta")}
+            onFocus={() => prefetchAdminRoute("/admin/conta")}
+            onTouchStart={() => prefetchAdminRoute("/admin/conta")}
+          >
             <UserCircle className="h-4 w-4 shrink-0" />
             <span className="min-w-0">
               <span className="block truncate">{user?.name}</span>
@@ -256,13 +271,14 @@ export default function AdminLayout() {
       <div className="lg:pl-64">
         {/* Barra superior */}
         <header className="sticky top-0 z-20 border-b border-[#e5e5e7] bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
-          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 lg:h-16 lg:px-8">
-            <h1 className="truncate font-display text-lg font-bold tracking-tight lg:text-xl">{title}</h1>
+          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 lg:h-16 lg:px-8">
+            <h1 className="min-w-0 truncate font-display text-base font-bold tracking-tight sm:text-lg lg:text-xl">{title}</h1>
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               title="Buscar (⌘K / Ctrl+K)"
-              className="ml-auto flex h-11 items-center gap-2 rounded-xl border border-[#e5e5e7] px-3 text-sm font-medium text-[#6e6e73] hover:bg-[#f5f5f7]"
+              aria-label="Buscar no painel"
+              className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[#e5e5e7] px-2.5 text-sm font-medium text-[#6e6e73] hover:bg-[#f5f5f7] sm:h-11 sm:px-3"
             >
               <Search className="h-4 w-4" />
               <span className="hidden sm:inline">Buscar</span>
@@ -280,7 +296,7 @@ export default function AdminLayout() {
                       ? "Avisos do navegador ligados"
                       : "Ativar avisos do navegador"
                 }
-                className={`flex h-11 w-11 items-center justify-center rounded-xl border hover:bg-[#f5f5f7] ${
+                className={`hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl border hover:bg-[#f5f5f7] sm:flex ${
                   browserNotifications.active
                     ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3]"
                     : "border-[#e5e5e7] text-[#6e6e73]"
@@ -297,15 +313,15 @@ export default function AdminLayout() {
               onClick={toggleSound}
               aria-pressed={soundOn}
               title={soundOn ? "Som de nova avaliação ligado" : "Som de nova avaliação desligado"}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e5e5e7] text-[#6e6e73] hover:bg-[#f5f5f7]"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#e5e5e7] text-[#6e6e73] hover:bg-[#f5f5f7] sm:flex"
             >
               {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
               <span className="sr-only">{soundOn ? "Desligar som de nova avaliação" : "Ligar som de nova avaliação"}</span>
             </button>
-            <div className="hidden lg:block">
+            <div className="hidden shrink-0 lg:block">
               <UnitSelect />
             </div>
-            <div className="lg:hidden">
+            <div className="shrink-0 lg:hidden">
               <UnitSelect compact />
             </div>
           </div>
@@ -334,6 +350,9 @@ export default function AdminLayout() {
               key={item.to}
               to={item.to}
               end={item.end}
+              onMouseEnter={() => prefetchAdminRoute(item.to)}
+              onFocus={() => prefetchAdminRoute(item.to)}
+              onTouchStart={() => prefetchAdminRoute(item.to)}
               className={({ isActive }) =>
                 `relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition ${
                   isActive ? "text-[#1d1d1f]" : "text-[#86868b]"
@@ -374,13 +393,63 @@ export default function AdminLayout() {
           </SheetHeader>
           <div className="space-y-1 px-3">
             {moreItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={sidebarLink} onClick={() => setMoreOpen(false)}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={sidebarLink}
+                onMouseEnter={() => prefetchAdminRoute(item.to)}
+                onFocus={() => prefetchAdminRoute(item.to)}
+                onTouchStart={() => prefetchAdminRoute(item.to)}
+                onClick={() => setMoreOpen(false)}
+              >
                 <item.icon className="h-4 w-4" /> {item.label}
               </NavLink>
             ))}
-            <NavLink to="/admin/conta" className={sidebarLink} onClick={() => setMoreOpen(false)}>
+            <NavLink
+              to="/admin/conta"
+              className={sidebarLink}
+              onMouseEnter={() => prefetchAdminRoute("/admin/conta")}
+              onFocus={() => prefetchAdminRoute("/admin/conta")}
+              onTouchStart={() => prefetchAdminRoute("/admin/conta")}
+              onClick={() => setMoreOpen(false)}
+            >
               <UserCircle className="h-4 w-4" /> Minha conta
             </NavLink>
+            <div className="space-y-1 border-t border-[#e5e5e7] pt-1 sm:hidden">
+              {browserNotifications.supported && (
+                <button
+                  type="button"
+                  onClick={toggleBrowserNotifications}
+                  aria-pressed={browserNotifications.active}
+                  className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-sm font-semibold transition hover:bg-[#f5f5f7] ${
+                    browserNotifications.active ? "text-[#0071e3]" : "text-[#6e6e73]"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <BellRing className="h-4 w-4" /> Avisos do navegador
+                  </span>
+                  <span className="text-xs font-medium text-[#86868b]">
+                    {browserNotifications.permission === "denied"
+                      ? "Bloqueado"
+                      : browserNotifications.active
+                        ? "Ligados"
+                        : "Desligados"}
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={toggleSound}
+                aria-pressed={soundOn}
+                className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-sm font-semibold text-[#6e6e73] transition hover:bg-[#f5f5f7]"
+              >
+                <span className="flex items-center gap-3">
+                  {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                  Som de avaliações
+                </span>
+                <span className="text-xs font-medium text-[#86868b]">{soundOn ? "Ligado" : "Desligado"}</span>
+              </button>
+            </div>
             {(installPrompt || isAppleMobile) && (
               <button
                 type="button"
