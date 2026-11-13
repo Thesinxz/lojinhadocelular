@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { EVALUATION_STATUSES, REFUSAL_REASONS, type EvaluationStatus } from "@contracts/types";
 import { trpc } from "@/providers/trpc";
 import { useAdminSession, useAdminUnit } from "@/lib/adminSession";
+import { applyOptimisticEvaluationClaim } from "@/lib/adminOptimistic";
 import EvaluationFilters from "@/components/admin/evaluations/EvaluationFilters";
 import BatchReceiptDialog from "@/components/admin/evaluations/BatchReceiptDialog";
 import EvaluationListItem from "@/components/admin/evaluations/EvaluationListItem";
@@ -54,20 +55,22 @@ export default function EvaluationsPage() {
   }
 
   const unitFilter = unit === "todas" ? undefined : unit;
+  const listInput = {
+    page,
+    pageSize: PAGE_SIZE,
+    status: status === "todos" ? undefined : status,
+    search,
+    unit: unitFilter,
+    assigned,
+    late,
+    includePhotos: false,
+  };
 
-  const listQuery = trpc.admin.evaluationsPage.useQuery(
-    {
-      page,
-      pageSize: PAGE_SIZE,
-      status: status === "todos" ? undefined : status,
-      search,
-      unit: unitFilter,
-      assigned,
-      late,
-      includePhotos: false,
-    },
-    { staleTime: 1000 * 30, refetchInterval: 1000 * 60, placeholderData: (prev) => prev },
-  );
+  const listQuery = trpc.admin.evaluationsPage.useQuery(listInput, {
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
+    placeholderData: (prev) => prev,
+  });
   const summaryQuery = trpc.admin.evaluationSummary.useQuery(
     { unit: unitFilter },
     { staleTime: 1000 * 30, refetchInterval: 1000 * 60 },
@@ -75,9 +78,24 @@ export default function EvaluationsPage() {
 
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const claimMutation = trpc.admin.evaluationClaim.useMutation({
-    onMutate: ({ id }) => setClaimingId(id),
+    onMutate: async ({ id }) => {
+      setClaimingId(id);
+      await utils.admin.evaluationsPage.cancel(listInput);
+      const prev = utils.admin.evaluationsPage.getData(listInput);
+      if (user) {
+        utils.admin.evaluationsPage.setData(listInput, (cur) =>
+          applyOptimisticEvaluationClaim(cur, id, { id: user.id, name: user.name }),
+        );
+      }
+      return { prev };
+    },
     onSuccess: () => toast.success("Avaliação é sua agora."),
-    onError: (error) => toast.error(error.message),
+    onError: (error, _vars, ctx) => {
+      if (ctx?.prev !== undefined) {
+        utils.admin.evaluationsPage.setData(listInput, ctx.prev);
+      }
+      toast.error(error.message);
+    },
     onSettled: () => {
       setClaimingId(null);
       utils.admin.evaluationsPage.invalidate();
@@ -114,7 +132,7 @@ export default function EvaluationsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <p className="text-sm text-[#6e6e73]">
           {summaryQuery.data ? (
             <>
@@ -208,7 +226,7 @@ export default function EvaluationsPage() {
         <div
           role="region"
           aria-label="Ações em lote"
-          className="sticky bottom-3 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-[#e5e5e7] bg-white p-3 shadow-lg"
+          className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-[#e5e5e7] bg-white p-3 shadow-lg lg:bottom-3"
         >
           <strong className="mr-1 text-sm text-[#1d1d1f]">{selected.length} selecionada(s)</strong>
           <button

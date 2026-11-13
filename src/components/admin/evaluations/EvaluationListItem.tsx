@@ -2,6 +2,8 @@ import { Link } from "react-router";
 import { ChevronRight, Hand, Loader2, MapPin, Smartphone } from "lucide-react";
 import { formatBRL } from "@contracts/types";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
+import { prefetchEvaluationDetailRoute } from "@/lib/adminPrefetch";
+import { trpc } from "@/providers/trpc";
 import AssigneeBadge from "./AssigneeBadge";
 import { STATUS_CONFIG, timeAgo, unitLabel, type EvaluationRow } from "./evaluationUi";
 
@@ -23,9 +25,14 @@ export default function EvaluationListItem({
   selected = false,
   onToggleSelect,
 }: EvaluationListItemProps) {
+  const utils = trpc.useUtils();
   const status = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pendente;
   const thumbUrl = getIphoneModelColorImage(detectIphoneModel(item.model), item.color ?? undefined);
   const device = [item.model, item.storage, item.color].filter(Boolean).join(" · ");
+  const handlePrefetch = () => {
+    prefetchEvaluationDetailRoute();
+    void utils.admin.evaluationDetail.prefetch({ id: item.id }, { staleTime: 15_000 });
+  };
 
   return (
     <li
@@ -46,6 +53,9 @@ export default function EvaluationListItem({
       )}
       <Link
         to={`/admin/avaliacoes/${item.id}`}
+        onMouseEnter={handlePrefetch}
+        onFocus={handlePrefetch}
+        onTouchStart={handlePrefetch}
         className={`flex items-start gap-3 p-4 pr-10 sm:gap-4 ${
           item.assignedUserId === null ? "pb-16 sm:pb-4 sm:pr-36" : ""
         }`}

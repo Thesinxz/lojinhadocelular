@@ -317,7 +317,7 @@ function ResetPasswordDialog({ target, onClose }: { target: AdminUserRow | null;
 export default function UsersPage() {
   const { user: me } = useAdminSession();
   const utils = trpc.useUtils();
-  const users = trpc.admin.users.list.useQuery();
+  const users = trpc.admin.users.list.useQuery(undefined, { staleTime: 60_000 });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUserRow | null>(null);
   const [dialogKey, setDialogKey] = useState(0);

@@ -19,6 +19,7 @@ import { loyaltyApplies, declaredLojinhaPurchase } from "@contracts/loyalty";
 import { formatBRL, type EvaluationPhotoItem, type EvaluationStatus } from "@contracts/types";
 import { trpc } from "@/providers/trpc";
 import { useAdminSession } from "@/lib/adminSession";
+import { applyOptimisticEvaluationDetailPatch } from "@/lib/adminOptimistic";
 import { detectIphoneModel, getIphoneModelColorImage } from "@/lib/iphoneCatalog";
 import { compressImage, fileToDataUrl } from "@/lib/imageCompressor";
 import { buildWhatsappLink } from "@/lib/whatsappTemplates";
@@ -142,9 +143,14 @@ export default function EvaluationDetailPage() {
   const utils = trpc.useUtils();
   const canAssign = can("evaluations.assign");
 
-  const detailQuery = trpc.admin.evaluationDetail.useQuery({ id }, { enabled: validId, retry: 1 });
+  const detailQuery = trpc.admin.evaluationDetail.useQuery(
+    { id },
+    { enabled: validId, staleTime: 15_000, retry: 1 },
+  );
   const configQuery = trpc.admin.evaluationConfig.useQuery(undefined, { staleTime: 1000 * 60 * 5 });
   const usersQuery = trpc.admin.users.list.useQuery(undefined, { enabled: canAssign, staleTime: 1000 * 60 });
+
+  type DetailCache = ReturnType<typeof utils.admin.evaluationDetail.getData>;
 
   function refresh() {
     utils.admin.evaluationDetail.invalidate({ id });
@@ -152,6 +158,36 @@ export default function EvaluationDetailPage() {
     utils.admin.evaluationSummary.invalidate();
   }
   const onError = (error: { message: string }) => toast.error(error.message);
+
+  function createOptimisticDetailHandlers<TVars>(
+    toPatch: (
+      vars: TVars,
+    ) => Partial<Pick<NonNullable<DetailCache>["evaluation"], "status" | "unit" | "assignedUserId" | "assignedUserName">>,
+    successMessage?: string,
+  ) {
+    return {
+      onMutate: async (vars: TVars) => {
+        await utils.admin.evaluationDetail.cancel({ id });
+        const prev = utils.admin.evaluationDetail.getData({ id });
+        utils.admin.evaluationDetail.setData({ id }, (cur) =>
+          applyOptimisticEvaluationDetailPatch(cur, toPatch(vars)),
+        );
+        return { prev };
+      },
+      ...(successMessage ? { onSuccess: () => toast.success(successMessage) } : {}),
+      onError: (
+        error: { message: string },
+        _vars: TVars,
+        ctx: { prev: DetailCache } | undefined,
+      ) => {
+        if (ctx?.prev !== undefined) {
+          utils.admin.evaluationDetail.setData({ id }, ctx.prev);
+        }
+        toast.error(error.message);
+      },
+      onSettled: refresh,
+    };
+  }
 
   const claim = trpc.admin.evaluationClaim.useMutation({ onSuccess: refresh, onError });
   const assign = trpc.admin.evaluationAssign.useMutation({
@@ -161,13 +197,12 @@ export default function EvaluationDetailPage() {
     },
     onError,
   });
-  const setStatus = trpc.admin.evaluationSetStatus.useMutation({
-    onSuccess: () => {
-      toast.success("Status atualizado.");
-      refresh();
-    },
-    onError,
-  });
+  const setStatus = trpc.admin.evaluationSetStatus.useMutation(
+    createOptimisticDetailHandlers(
+      (vars: { id: number; status: EvaluationStatus }) => ({ status: vars.status }),
+      "Status atualizado.",
+    ),
+  );
   const setValues = trpc.admin.evaluationSetValues.useMutation({
     onSuccess: () => {
       toast.success("Valores salvos.");
@@ -175,7 +210,11 @@ export default function EvaluationDetailPage() {
     },
     onError,
   });
-  const setUnit = trpc.admin.evaluationSetUnit.useMutation({ onSuccess: refresh, onError });
+  const setUnit = trpc.admin.evaluationSetUnit.useMutation(
+    createOptimisticDetailHandlers(
+      (vars: { id: number; unit: "jardim" | "gll" | "" }) => ({ unit: vars.unit }),
+    ),
+  );
   const addNote = trpc.admin.evaluationAddNote.useMutation({ onSuccess: refresh, onError });
   const addPhotos = trpc.admin.addEvaluationPhotos.useMutation({ onSuccess: refresh, onError });
   const migratePhotos = trpc.admin.migrateEvaluationPhotosToS3.useMutation({

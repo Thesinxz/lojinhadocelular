@@ -67,7 +67,7 @@ function readResolvedConfig(raw: string | undefined): ValuationConfig {
 
 export default function AdminSettings() {
   const utils = trpc.useUtils();
-  const query = trpc.admin.getSettings.useQuery();
+  const query = trpc.admin.getSettings.useQuery(undefined, { staleTime: 60_000 });
   const [values, setValues] = useState<Record<string, string>>({});
   const [fees, setFees] = useState<Record<string, string>>({});
   const [heroText, setHeroText] = useState("");
@@ -704,7 +704,7 @@ export default function AdminSettings() {
 
       </div>
 
-      <div className="sticky bottom-0 z-20 -mx-2 flex flex-wrap items-center gap-3 rounded-2xl border border-[#e5e5e7] bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-20 -mx-2 flex flex-wrap items-center gap-3 rounded-2xl border border-[#e5e5e7] bg-white/95 px-4 py-3 shadow-lg backdrop-blur lg:bottom-3">
         <button
           onClick={() => {
             const slaHours = Number(String(values[SETTING_KEYS.evaluationSlaHours] ?? "2").replace(",", "."));
