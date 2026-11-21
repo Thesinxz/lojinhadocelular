@@ -534,7 +534,7 @@ export default function AdminSettings() {
           </Field>
           <Field label="Taxa Débito/PIX (%) — informativa">
             <input
-              value={values[SETTING_KEYS.debitPixFee] ?? "2,39"}
+              value={values[SETTING_KEYS.debitPixFee] ?? "0"}
               onChange={set(SETTING_KEYS.debitPixFee)}
               className={inputCls}
               placeholder="2,39"

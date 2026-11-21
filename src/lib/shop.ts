@@ -29,7 +29,7 @@ export function useShopSettings() {
     mapsGll: s[SETTING_KEYS.mapsGll] ?? "",
     installmentsMax: Number(s[SETTING_KEYS.installmentsMax] ?? "21") || 21,
     fees,
-    debitPixFee: Number(s[SETTING_KEYS.debitPixFee] ?? "2.39") || 0,
+    debitPixFee: Number(s[SETTING_KEYS.debitPixFee] ?? "0") || 0,
     popupEnabled: (s[SETTING_KEYS.popupEnabled] ?? "1") === "1",
     heroImages,
     warrantyBadgeText:

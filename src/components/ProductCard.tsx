@@ -13,7 +13,7 @@ import {
 import type { ProductWithVariants } from "@/providers/trpc";
 import {
   formatBRL,
-  cardPriceFromPix,
+  installmentFromFees,
   type FeeTable,
 } from "@contracts/types";
 import {
@@ -39,6 +39,7 @@ import {
 export default function ProductCard({
   product,
   installmentsMax,
+  fees,
   priority = false,
 }: {
   product: ProductWithVariants;
@@ -50,7 +51,7 @@ export default function ProductCard({
   const colors = availableColors(product);
   const interestFreeInstallments = Math.max(1, Math.min(12, installmentsMax));
   const installment12 = price != null
-    ? Math.round(cardPriceFromPix(price) / interestFreeInstallments)
+    ? installmentFromFees(price, interestFreeInstallments, fees[String(interestFreeInstallments)] ?? 0)
     : null;
 
   const rawBattery =

@@ -21,7 +21,6 @@ import { trpc, type ProductWithVariants, type RouterOutputs } from "@/providers/
 import {
   formatBRL,
   installmentFromFees,
-  cardPriceFromPix,
   CATEGORIES,
 } from "@contracts/types";
 import { useShopSettings, waLink } from "@/lib/shop";
@@ -191,7 +190,7 @@ function ProdutoContent({ parsed }: { parsed: ParsedProductRoute }) {
   const interestFreeInstallments = Math.max(1, Math.min(12, s.installmentsMax));
   const installment12 =
     price != null
-      ? Math.round(cardPriceFromPix(price) / interestFreeInstallments)
+      ? installmentFromFees(price, interestFreeInstallments, s.fees[String(interestFreeInstallments)] ?? 0)
       : null;
 
   const isLacrado =
@@ -640,13 +639,12 @@ function ProdutoContent({ parsed }: { parsed: ParsedProductRoute }) {
                   {showAllInstallments && (
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3.5 text-xs animate-in fade-in-50">
                       {(() => {
-                        const cardPrice = cardPriceFromPix(price);
                         return Array.from(
                           { length: s.installmentsMax },
                           (_, i) => i + 1,
                         ).map((n) => {
-                          const fee = n > 12 ? (s.fees[String(n)] ?? 0) : 0;
-                          const val = installmentFromFees(cardPrice, n, fee);
+                          const fee = s.fees[String(n)] ?? 0;
+                          const val = installmentFromFees(price, n, fee);
                           return (
                             <div
                               key={n}
